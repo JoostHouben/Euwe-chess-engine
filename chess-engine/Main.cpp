@@ -1,7 +1,5 @@
-#include "gtest/gtest.h"
-
 #include "chess-engine-lib/GameState.h"
 
-TEST(FenParsing, TestStartingPosition) {
+int main() {
     GameState startingPosition = GameState::startingPosition();
 }
