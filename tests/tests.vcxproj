@@ -33,7 +33,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ClCompile Include="test.cpp" />
+    <ClCompile Include="GameStateHelpersTests.cpp" />
+    <ClCompile Include="FenParsingTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
