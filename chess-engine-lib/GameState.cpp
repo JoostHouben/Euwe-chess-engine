@@ -119,12 +119,12 @@ namespace {
         return enPassantTarget;
     }
 
-    std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strIt) {
+    std::uint16_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strIt) {
         int plySinceCaptureOrPawn = std::atoi(&*strIt);
         do {
             ++strIt;
         } while (*strIt != ' ');
-        return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
+        return static_cast<std::uint16_t>(plySinceCaptureOrPawn);
     }
 }
 

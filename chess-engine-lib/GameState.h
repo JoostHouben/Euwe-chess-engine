@@ -92,21 +92,21 @@ public:
         return enPassantTarget_;
     }
 
-    std::uint8_t getPlySinceCaptureOrPawn() const {
+    std::uint16_t getPlySinceCaptureOrPawn() const {
         return plySinceCaptureOrPawn_;
     }
 
 private:
     GameState() = default;
 
-    std::array<bool, kNumSides> mayCastleKingSide_ = { false, false };
-    std::array<bool, kNumSides> mayCastleQueenSide_ = { false, false };
-
     Side sideToMove_ = None;
 
     BoardPosition enPassantTarget_ = kInvalidPosition;
 
-    std::uint8_t plySinceCaptureOrPawn_ = 0;
+    std::uint16_t plySinceCaptureOrPawn_ = 0;
+
+    std::array<bool, kNumSides> mayCastleKingSide_ = { false, false };
+    std::array<bool, kNumSides> mayCastleQueenSide_ = { false, false };
 
     std::vector<PiecePosition> pieces_ = {};
 };
