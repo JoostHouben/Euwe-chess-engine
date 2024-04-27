@@ -2,13 +2,13 @@
 
 #pragma warning(disable : 26812)
 
-#include <cstdint>
-
 #include <array>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include <cstdint>
 
 enum Side : std::uint8_t {
     White,

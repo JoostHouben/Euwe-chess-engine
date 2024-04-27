@@ -62,6 +62,9 @@ namespace {
                 file += 1;
             }
             assert((rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' '));
+            if (rank > 0) {
+                ++strIt;
+            }
         }
 
         return pieces;
