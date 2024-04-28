@@ -14,17 +14,17 @@ namespace {
         char upperCase = c & ~kCaseBit;
         switch (upperCase) {
         case 'P':
-            return Pawn;
+            return Piece::Pawn;
         case 'N':
-            return Knight;
+            return Piece::Knight;
         case 'B':
-            return Bishop;
+            return Piece::Bishop;
         case 'R':
-            return Rook;
+            return Piece::Rook;
         case 'Q':
-            return Queen;
+            return Piece::Queen;
         case 'K':
-            return King;
+            return Piece::King;
         default:
             assert(false);
             return Piece{};
@@ -96,10 +96,10 @@ namespace {
             Side side = sideFromFenChar(*strIt);
             Piece piece = pieceFromFenChar(*strIt);
             switch (piece) {
-            case King:
+            case Piece::King:
                 mayCastleKingSide[(std::size_t)side] = true;
                 break;
-            case Queen:
+            case Piece::Queen:
                 mayCastleQueenSide[(std::size_t)side] = true;
                 break;
             default:

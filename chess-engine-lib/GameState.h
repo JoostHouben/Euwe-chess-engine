@@ -17,7 +17,7 @@ enum class Side : std::uint8_t {
 };
 inline constexpr int kNumSides = 2;
 
-enum Piece : std::uint8_t {
+enum class Piece : std::uint8_t {
     Pawn,
     Knight,
     Bishop,
@@ -29,7 +29,7 @@ enum Piece : std::uint8_t {
 enum ColoredPiece : std::uint8_t {};
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
-    return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | piece);
+    return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | (std::uint8_t)piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {

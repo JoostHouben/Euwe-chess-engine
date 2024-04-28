@@ -3,15 +3,15 @@
 #include "gtest/gtest.h"
 
 TEST(GameStateHelpers, TestGetPiece) {
-    ASSERT_EQ(getPiece(getColoredPiece(Bishop, Side::White)), Bishop);
-    ASSERT_EQ(getPiece(getColoredPiece(Knight, Side::Black)), Knight);
-    ASSERT_EQ(getPiece(getColoredPiece(King, Side::None)), King);
+    ASSERT_EQ(getPiece(getColoredPiece(Piece::Bishop, Side::White)), Piece::Bishop);
+    ASSERT_EQ(getPiece(getColoredPiece(Piece::Knight, Side::Black)), Piece::Knight);
+    ASSERT_EQ(getPiece(getColoredPiece(Piece::King, Side::None)), Piece::King);
 }
 
 TEST(GameStateHelpers, TestGetSide) {
-    ASSERT_EQ(getSide(getColoredPiece(Bishop, Side::White)), Side::White);
-    ASSERT_EQ(getSide(getColoredPiece(Knight, Side::Black)), Side::Black);
-    ASSERT_EQ(getSide(getColoredPiece(King, Side::None)), Side::None);
+    ASSERT_EQ(getSide(getColoredPiece(Piece::Bishop, Side::White)), Side::White);
+    ASSERT_EQ(getSide(getColoredPiece(Piece::Knight, Side::Black)), Side::Black);
+    ASSERT_EQ(getSide(getColoredPiece(Piece::King, Side::None)), Side::None);
 }
 
 TEST(GameStateHelpers, TestFileRankFromPosition) {
