@@ -65,7 +65,8 @@ TEST(MoveGeneration, TestMoveStatisticsAt2Ply) {
     EXPECT_EQ(statistics.numCastle, 0);
 }
 
-TEST(MoveGeneration, TestMoveStatisticsAt3Ply) {
+// Slow! ~5s in debug mode (~100 ms in release)
+TEST(MoveGenerationSlow, TestMoveStatisticsAt3Ply) {
     MoveStatistics statistics{};
     countMoveStatisticsAtPly(GameState::startingPosition(), 3, statistics);
     const GameState startingPosition = GameState::startingPosition();
@@ -76,3 +77,14 @@ TEST(MoveGeneration, TestMoveStatisticsAt3Ply) {
     EXPECT_EQ(statistics.numCastle, 0);
 }
 
+// Slow! ~2s in release mode
+TEST(MoveGenerationSlow, TestMoveStatisticsAt4Ply) {
+    MoveStatistics statistics{};
+    countMoveStatisticsAtPly(GameState::startingPosition(), 4, statistics);
+    const GameState startingPosition = GameState::startingPosition();
+
+    EXPECT_EQ(statistics.numMoves, 4'865'609);
+    EXPECT_EQ(statistics.numCaptures, 82'719);
+    EXPECT_EQ(statistics.numEnPassant, 258);
+    EXPECT_EQ(statistics.numCastle, 0);
+}
