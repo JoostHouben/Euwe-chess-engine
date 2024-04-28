@@ -10,41 +10,41 @@ TEST(FenParsing, TestStartingPosition) {
     GameState startingPosition = GameState::startingPosition();
 
     std::set<std::pair<ColoredPiece, std::string>> expectedPiecesAlgebraic {
-        {getColoredPiece(Rook, White), "a1"},
-        {getColoredPiece(Knight, White), "b1"},
-        {getColoredPiece(Bishop, White), "c1"},
-        {getColoredPiece(Queen, White), "d1"},
-        {getColoredPiece(King, White), "e1"},
-        {getColoredPiece(Bishop, White), "f1"},
-        {getColoredPiece(Knight, White), "g1"},
-        {getColoredPiece(Rook, White), "h1"},
+        {getColoredPiece(Rook, Side::White), "a1"},
+        {getColoredPiece(Knight, Side::White), "b1"},
+        {getColoredPiece(Bishop, Side::White), "c1"},
+        {getColoredPiece(Queen, Side::White), "d1"},
+        {getColoredPiece(King, Side::White), "e1"},
+        {getColoredPiece(Bishop, Side::White), "f1"},
+        {getColoredPiece(Knight, Side::White), "g1"},
+        {getColoredPiece(Rook, Side::White), "h1"},
 
-        {getColoredPiece(Pawn, White), "a2"},
-        {getColoredPiece(Pawn, White), "b2"},
-        {getColoredPiece(Pawn, White), "c2"},
-        {getColoredPiece(Pawn, White), "d2"},
-        {getColoredPiece(Pawn, White), "e2"},
-        {getColoredPiece(Pawn, White), "f2"},
-        {getColoredPiece(Pawn, White), "g2"},
-        {getColoredPiece(Pawn, White), "h2"},
+        {getColoredPiece(Pawn, Side::White), "a2"},
+        {getColoredPiece(Pawn, Side::White), "b2"},
+        {getColoredPiece(Pawn, Side::White), "c2"},
+        {getColoredPiece(Pawn, Side::White), "d2"},
+        {getColoredPiece(Pawn, Side::White), "e2"},
+        {getColoredPiece(Pawn, Side::White), "f2"},
+        {getColoredPiece(Pawn, Side::White), "g2"},
+        {getColoredPiece(Pawn, Side::White), "h2"},
 
-        {getColoredPiece(Pawn, Black), "a7"},
-        {getColoredPiece(Pawn, Black), "b7"},
-        {getColoredPiece(Pawn, Black), "c7"},
-        {getColoredPiece(Pawn, Black), "d7"},
-        {getColoredPiece(Pawn, Black), "e7"},
-        {getColoredPiece(Pawn, Black), "f7"},
-        {getColoredPiece(Pawn, Black), "g7"},
-        {getColoredPiece(Pawn, Black), "h7"},
+        {getColoredPiece(Pawn, Side::Black), "a7"},
+        {getColoredPiece(Pawn, Side::Black), "b7"},
+        {getColoredPiece(Pawn, Side::Black), "c7"},
+        {getColoredPiece(Pawn, Side::Black), "d7"},
+        {getColoredPiece(Pawn, Side::Black), "e7"},
+        {getColoredPiece(Pawn, Side::Black), "f7"},
+        {getColoredPiece(Pawn, Side::Black), "g7"},
+        {getColoredPiece(Pawn, Side::Black), "h7"},
 
-        {getColoredPiece(Rook, Black), "a8"},
-        {getColoredPiece(Knight, Black), "b8"},
-        {getColoredPiece(Bishop, Black), "c8"},
-        {getColoredPiece(Queen, Black), "d8"},
-        {getColoredPiece(King, Black), "e8"},
-        {getColoredPiece(Bishop, Black), "f8"},
-        {getColoredPiece(Knight, Black), "g8"},
-        {getColoredPiece(Rook, Black), "h8"},
+        {getColoredPiece(Rook, Side::Black), "a8"},
+        {getColoredPiece(Knight, Side::Black), "b8"},
+        {getColoredPiece(Bishop, Side::Black), "c8"},
+        {getColoredPiece(Queen, Side::Black), "d8"},
+        {getColoredPiece(King, Side::Black), "e8"},
+        {getColoredPiece(Bishop, Side::Black), "f8"},
+        {getColoredPiece(Knight, Side::Black), "g8"},
+        {getColoredPiece(Rook, Side::Black), "h8"},
     };
 
     std::set<PiecePosition> expectedPieces;
@@ -59,12 +59,12 @@ TEST(FenParsing, TestStartingPosition) {
 
     ASSERT_EQ(expectedPieces, actualPieces);
 
-    ASSERT_EQ(startingPosition.getSideToMove(), White);
+    ASSERT_EQ(startingPosition.getSideToMove(), Side::White);
 
-    ASSERT_EQ(startingPosition.canCastleKingSide(White), true);
-    ASSERT_EQ(startingPosition.canCastleQueenSide(White), true);
-    ASSERT_EQ(startingPosition.canCastleKingSide(Black), true);
-    ASSERT_EQ(startingPosition.canCastleQueenSide(Black), true);
+    ASSERT_EQ(startingPosition.canCastleKingSide(Side::White), true);
+    ASSERT_EQ(startingPosition.canCastleQueenSide(Side::White), true);
+    ASSERT_EQ(startingPosition.canCastleKingSide(Side::Black), true);
+    ASSERT_EQ(startingPosition.canCastleQueenSide(Side::Black), true);
 
     ASSERT_EQ(startingPosition.getEnPassantTarget(), kInvalidPosition);
 
@@ -94,40 +94,40 @@ TEST(FenParsing, CastlingRights) {
     std::string blackQueenCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q - 0 1";
 
     GameState noCastling = GameState::fromFen(noCastlingFen);
-    ASSERT_FALSE(noCastling.canCastleKingSide(White));
-    ASSERT_FALSE(noCastling.canCastleQueenSide(White));
-    ASSERT_FALSE(noCastling.canCastleKingSide(Black));
-    ASSERT_FALSE(noCastling.canCastleQueenSide(Black));
+    ASSERT_FALSE(noCastling.canCastleKingSide(Side::White));
+    ASSERT_FALSE(noCastling.canCastleQueenSide(Side::White));
+    ASSERT_FALSE(noCastling.canCastleKingSide(Side::Black));
+    ASSERT_FALSE(noCastling.canCastleQueenSide(Side::Black));
 
     GameState blackCastling = GameState::fromFen(blackCastlingFen);
-    ASSERT_FALSE(blackCastling.canCastleKingSide(White));
-    ASSERT_FALSE(blackCastling.canCastleQueenSide(White));
-    ASSERT_TRUE(blackCastling.canCastleKingSide(Black));
-    ASSERT_TRUE(blackCastling.canCastleQueenSide(Black));
+    ASSERT_FALSE(blackCastling.canCastleKingSide(Side::White));
+    ASSERT_FALSE(blackCastling.canCastleQueenSide(Side::White));
+    ASSERT_TRUE(blackCastling.canCastleKingSide(Side::Black));
+    ASSERT_TRUE(blackCastling.canCastleQueenSide(Side::Black));
 
     GameState whiteCastling = GameState::fromFen(whiteCastlingFen);
-    ASSERT_TRUE(whiteCastling.canCastleKingSide(White));
-    ASSERT_TRUE(whiteCastling.canCastleQueenSide(White));
-    ASSERT_FALSE(whiteCastling.canCastleKingSide(Black));
-    ASSERT_FALSE(whiteCastling.canCastleQueenSide(Black));
+    ASSERT_TRUE(whiteCastling.canCastleKingSide(Side::White));
+    ASSERT_TRUE(whiteCastling.canCastleQueenSide(Side::White));
+    ASSERT_FALSE(whiteCastling.canCastleKingSide(Side::Black));
+    ASSERT_FALSE(whiteCastling.canCastleQueenSide(Side::Black));
 
     GameState kingCastling = GameState::fromFen(kingCastlingFen);
-    ASSERT_TRUE(kingCastling.canCastleKingSide(White));
-    ASSERT_FALSE(kingCastling.canCastleQueenSide(White));
-    ASSERT_TRUE(kingCastling.canCastleKingSide(Black));
-    ASSERT_FALSE(kingCastling.canCastleQueenSide(Black));
+    ASSERT_TRUE(kingCastling.canCastleKingSide(Side::White));
+    ASSERT_FALSE(kingCastling.canCastleQueenSide(Side::White));
+    ASSERT_TRUE(kingCastling.canCastleKingSide(Side::Black));
+    ASSERT_FALSE(kingCastling.canCastleQueenSide(Side::Black));
 
     GameState queenCastling = GameState::fromFen(queenCastlingFen);
-    ASSERT_FALSE(queenCastling.canCastleKingSide(White));
-    ASSERT_TRUE(queenCastling.canCastleQueenSide(White));
-    ASSERT_FALSE(queenCastling.canCastleKingSide(Black));
-    ASSERT_TRUE(queenCastling.canCastleQueenSide(Black));
+    ASSERT_FALSE(queenCastling.canCastleKingSide(Side::White));
+    ASSERT_TRUE(queenCastling.canCastleQueenSide(Side::White));
+    ASSERT_FALSE(queenCastling.canCastleKingSide(Side::Black));
+    ASSERT_TRUE(queenCastling.canCastleQueenSide(Side::Black));
 
     GameState blackQueenCastling = GameState::fromFen(blackQueenCastlingFen);
-    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(White));
-    ASSERT_FALSE(blackQueenCastling.canCastleQueenSide(White));
-    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(Black));
-    ASSERT_TRUE(blackQueenCastling.canCastleQueenSide(Black));
+    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(Side::White));
+    ASSERT_FALSE(blackQueenCastling.canCastleQueenSide(Side::White));
+    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(Side::Black));
+    ASSERT_TRUE(blackQueenCastling.canCastleQueenSide(Side::Black));
 }
 
 TEST(FenParsing, EnPassantTarget) {

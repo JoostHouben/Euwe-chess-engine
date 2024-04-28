@@ -10,7 +10,7 @@
 
 #include <cstdint>
 
-enum Side : std::uint8_t {
+enum class Side : std::uint8_t {
     White,
     Black,
     None
@@ -29,7 +29,7 @@ enum Piece : std::uint8_t {
 enum ColoredPiece : std::uint8_t {};
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
-    return static_cast<ColoredPiece>((side << 3) | piece);
+    return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {
@@ -80,11 +80,11 @@ public:
     }
 
     bool canCastleKingSide(Side side) const {
-        return mayCastleKingSide_[side];
+        return mayCastleKingSide_[(std::size_t)side];
     }
 
     bool canCastleQueenSide(Side side) const {
-        return mayCastleQueenSide_[side];
+        return mayCastleQueenSide_[(std::size_t)side];
     }
 
     BoardPosition getEnPassantTarget() const {
@@ -98,7 +98,7 @@ public:
 private:
     GameState() = default;
 
-    Side sideToMove_ = None;
+    Side sideToMove_ = Side::None;
 
     BoardPosition enPassantTarget_ = kInvalidPosition;
 

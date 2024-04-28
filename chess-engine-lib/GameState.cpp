@@ -34,10 +34,10 @@ namespace {
     Side sideFromFenChar(char c) {
         bool isUpperCase = !(c & kCaseBit);
         if (isUpperCase) {
-            return White;
+            return Side::White;
         }
         else {
-            return Black;
+            return Side::Black;
         }
     }
 
@@ -73,12 +73,12 @@ namespace {
     Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
         switch (*(strIt++)) {
         case 'w':
-            return White;
+            return Side::White;
         case 'b':
-            return Black;
+            return Side::Black;
         default:
             assert(false);
-            return None;
+            return Side::None;
         }
     }
 
@@ -97,10 +97,10 @@ namespace {
             Piece piece = pieceFromFenChar(*strIt);
             switch (piece) {
             case King:
-                mayCastleKingSide[side] = true;
+                mayCastleKingSide[(std::size_t)side] = true;
                 break;
             case Queen:
-                mayCastleQueenSide[side] = true;
+                mayCastleQueenSide[(std::size_t)side] = true;
                 break;
             default:
                 assert(false);
