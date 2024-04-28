@@ -653,12 +653,8 @@ bool GameState::isInCheck() const {
 }
 
 std::vector<Move> GameState::generateMoves() const {
-    // TODO: deal with checks
-
     const std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces_);
     const std::set<BoardPosition> enemeyControlledSquares = generateEnemyControlledSquares(positionToPiece);
-
-    //const bool inCheck = isInCheck(enemeyControlledSquares);
 
     std::vector<Move> moves;
 
