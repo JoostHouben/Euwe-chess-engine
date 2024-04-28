@@ -704,6 +704,20 @@ std::vector<Move> GameState::generateMoves() const {
         enemeyControlledSquares,
         moves);
 
+    // Remove moves that put us in check. Very slow!!
+    for (auto moveIt = moves.begin(); moveIt != moves.end(); ) {
+        GameState copyState(*this);
+        copyState.makeMove(*moveIt);
+        copyState.sideToMove_ = sideToMove_;
+        if (copyState.isInCheck()) {
+            *moveIt = moves.back();
+            moves.pop_back();
+        }
+        else {
+            ++moveIt;
+        }
+    }
+
     return moves;
 }
 
