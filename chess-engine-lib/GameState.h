@@ -69,6 +69,7 @@ public:
     static GameState fromFen(const std::string& fenString);
     static GameState startingPosition();
 
+    std::string toFen(int moveCounter) const;
     std::string toVisualString() const;
 
     void makeMove(Move move); // TODO

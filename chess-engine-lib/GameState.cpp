@@ -44,6 +44,20 @@ namespace {
         }
     }
 
+    char toFenChar(Side side) {
+        switch (side) {
+        case Side::White:
+            return 'w';
+        case Side::Black:
+            return 'b';
+        case Side::None:
+            return 'x';
+        default:
+            assert(false);
+            return '\0';
+        }
+    }
+
     ColoredPiece coloredPieceFromFenChar(char c) {
         return getColoredPiece(pieceFromFenChar(c), sideFromFenChar(c));
     }
@@ -158,6 +172,73 @@ namespace {
         } while (*strIt != ' ');
         return static_cast<std::uint16_t>(plySinceCaptureOrPawn);
     }
+
+    std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(const std::vector<PiecePosition>& pieces) {
+        std::map<BoardPosition, ColoredPiece> positionToPiece;
+        for (const auto [piece, position] : pieces) {
+            positionToPiece.emplace(position, piece);
+        }
+        return positionToPiece;
+    }
+
+    void boardConfigurationToFen(const std::vector<PiecePosition>& pieces, std::ostream& out) {
+        std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces);
+        for (int rank = 7; rank >= 0; --rank) {
+            int numEmptyTiles = 0;
+            for (int file = 0; file < 8; ++file) {
+                auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
+                if (pieceIt == positionToPiece.end()) {
+                    ++numEmptyTiles;
+                    continue;
+                }
+
+                if (numEmptyTiles) {
+                    out << numEmptyTiles;
+                    numEmptyTiles = 0;
+                }
+
+                out << toFenChar(pieceIt->second);
+            }
+
+            if (numEmptyTiles) {
+                out << numEmptyTiles;
+            }
+
+            if (rank > 0) {
+                out << "/";
+            }
+        }
+    }
+
+    void sideToMoveToFen(Side side, std::ostream& out) {
+        out << toFenChar(side);
+    }
+
+    void castlingRightsToFen(const GameState& gameState, std::ostream& out) {
+        bool any = false;
+        for (auto side : { Side::White, Side::Black }) {
+            if (gameState.canCastleKingSide(side)) {
+                any = true;
+                out << toFenChar(getColoredPiece(Piece::King, side));
+            }
+            if (gameState.canCastleQueenSide(side)) {
+                any = true;
+                out << toFenChar(getColoredPiece(Piece::Queen, side));
+            }
+        }
+        if (!any) {
+            out << '-';
+        }
+    }
+
+    void enPassantTargetToFen(BoardPosition enPassantTarget, std::ostream& out) {
+        if (enPassantTarget == BoardPosition::Invalid) {
+            out << '-';
+        }
+        else {
+            out << algebraicFromPosition(enPassantTarget);
+        }
+    }
 }
 
 BoardPosition positionFromAlgebraic(std::string_view algebraic) {
@@ -211,11 +292,26 @@ GameState GameState::startingPosition() {
     return fromFen(startingPositionFen);
 }
 
+std::string GameState::toFen(int moveCounter) const {
+    std::ostringstream ss;
+
+    boardConfigurationToFen(pieces_, ss);
+    ss << ' ';
+    sideToMoveToFen(sideToMove_, ss);
+    ss << ' ';
+    castlingRightsToFen(*this, ss);
+    ss << ' ';
+    enPassantTargetToFen(enPassantTarget_, ss);
+    ss << ' ';
+    ss << plySinceCaptureOrPawn_;
+    ss << ' ';
+    ss << moveCounter;
+
+    return ss.str();
+}
+
 std::string GameState::toVisualString() const {
-    std::map<BoardPosition, ColoredPiece> positionToPiece;
-    for (const auto [piece, position] : pieces_) {
-        positionToPiece.emplace(position, piece);
-    }
+    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces_);
 
     std::string boardTopBottom = "  ---------------------------------\n";
     std::string rowSeparator = "  |-------------------------------|\n";
