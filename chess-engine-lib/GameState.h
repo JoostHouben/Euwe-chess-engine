@@ -18,29 +18,27 @@ enum Side : std::uint8_t {
 inline constexpr int kNumSides = 2;
 
 enum Piece : std::uint8_t {
-    Pawn = 0 << 2,
-    Knight = 1 << 2,
-    Bishop = 2 << 2,
-    Rook = 3 << 2,
-    Queen = 4 << 2,
-    King = 5 << 2
+    Pawn,
+    Knight,
+    Bishop,
+    Rook,
+    Queen,
+    King
 };
 
 using ColoredPiece = std::uint8_t;
 
-inline constexpr ColoredPiece kSideMask = White | Black | None;
-inline constexpr ColoredPiece kPieceMask = 7 << 2;
-
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
-    return static_cast<ColoredPiece>(piece | side);
+    return static_cast<ColoredPiece>((side << 3) | piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {
+    constexpr ColoredPiece kPieceMask = 7;
     return static_cast<Piece>(coloredPiece & kPieceMask);
 }
 
 constexpr Side getSide(ColoredPiece coloredPiece) {
-    return static_cast<Side>(coloredPiece & kSideMask);
+    return static_cast<Side>(coloredPiece >> 3);
 }
 
 using BoardPosition = std::uint8_t;
