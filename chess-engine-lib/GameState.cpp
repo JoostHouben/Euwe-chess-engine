@@ -3,15 +3,18 @@
 #include <cassert>
 #include <cstdlib>
 
+#include <map>
+#include <sstream>
+
 namespace {
     bool isNumber(char c) {
         return c >= '0' && c <= '9';
     }
 
-    constexpr char kCaseBit = 1 << 5;
+    constexpr char kLowerCaseBit = 1 << 5;
 
     Piece pieceFromFenChar(char c) {
-        char upperCase = c & ~kCaseBit;
+        char upperCase = c & ~kLowerCaseBit;
         switch (upperCase) {
         case 'P':
             return Piece::Pawn;
@@ -32,7 +35,7 @@ namespace {
     }
 
     Side sideFromFenChar(char c) {
-        bool isUpperCase = !(c & kCaseBit);
+        bool isUpperCase = !(c & kLowerCaseBit);
         if (isUpperCase) {
             return Side::White;
         }
@@ -43,6 +46,35 @@ namespace {
 
     ColoredPiece coloredPieceFromFenChar(char c) {
         return getColoredPiece(pieceFromFenChar(c), sideFromFenChar(c));
+    }
+
+    char toFenChar(Piece piece) {
+        switch (piece) {
+        case Piece::Pawn:
+            return 'P';
+        case Piece::Knight:
+            return 'N';
+        case Piece::Bishop:
+            return 'B';
+        case Piece::Rook:
+            return 'R';
+        case Piece::Queen:
+            return 'Q';
+        case Piece::King:
+            return 'K';
+        default:
+            assert(false);
+            return '\0';
+        }
+
+    }
+
+    char toFenChar(ColoredPiece coloredPiece) {
+        char c = toFenChar(getPiece(coloredPiece));
+        if (getSide(coloredPiece) == Side::Black) {
+            c |= kLowerCaseBit;
+        }
+        return c;
     }
 
     std::vector<PiecePosition> parseBoardConfigurationFromFen(
@@ -177,4 +209,40 @@ GameState GameState::fromFen(const std::string& fenString) {
 GameState GameState::startingPosition() {
     std::string startingPositionFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     return fromFen(startingPositionFen);
+}
+
+std::string GameState::toVisualString() const {
+    std::map<BoardPosition, ColoredPiece> positionToPiece;
+    for (const auto [piece, position] : pieces_) {
+        positionToPiece.emplace(position, piece);
+    }
+
+    std::string boardTopBottom = "  ---------------------------------\n";
+    std::string rowSeparator = "  |-------------------------------|\n";
+
+    std::ostringstream ss;
+    ss << boardTopBottom;
+
+    for (int rank = 7; rank >= 0; --rank) {
+        ss << rank + 1 << " |";
+        for (int file = 0; file < 8; ++file) {
+            ss << ' ';
+            auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
+            if (pieceIt == positionToPiece.end()) {
+                ss << ' ';
+            }
+            else {
+                ss << toFenChar(pieceIt->second);
+            }
+            ss << " |";
+        }
+        ss << "\n";
+        if (rank > 0) {
+            ss << rowSeparator;
+        }
+    }
+    ss << boardTopBottom;
+    ss << "    a   b   c   d   e   f   g   h\n";
+
+    return ss.str();
 }

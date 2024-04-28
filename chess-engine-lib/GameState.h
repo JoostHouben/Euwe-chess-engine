@@ -69,6 +69,8 @@ public:
     static GameState fromFen(const std::string& fenString);
     static GameState startingPosition();
 
+    std::string toVisualString() const;
+
     void makeMove(Move move); // TODO
 
     const std::vector<PiecePosition>& getPieces() const {
