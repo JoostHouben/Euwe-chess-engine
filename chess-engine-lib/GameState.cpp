@@ -709,6 +709,76 @@ std::vector<Move> GameState::generateMoves() const {
     return moves;
 }
 
+void GameState::makeMove(Move move) {
+    enPassantTarget_ = BoardPosition::Invalid;
+
+    bool isCaptureOrPawnMove = false;
+    auto capturedPieceIt = pieces_.end();
+    for (auto pieceIt = pieces_.begin(); pieceIt != pieces_.end(); ++pieceIt) {
+        auto& [coloredPiece, position] = *pieceIt;
+
+        if (position == move.from) {
+            assert(getSide(coloredPiece) == sideToMove_);
+            position = move.to;
+
+            const Piece piece = getPiece(coloredPiece);
+
+            if (piece == Piece::Pawn) {
+                isCaptureOrPawnMove = true;
+
+                if (move.promotionPiece != Piece::None) {
+                    coloredPiece = getColoredPiece(move.promotionPiece, sideToMove_);
+                }
+
+                const auto [file, fromRank] = fileRankFromPosition(move.from);
+                const auto [_, toRank] = fileRankFromPosition(move.to);
+
+                if (std::abs(fromRank - toRank) == 2) {
+                    // Double pawn push
+                    enPassantTarget_ = positionFromFileRank(file, (fromRank + toRank) / 2);
+                }
+            }
+            else if (piece == Piece::King) {
+                mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+                mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+            }
+            else if (piece == Piece::Rook) {
+                if (sideToMove_ == Side::White && position == positionFromAlgebraic("a1")) {
+                    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+                }
+                else if (sideToMove_ == Side::White && position == positionFromAlgebraic("h1")) {
+                    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+                }
+                else if (sideToMove_ == Side::Black && position == positionFromAlgebraic("a8")) {
+                    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+                }
+                else if (sideToMove_ == Side::Black && position == positionFromAlgebraic("h8")) {
+                    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+                }
+            }
+        }
+
+        if (position == move.to) {
+            isCaptureOrPawnMove = true;
+            capturedPieceIt = pieceIt;
+        }
+    }
+
+    if (capturedPieceIt != pieces_.end()) {
+        std::swap(*capturedPieceIt, *pieces_.rbegin());
+        pieces_.pop_back();
+    }
+
+    sideToMove_ = nextSide(sideToMove_);
+
+    if (isCaptureOrPawnMove) {
+        plySinceCaptureOrPawn_ = 0;
+    }
+    else {
+        ++plySinceCaptureOrPawn_;
+    }
+}
+
 std::set<BoardPosition> GameState::generateEnemyControlledSquares(
     const std::map<BoardPosition, ColoredPiece>& positionToPiece
 ) const {
