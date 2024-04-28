@@ -41,9 +41,10 @@ void countMoveStatisticsAtPly(const GameState gameState, int ply, MoveStatistics
 }
 
 // Positions and statistics taken from https://www.chessprogramming.org/Perft_Results
-inline const std::string kKiwipeteFen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -";
-inline const std::string kPosition3Fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -";
+inline const std::string kKiwipeteFen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+inline const std::string kPosition3Fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
 inline const std::string kPosition4Fen = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
+inline const std::string kPosition5Fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
 TEST(MoveGeneration, TestRootMoveStatsDepth1) {
     MoveStatistics statistics{};
@@ -197,4 +198,28 @@ TEST(MoveGeneration, TestPosition4StatsDepth2) {
     EXPECT_EQ(statistics.numEnPassant, 4);
     EXPECT_EQ(statistics.numCastle, 0);
     EXPECT_EQ(statistics.numPromotions, 120);
+}
+
+TEST(MoveGeneration, TestPosition5StatsDepth0) {
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen(kPosition5Fen);
+    countMoveStatisticsAtPly(gameState, 0, statistics);
+
+    EXPECT_EQ(statistics.numMoves, 44);
+}
+
+TEST(MoveGeneration, TestPosition5StatsDepth1) {
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen(kPosition5Fen);
+    countMoveStatisticsAtPly(gameState, 1, statistics);
+
+    EXPECT_EQ(statistics.numMoves, 1'486);
+}
+
+TEST(MoveGeneration, TestPosition5StatsDepth2) {
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen(kPosition5Fen);
+    countMoveStatisticsAtPly(gameState, 2, statistics);
+
+    EXPECT_EQ(statistics.numMoves, 62'379);
 }

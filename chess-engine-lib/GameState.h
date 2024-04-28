@@ -141,7 +141,7 @@ public:
     void handleSinglePieceMove(Move move);
     void handlePawnMove(Move move, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
-    void handleRookMove(BoardPosition from);
+    void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
     const std::vector<PiecePosition>& getPieces() const {
         return pieces_;

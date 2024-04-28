@@ -802,7 +802,7 @@ void GameState::handleSinglePieceMove(Move move) {
                 handleNormalKingMove();
             }
             else if (piece == Piece::Rook) {
-                handleRookMove(move.from);
+                updateRookCastlingRights(move.from, sideToMove_);
             }
         }
         else if (position == captureTargetSquare) {
@@ -816,6 +816,10 @@ void GameState::handleSinglePieceMove(Move move) {
     assert(IMPLIES(isCapture(move.flags), capturedPieceIt != pieces_.end()));
 
     if (capturedPieceIt != pieces_.end()) {
+        if (getPiece(capturedPieceIt->first) == Piece::Rook) {
+            updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceIt->first));
+        }
+
         *capturedPieceIt = pieces_.back();
         pieces_.pop_back();
     }
@@ -850,18 +854,18 @@ void GameState::handleNormalKingMove() {
     mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
 }
 
-void GameState::handleRookMove(BoardPosition from) {
-    if (sideToMove_ == Side::White && from == positionFromAlgebraic("a1")) {
-        mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSide) {
+    if (rookSide == Side::White && rookPosition == positionFromAlgebraic("a1")) {
+        mayCastleQueenSide_[(std::size_t)rookSide] = false;
     }
-    else if (sideToMove_ == Side::White && from == positionFromAlgebraic("h1")) {
-        mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+    else if (rookSide == Side::White && rookPosition == positionFromAlgebraic("h1")) {
+        mayCastleKingSide_[(std::size_t)rookSide] = false;
     }
-    else if (sideToMove_ == Side::Black && from == positionFromAlgebraic("a8")) {
-        mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+    else if (rookSide == Side::Black && rookPosition == positionFromAlgebraic("a8")) {
+        mayCastleQueenSide_[(std::size_t)rookSide] = false;
     }
-    else if (sideToMove_ == Side::Black && from == positionFromAlgebraic("h8")) {
-        mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+    else if (rookSide == Side::Black && rookPosition == positionFromAlgebraic("h8")) {
+        mayCastleKingSide_[(std::size_t)rookSide] = false;
     }
 }
 
