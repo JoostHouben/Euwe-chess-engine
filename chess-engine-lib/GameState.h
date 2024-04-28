@@ -77,10 +77,22 @@ std::string algebraicFromPosition(BoardPosition position);
 
 using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
 
+enum class MoveFlags : std::uint8_t {
+    None = 0,
+    // Lowest 3 bits: Piece if promoting
+    IsCapture = 1 << 3,
+    IsEnPassant = 1 << 4,
+    IsCastle = 1 << 5,
+};
+
+constexpr Piece getPromotionPiece(MoveFlags flags) {
+    return static_cast<Piece>((int)flags & 7);
+}
+
 struct Move {
     BoardPosition from;
     BoardPosition to;
-    Piece promotionPiece = Piece::None;
+    MoveFlags flags = MoveFlags::None;
 };
 
 class GameState {

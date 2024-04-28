@@ -271,22 +271,22 @@ namespace {
                 if (newRank == 0 || newRank == 7) {
                     // Promotion
                     for (const auto promotionPiece : kPromotionPieces) {
-                        moves.push_back(Move{ origin, forwardPosition, promotionPiece });
+                        moves.push_back(Move{ origin, forwardPosition, static_cast<MoveFlags>(promotionPiece) });
                     }
                 }
                 else {
                     // Normal push
                     moves.push_back(Move{ origin, forwardPosition });
                 }
-            }
 
-            // Double push
-            if (rank == startingRank) {
-                const BoardPosition doubleForwardPosition = positionFromFileRank(file, rank + 2 * forwardDirection);
-                if (positionToPiece.count(doubleForwardPosition) == 0) {
-                    moves.push_back(Move{ origin, doubleForwardPosition });
+                // Double push
+                if (rank == startingRank) {
+                    const BoardPosition doubleForwardPosition = positionFromFileRank(file, rank + 2 * forwardDirection);
+                    if (positionToPiece.count(doubleForwardPosition) == 0) {
+                        moves.push_back(Move{ origin, doubleForwardPosition });
+                    }
+                    // No need to check for promotion: this can never happen from the starting rank
                 }
-                // No need to check for promotion: this can never happen from the starting rank
             }
         }
 
@@ -303,23 +303,25 @@ namespace {
             // No need to check for promotion: this can never happen on an en passant target square
             const BoardPosition capturePosition = positionFromFileRank(newFile, newRank);
             if (capturePosition == enPassantTarget) {
-                moves.push_back(Move{ origin, capturePosition });
+                const MoveFlags flags = static_cast<MoveFlags>((int)MoveFlags::IsCapture | (int)MoveFlags::IsEnPassant);
+                moves.push_back(Move{ origin, capturePosition, flags });
                 continue;
             }
 
-            const auto capturePieceIt = positionToPiece.find(capturePosition);
-            const bool isEmpty = capturePieceIt == positionToPiece.end();
-            const bool isEnemyPiece = !isEmpty && getSide(capturePieceIt->second) != side;
+            const auto targetPieceIt = positionToPiece.find(capturePosition);
+            const bool isEmpty = targetPieceIt == positionToPiece.end();
+            const bool isEnemyPiece = !isEmpty && getSide(targetPieceIt->second) != side;
             if (isEnemyPiece || (getControlledSquares && isEmpty)) {
                 if (!getControlledSquares && (newRank == 0 || newRank == 7)) {
                     // Capture + promotion
                     for (const auto promotionPiece : kPromotionPieces) {
-                        moves.push_back(Move{ origin, capturePosition, promotionPiece });
+                        const MoveFlags flags = static_cast<MoveFlags>((int)MoveFlags::IsCapture | (int)promotionPiece);
+                        moves.push_back(Move{ origin, capturePosition, flags });
                     }
                 }
                 else {
                     // Normal capture
-                    moves.push_back(Move{ origin, capturePosition });
+                    moves.push_back(Move{ origin, capturePosition, MoveFlags::IsCapture });
                 }
             }
         }
@@ -355,8 +357,11 @@ namespace {
                     const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
 
                     const auto targetPieceIt = positionToPiece.find(newPosition);
-                    if (targetPieceIt == positionToPiece.end() || getSide(targetPieceIt->second) != side) {
-                        moves.push_back({ origin, newPosition });
+                    const bool isEmpty = targetPieceIt == positionToPiece.end();
+                    const bool isEnemyPiece = !isEmpty && getSide(targetPieceIt->second) != side;
+                    if (isEmpty || isEnemyPiece) {
+                        const MoveFlags flags = isEnemyPiece ? MoveFlags::IsCapture : MoveFlags::None;
+                        moves.push_back({ origin, newPosition, flags });
                     }
                 }
             }
@@ -386,14 +391,14 @@ namespace {
                 break;
             }
 
-            const BoardPosition newPosition = positionFromFileRank(file, rank);
+            const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
             const auto targetPieceIt = positionToPiece.find(newPosition);
 
             if (targetPieceIt != positionToPiece.end()) {
                 const Side targetSide = getSide(targetPieceIt->second);
                 if (targetSide != side) {
                     // Capture
-                    moves.push_back({ origin, newPosition });
+                    moves.push_back({ origin, newPosition, MoveFlags::IsCapture });
                 }
                 // Further moves are blocked
                 break;
@@ -521,7 +526,7 @@ namespace {
 
             if (castleIsValid) {
                 const BoardPosition targetPosition = positionFromFileRank(kingFile + 2, kingRank);
-                moves.push_back({ kingPosition, targetPosition });
+                moves.push_back({ kingPosition, targetPosition, MoveFlags::IsCastle });
             }
         }
         if (canCastleQueenSide) {
@@ -542,7 +547,7 @@ namespace {
 
             if (castleIsValid) {
                 const BoardPosition targetPosition = positionFromFileRank(kingFile - 2, kingRank);
-                moves.push_back({ kingPosition, targetPosition });
+                moves.push_back({ kingPosition, targetPosition, MoveFlags::IsCastle });
             }
         }
     }
@@ -710,9 +715,22 @@ std::vector<Move> GameState::generateMoves() const {
 }
 
 void GameState::makeMove(Move move) {
+    // TODO: castling
+
+    const bool isEnPassantCapture = (int)move.flags & (int)MoveFlags::IsEnPassant;
+    BoardPosition enPassantCapturedSquare = BoardPosition::Invalid;
+    if (isEnPassantCapture) {
+        assert((int)move.flags & (int)MoveFlags::IsCapture);
+        assert(move.to == enPassantTarget_);
+        const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
+        const auto [toFile, toRank] = fileRankFromPosition(move.to);
+        enPassantCapturedSquare = positionFromFileRank(toFile, fromRank);
+    }
+
     enPassantTarget_ = BoardPosition::Invalid;
 
     bool isCaptureOrPawnMove = false;
+    auto enPassantCapturedPiece = pieces_.end();
     auto capturedPieceIt = pieces_.end();
     for (auto pieceIt = pieces_.begin(); pieceIt != pieces_.end(); ++pieceIt) {
         auto& [coloredPiece, position] = *pieceIt;
@@ -726,16 +744,17 @@ void GameState::makeMove(Move move) {
             if (piece == Piece::Pawn) {
                 isCaptureOrPawnMove = true;
 
-                if (move.promotionPiece != Piece::None) {
-                    coloredPiece = getColoredPiece(move.promotionPiece, sideToMove_);
+                const Piece promotionPiece = getPromotionPiece(move.flags);
+                if (promotionPiece != Piece::None) {
+                    coloredPiece = getColoredPiece(promotionPiece, sideToMove_);
                 }
 
-                const auto [file, fromRank] = fileRankFromPosition(move.from);
+                const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
                 const auto [_, toRank] = fileRankFromPosition(move.to);
 
                 if (std::abs(fromRank - toRank) == 2) {
                     // Double pawn push
-                    enPassantTarget_ = positionFromFileRank(file, (fromRank + toRank) / 2);
+                    enPassantTarget_ = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
                 }
             }
             else if (piece == Piece::King) {
@@ -757,11 +776,21 @@ void GameState::makeMove(Move move) {
                 }
             }
         }
-
-        if (position == move.to) {
+        else if (position == move.to) {
+            assert(getSide(coloredPiece) != sideToMove_);
+            assert((int)move.flags & (int)MoveFlags::IsCapture);
             isCaptureOrPawnMove = true;
             capturedPieceIt = pieceIt;
         }
+        else if (position == enPassantCapturedSquare) {
+            enPassantCapturedPiece = pieceIt;
+        }
+    }
+
+    if (isEnPassantCapture) {
+        assert(enPassantCapturedPiece != pieces_.end());
+        assert(capturedPieceIt == pieces_.end());
+        capturedPieceIt = enPassantCapturedPiece;
     }
 
     if (capturedPieceIt != pieces_.end()) {

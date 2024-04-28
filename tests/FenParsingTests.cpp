@@ -57,21 +57,21 @@ TEST(FenParsing, TestStartingPosition) {
         actualPieces.insert(piecePosition);
     }
 
-    ASSERT_EQ(expectedPieces, actualPieces);
+    EXPECT_EQ(expectedPieces, actualPieces);
 
-    ASSERT_EQ(startingPosition.getSideToMove(), Side::White);
+    EXPECT_EQ(startingPosition.getSideToMove(), Side::White);
 
-    ASSERT_EQ(startingPosition.canCastleKingSide(Side::White), true);
-    ASSERT_EQ(startingPosition.canCastleQueenSide(Side::White), true);
-    ASSERT_EQ(startingPosition.canCastleKingSide(Side::Black), true);
-    ASSERT_EQ(startingPosition.canCastleQueenSide(Side::Black), true);
+    EXPECT_EQ(startingPosition.canCastleKingSide(Side::White), true);
+    EXPECT_EQ(startingPosition.canCastleQueenSide(Side::White), true);
+    EXPECT_EQ(startingPosition.canCastleKingSide(Side::Black), true);
+    EXPECT_EQ(startingPosition.canCastleQueenSide(Side::Black), true);
 
-    ASSERT_EQ(startingPosition.getEnPassantTarget(), BoardPosition::Invalid);
+    EXPECT_EQ(startingPosition.getEnPassantTarget(), BoardPosition::Invalid);
 
-    ASSERT_EQ(startingPosition.getPlySinceCaptureOrPawn(), 0);
+    EXPECT_EQ(startingPosition.getPlySinceCaptureOrPawn(), 0);
 
     std::string startingPositionFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    ASSERT_EQ(startingPosition.toFen(1), startingPositionFen);
+    EXPECT_EQ(startingPosition.toFen(1), startingPositionFen);
 }
 
 TEST(FenParsing, RoundTrip) {
@@ -85,7 +85,7 @@ TEST(FenParsing, RoundTrip) {
     for (const auto& [fenString, moveCounter] : fenStrings) {
         GameState gameState = GameState::fromFen(fenString);
         std::string newFenString = gameState.toFen(moveCounter);
-        ASSERT_EQ(newFenString, fenString);
+        EXPECT_EQ(newFenString, fenString);
     }
 }
 
@@ -98,46 +98,46 @@ TEST(FenParsing, CastlingRights) {
     std::string blackQueenCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q - 0 1";
 
     GameState noCastling = GameState::fromFen(noCastlingFen);
-    ASSERT_FALSE(noCastling.canCastleKingSide(Side::White));
-    ASSERT_FALSE(noCastling.canCastleQueenSide(Side::White));
-    ASSERT_FALSE(noCastling.canCastleKingSide(Side::Black));
-    ASSERT_FALSE(noCastling.canCastleQueenSide(Side::Black));
+    EXPECT_FALSE(noCastling.canCastleKingSide(Side::White));
+    EXPECT_FALSE(noCastling.canCastleQueenSide(Side::White));
+    EXPECT_FALSE(noCastling.canCastleKingSide(Side::Black));
+    EXPECT_FALSE(noCastling.canCastleQueenSide(Side::Black));
 
     GameState blackCastling = GameState::fromFen(blackCastlingFen);
-    ASSERT_FALSE(blackCastling.canCastleKingSide(Side::White));
-    ASSERT_FALSE(blackCastling.canCastleQueenSide(Side::White));
-    ASSERT_TRUE(blackCastling.canCastleKingSide(Side::Black));
-    ASSERT_TRUE(blackCastling.canCastleQueenSide(Side::Black));
+    EXPECT_FALSE(blackCastling.canCastleKingSide(Side::White));
+    EXPECT_FALSE(blackCastling.canCastleQueenSide(Side::White));
+    EXPECT_TRUE(blackCastling.canCastleKingSide(Side::Black));
+    EXPECT_TRUE(blackCastling.canCastleQueenSide(Side::Black));
 
     GameState whiteCastling = GameState::fromFen(whiteCastlingFen);
-    ASSERT_TRUE(whiteCastling.canCastleKingSide(Side::White));
-    ASSERT_TRUE(whiteCastling.canCastleQueenSide(Side::White));
-    ASSERT_FALSE(whiteCastling.canCastleKingSide(Side::Black));
-    ASSERT_FALSE(whiteCastling.canCastleQueenSide(Side::Black));
+    EXPECT_TRUE(whiteCastling.canCastleKingSide(Side::White));
+    EXPECT_TRUE(whiteCastling.canCastleQueenSide(Side::White));
+    EXPECT_FALSE(whiteCastling.canCastleKingSide(Side::Black));
+    EXPECT_FALSE(whiteCastling.canCastleQueenSide(Side::Black));
 
     GameState kingCastling = GameState::fromFen(kingCastlingFen);
-    ASSERT_TRUE(kingCastling.canCastleKingSide(Side::White));
-    ASSERT_FALSE(kingCastling.canCastleQueenSide(Side::White));
-    ASSERT_TRUE(kingCastling.canCastleKingSide(Side::Black));
-    ASSERT_FALSE(kingCastling.canCastleQueenSide(Side::Black));
+    EXPECT_TRUE(kingCastling.canCastleKingSide(Side::White));
+    EXPECT_FALSE(kingCastling.canCastleQueenSide(Side::White));
+    EXPECT_TRUE(kingCastling.canCastleKingSide(Side::Black));
+    EXPECT_FALSE(kingCastling.canCastleQueenSide(Side::Black));
 
     GameState queenCastling = GameState::fromFen(queenCastlingFen);
-    ASSERT_FALSE(queenCastling.canCastleKingSide(Side::White));
-    ASSERT_TRUE(queenCastling.canCastleQueenSide(Side::White));
-    ASSERT_FALSE(queenCastling.canCastleKingSide(Side::Black));
-    ASSERT_TRUE(queenCastling.canCastleQueenSide(Side::Black));
+    EXPECT_FALSE(queenCastling.canCastleKingSide(Side::White));
+    EXPECT_TRUE(queenCastling.canCastleQueenSide(Side::White));
+    EXPECT_FALSE(queenCastling.canCastleKingSide(Side::Black));
+    EXPECT_TRUE(queenCastling.canCastleQueenSide(Side::Black));
 
     GameState blackQueenCastling = GameState::fromFen(blackQueenCastlingFen);
-    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(Side::White));
-    ASSERT_FALSE(blackQueenCastling.canCastleQueenSide(Side::White));
-    ASSERT_FALSE(blackQueenCastling.canCastleKingSide(Side::Black));
-    ASSERT_TRUE(blackQueenCastling.canCastleQueenSide(Side::Black));
+    EXPECT_FALSE(blackQueenCastling.canCastleKingSide(Side::White));
+    EXPECT_FALSE(blackQueenCastling.canCastleQueenSide(Side::White));
+    EXPECT_FALSE(blackQueenCastling.canCastleKingSide(Side::Black));
+    EXPECT_TRUE(blackQueenCastling.canCastleQueenSide(Side::Black));
 }
 
 TEST(FenParsing, EnPassantTarget) {
     std::string enPassantFen = "rnbqkbnr/1ppppppp/8/p7/8/8/PPPPPPPP/RNBQKBNR w KQkq a3 0 1";
     GameState gameState = GameState::fromFen(enPassantFen);
-    ASSERT_EQ(gameState.getEnPassantTarget(), positionFromAlgebraic("a3"));
+    EXPECT_EQ(gameState.getEnPassantTarget(), positionFromAlgebraic("a3"));
 }
 
 TEST(FenParsing, HalfMoveClock) {
@@ -145,7 +145,7 @@ TEST(FenParsing, HalfMoveClock) {
     std::string fen42 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 42 1";
     std::string fen314 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 314 1";
 
-    ASSERT_EQ(GameState::fromFen(fen9).getPlySinceCaptureOrPawn(), 9);
-    ASSERT_EQ(GameState::fromFen(fen42).getPlySinceCaptureOrPawn(), 42);
-    ASSERT_EQ(GameState::fromFen(fen314).getPlySinceCaptureOrPawn(), 314);
+    EXPECT_EQ(GameState::fromFen(fen9).getPlySinceCaptureOrPawn(), 9);
+    EXPECT_EQ(GameState::fromFen(fen42).getPlySinceCaptureOrPawn(), 42);
+    EXPECT_EQ(GameState::fromFen(fen314).getPlySinceCaptureOrPawn(), 314);
 }
