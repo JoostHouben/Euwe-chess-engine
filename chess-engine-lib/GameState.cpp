@@ -111,7 +111,7 @@ namespace {
     BoardPosition parseEnPassantTargetFromFen(std::string::const_iterator& strIt) {
         if (*strIt == '-') {
             ++strIt;
-            return kInvalidPosition;
+            return BoardPosition::Invalid;
         }
 
         BoardPosition enPassantTarget = positionFromAlgebraic({ &*strIt, 2 });

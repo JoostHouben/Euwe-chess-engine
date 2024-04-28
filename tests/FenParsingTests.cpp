@@ -66,7 +66,7 @@ TEST(FenParsing, TestStartingPosition) {
     ASSERT_EQ(startingPosition.canCastleKingSide(Side::Black), true);
     ASSERT_EQ(startingPosition.canCastleQueenSide(Side::Black), true);
 
-    ASSERT_EQ(startingPosition.getEnPassantTarget(), kInvalidPosition);
+    ASSERT_EQ(startingPosition.getEnPassantTarget(), BoardPosition::Invalid);
 
     ASSERT_EQ(startingPosition.getPlySinceCaptureOrPawn(), 0);
 }

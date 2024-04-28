@@ -26,23 +26,23 @@ enum class Piece : std::uint8_t {
     King
 };
 
-enum ColoredPiece : std::uint8_t {};
+enum class ColoredPiece : std::uint8_t {};
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
     return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | (std::uint8_t)piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {
-    constexpr ColoredPiece kPieceMask = static_cast<ColoredPiece>(7);
-    return static_cast<Piece>(coloredPiece & kPieceMask);
+    constexpr std::uint8_t kPieceMask = 7;
+    return static_cast<Piece>((std::uint8_t)coloredPiece & kPieceMask);
 }
 
 constexpr Side getSide(ColoredPiece coloredPiece) {
-    return static_cast<Side>(coloredPiece >> 3);
+    return static_cast<Side>((std::uint8_t)coloredPiece >> 3);
 }
 
-enum BoardPosition : std::uint8_t {
-    kInvalidPosition = 1 << 6
+enum class BoardPosition : std::uint8_t {
+    Invalid = 1 << 6
 };
 
 constexpr BoardPosition positionFromFileRank(int file, int rank) {
@@ -50,7 +50,7 @@ constexpr BoardPosition positionFromFileRank(int file, int rank) {
 }
 
 constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
-    return { position % 8, position / 8 };
+    return { (int)position % 8, (int)position / 8 };
 }
 
 BoardPosition positionFromAlgebraic(std::string_view algebraic);
@@ -100,7 +100,7 @@ private:
 
     Side sideToMove_ = Side::None;
 
-    BoardPosition enPassantTarget_ = kInvalidPosition;
+    BoardPosition enPassantTarget_ = BoardPosition::Invalid;
 
     std::uint16_t plySinceCaptureOrPawn_ = 0;
 
