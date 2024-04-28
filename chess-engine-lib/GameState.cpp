@@ -693,16 +693,16 @@ std::vector<Move> GameState::generateMoves() const {
         moves);
 
     // Remove moves that put us in check. Very slow!!
-    for (auto moveIt = moves.begin(); moveIt != moves.end(); ) {
+    for (int moveIdx = 0; moveIdx < moves.size(); ) {
         GameState copyState(*this);
-        copyState.makeMove(*moveIt);
+        copyState.makeMove(moves[moveIdx]);
         copyState.sideToMove_ = sideToMove_;
         if (copyState.isInCheck()) {
-            *moveIt = moves.back();
+            moves[moveIdx] = moves.back();
             moves.pop_back();
         }
         else {
-            ++moveIt;
+            ++moveIdx;
         }
     }
 
