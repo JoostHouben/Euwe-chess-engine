@@ -26,10 +26,8 @@ constexpr Side nextSide(Side side) {
         return Side::White;
     case Side::None:
         return Side::None;
-    default:
-        assert(false);
-        return Side{};
     }
+    std::unreachable();
 }
 
 enum class Piece : std::uint8_t {
@@ -75,8 +73,7 @@ constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
     return positionFromFileRank(file, rank);
 }
 
-// Can be constexpr under C++20
-inline std::string algebraicFromPosition(BoardPosition position) {
+constexpr std::string algebraicFromPosition(BoardPosition position) {
     const auto [file, rank] = fileRankFromPosition(position);
     return { (char)('a' + file), (char)('1' + rank) };
 }

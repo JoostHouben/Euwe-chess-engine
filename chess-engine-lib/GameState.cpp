@@ -5,6 +5,7 @@
 
 #include <map>
 #include <sstream>
+#include <utility>
 
 #define IMPLIES(a, b) (!(a) || (b))
 
@@ -31,10 +32,8 @@ namespace {
             return Piece::Queen;
         case 'K':
             return Piece::King;
-        default:
-            assert(false);
-            return Piece{};
         }
+        std::unreachable();
     }
 
     constexpr Side sideFromFenChar(char c) {
@@ -55,10 +54,8 @@ namespace {
             return 'b';
         case Side::None:
             return 'x';
-        default:
-            assert(false);
-            return '\0';
         }
+        std::unreachable();
     }
 
     constexpr ColoredPiece coloredPieceFromFenChar(char c) {
@@ -79,11 +76,8 @@ namespace {
             return 'Q';
         case Piece::King:
             return 'K';
-        default:
-            assert(false);
-            return '\0';
         }
-
+        std::unreachable();
     }
 
     constexpr char toFenChar(ColoredPiece coloredPiece) {
@@ -125,10 +119,8 @@ namespace {
             return Side::White;
         case 'b':
             return Side::Black;
-        default:
-            assert(false);
-            return Side::None;
         }
+        std::unreachable();
     }
 
     void parseCastlingRightsFromFen(
@@ -152,7 +144,7 @@ namespace {
                 mayCastleQueenSide[(std::size_t)side] = true;
                 break;
             default:
-                assert(false);
+                std::unreachable();
             }
         }
     }
@@ -163,7 +155,7 @@ namespace {
             return BoardPosition::Invalid;
         }
 
-        BoardPosition enPassantTarget = positionFromAlgebraic({ &*strIt, 2 });
+        BoardPosition enPassantTarget = positionFromAlgebraic({ strIt, strIt + 2 });
         strIt += 2;
         return enPassantTarget;
     }
@@ -687,7 +679,7 @@ std::vector<Move> GameState::generateMoves() const {
                 moves);
             break;
         default:
-            assert(false);
+            std::unreachable();
             break;
         }
     }
@@ -902,7 +894,7 @@ std::set<BoardPosition> GameState::generateEnemyControlledSquares(
                 moves);
             break;
         default:
-            assert(false);
+            std::unreachable();
             break;
         }
     }
@@ -922,6 +914,5 @@ bool GameState::isInCheck(const std::set<BoardPosition>& enemeyControlledSquares
             return enemeyControlledSquares.count(position);
         }
     }
-    assert(false);
-    return {};
+    std::unreachable();
 }
