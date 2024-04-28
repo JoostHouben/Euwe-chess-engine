@@ -3,11 +3,14 @@
 #pragma warning(disable : 26812)
 
 #include <array>
+#include <map>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
+#include <cassert>
 #include <cstdint>
 
 enum class Side : std::uint8_t {
@@ -17,7 +20,22 @@ enum class Side : std::uint8_t {
 };
 inline constexpr int kNumSides = 2;
 
+constexpr Side nextSide(Side side) {
+    switch (side) {
+    case Side::White:
+        return Side::Black;
+    case Side::Black:
+        return Side::White;
+    case Side::None:
+        return Side::None;
+    default:
+        assert(false);
+        return Side{};
+    }
+}
+
 enum class Piece : std::uint8_t {
+    None,
     Pawn,
     Knight,
     Bishop,
@@ -62,6 +80,7 @@ using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
 struct Move {
     BoardPosition from;
     BoardPosition to;
+    Piece promotionPiece = Piece::None;
 };
 
 class GameState {
@@ -71,6 +90,10 @@ public:
 
     std::string toFen(int moveCounter) const;
     std::string toVisualString() const;
+
+    bool isInCheck() const;
+
+    std::vector<Move> generateMoves() const;
 
     void makeMove(Move move); // TODO
 
@@ -99,6 +122,10 @@ public:
     }
 
 private:
+    std::set<BoardPosition> generateEnemyControlledSquares(
+        const std::map<BoardPosition, ColoredPiece>& positionToPiece) const;
+    bool isInCheck(const std::set<BoardPosition>& enemeyControlledSquares) const;
+
     GameState() = default;
 
     Side sideToMove_ = Side::None;
@@ -116,5 +143,3 @@ private:
 Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState); // TODO
 
 std::string algebraicFromMove(Move move, const GameState& gameState); // TODO
-
-std::vector<Move> generateMoves(const GameState& gameState); // TODO
