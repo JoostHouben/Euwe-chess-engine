@@ -6,6 +6,8 @@
 #include <map>
 #include <sstream>
 
+#define IMPLIES(a, b) (!(a) || (b))
+
 namespace {
     constexpr char kLowerCaseBit = 1 << 5;
     constexpr std::array kSigns = { +1, -1 };
@@ -706,96 +708,146 @@ std::vector<Move> GameState::generateMoves() const {
 }
 
 void GameState::makeMove(Move move) {
-    // TODO: castling
+    if (isCastle(move.flags)) {
+        handleCastle(move);
+    }
+    else {
+        handleSinglePieceMove(move);
+    }
+}
 
-    const bool isEnPassantCapture = isEnPassant(move.flags);
-    BoardPosition enPassantCapturedSquare = BoardPosition::Invalid;
-    if (isEnPassantCapture) {
+void GameState::handleCastle(Move move) {
+    const auto [kingFromFile, kingFromRank] = fileRankFromPosition(move.from);
+    const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
+    const bool isQueenSide = kingToFile == 2; // c
+
+    assert(IMPLIES(isQueenSide, canCastleQueenSide(sideToMove_)));
+    assert(IMPLIES(!isQueenSide, canCastleKingSide(sideToMove_)));
+
+    const int rookFromFile = isQueenSide ? /*a*/ 0 : /*h*/ 7;
+    const BoardPosition rookFromPosition = positionFromFileRank(rookFromFile, kingFromRank);
+    const BoardPosition rookToPosition = positionFromFileRank((kingFromFile + kingToFile) / 2, kingFromRank);
+
+    for (auto& [coloredPiece, position] : pieces_) {
+        if (position == move.from) {
+            assert(getPiece(coloredPiece) == Piece::King);
+            assert(getSide(coloredPiece) == sideToMove_);
+
+            position = move.to;
+        }
+        else if (position == rookFromPosition) {
+            assert(getPiece(coloredPiece) == Piece::Rook);
+            assert(getSide(coloredPiece) == sideToMove_);
+
+            position = rookToPosition;
+        }
+    }
+
+    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+
+    sideToMove_ = nextSide(sideToMove_);
+    enPassantTarget_ = BoardPosition::Invalid;
+    ++plySinceCaptureOrPawn_;
+}
+
+void GameState::handleSinglePieceMove(Move move) {
+    BoardPosition captureTargetSquare = BoardPosition::Invalid;
+
+    if (isEnPassant(move.flags)) {
         assert(isCapture(move.flags));
         assert(move.to == enPassantTarget_);
+
         const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
         const auto [toFile, toRank] = fileRankFromPosition(move.to);
-        enPassantCapturedSquare = positionFromFileRank(toFile, fromRank);
+        captureTargetSquare = positionFromFileRank(toFile, fromRank);
+    }
+    else if (isCapture(move.flags)) {
+        captureTargetSquare = move.to;
     }
 
     enPassantTarget_ = BoardPosition::Invalid;
 
-    bool isCaptureOrPawnMove = false;
-    auto enPassantCapturedPiece = pieces_.end();
+    bool isCaptureOrPawnMove = isCapture(move.flags);
     auto capturedPieceIt = pieces_.end();
+
     for (auto pieceIt = pieces_.begin(); pieceIt != pieces_.end(); ++pieceIt) {
         auto& [coloredPiece, position] = *pieceIt;
 
         if (position == move.from) {
             assert(getSide(coloredPiece) == sideToMove_);
+
             position = move.to;
 
             const Piece piece = getPiece(coloredPiece);
-
             if (piece == Piece::Pawn) {
                 isCaptureOrPawnMove = true;
-
-                const Piece promotionPiece = getPromotionPiece(move.flags);
-                if (promotionPiece != Piece::None) {
-                    coloredPiece = getColoredPiece(promotionPiece, sideToMove_);
-                }
-
-                const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
-                const auto [_, toRank] = fileRankFromPosition(move.to);
-
-                if (std::abs(fromRank - toRank) == 2) {
-                    // Double pawn push
-                    enPassantTarget_ = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
-                }
+                handlePawnMove(move, coloredPiece);
             }
             else if (piece == Piece::King) {
-                mayCastleKingSide_[(std::size_t)sideToMove_] = false;
-                mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+                handleNormalKingMove();
             }
             else if (piece == Piece::Rook) {
-                if (sideToMove_ == Side::White && position == positionFromAlgebraic("a1")) {
-                    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
-                }
-                else if (sideToMove_ == Side::White && position == positionFromAlgebraic("h1")) {
-                    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
-                }
-                else if (sideToMove_ == Side::Black && position == positionFromAlgebraic("a8")) {
-                    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
-                }
-                else if (sideToMove_ == Side::Black && position == positionFromAlgebraic("h8")) {
-                    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
-                }
+                handleRookMove(move.from);
             }
         }
-        else if (position == move.to) {
+        else if (position == captureTargetSquare) {
             assert(getSide(coloredPiece) != sideToMove_);
             assert(isCapture(move.flags));
-            isCaptureOrPawnMove = true;
+
             capturedPieceIt = pieceIt;
         }
-        else if (position == enPassantCapturedSquare) {
-            enPassantCapturedPiece = pieceIt;
-        }
     }
 
-    if (isEnPassantCapture) {
-        assert(enPassantCapturedPiece != pieces_.end());
-        assert(capturedPieceIt == pieces_.end());
-        capturedPieceIt = enPassantCapturedPiece;
-    }
+    assert(IMPLIES(isCapture(move.flags), capturedPieceIt != pieces_.end()));
 
     if (capturedPieceIt != pieces_.end()) {
-        std::swap(*capturedPieceIt, *pieces_.rbegin());
+        *capturedPieceIt = pieces_.back();
         pieces_.pop_back();
     }
-
-    sideToMove_ = nextSide(sideToMove_);
 
     if (isCaptureOrPawnMove) {
         plySinceCaptureOrPawn_ = 0;
     }
     else {
         ++plySinceCaptureOrPawn_;
+    }
+
+    sideToMove_ = nextSide(sideToMove_);
+}
+
+void GameState::handlePawnMove(Move move, ColoredPiece& pieceToMove) {
+    const Piece promotionPiece = getPromotionPiece(move.flags);
+    if (promotionPiece != Piece::None) {
+        pieceToMove = getColoredPiece(promotionPiece, sideToMove_);
+    }
+
+    const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
+    const auto [_, toRank] = fileRankFromPosition(move.to);
+
+    if (std::abs(fromRank - toRank) == 2) {
+        // Double pawn push
+        enPassantTarget_ = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
+    }
+}
+
+void GameState::handleNormalKingMove() {
+    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+}
+
+void GameState::handleRookMove(BoardPosition from) {
+    if (sideToMove_ == Side::White && from == positionFromAlgebraic("a1")) {
+        mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+    }
+    else if (sideToMove_ == Side::White && from == positionFromAlgebraic("h1")) {
+        mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+    }
+    else if (sideToMove_ == Side::Black && from == positionFromAlgebraic("a8")) {
+        mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+    }
+    else if (sideToMove_ == Side::Black && from == positionFromAlgebraic("h8")) {
+        mayCastleKingSide_[(std::size_t)sideToMove_] = false;
     }
 }
 

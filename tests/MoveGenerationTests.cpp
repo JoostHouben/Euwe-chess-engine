@@ -14,6 +14,7 @@ struct MoveStatistics {
     std::size_t numCaptures = 0;
     std::size_t numEnPassant = 0;
     std::size_t numCastle = 0;
+    std::size_t numPromotions = 0;
 };
 
 void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics) {
@@ -22,6 +23,7 @@ void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics
         statistics.numCaptures += isCapture(move.flags);
         statistics.numEnPassant += isEnPassant(move.flags);
         statistics.numCastle += isCastle(move.flags);
+        statistics.numPromotions += isPromotion(move.flags);
     }
 }
 
@@ -39,48 +41,73 @@ void countMoveStatisticsAtPly(const GameState gameState, int ply, MoveStatistics
     }
 }
 
-TEST(MoveGeneration, TestMoveStatisticsAt1Ply) {
+// Statistics taken from https://www.chessprogramming.org/Perft_Results
+TEST(MoveGeneration, TestRootMoveStatsDepth1) {
     MoveStatistics statistics{};
     countMoveStatisticsAtPly(GameState::startingPosition(), 1, statistics);
-    const GameState startingPosition = GameState::startingPosition();
 
     EXPECT_EQ(statistics.numMoves, 400);
     EXPECT_EQ(statistics.numCaptures, 0);
     EXPECT_EQ(statistics.numEnPassant, 0);
     EXPECT_EQ(statistics.numCastle, 0);
+    EXPECT_EQ(statistics.numPromotions, 0);
 }
 
-TEST(MoveGeneration, TestMoveStatisticsAt2Ply) {
+TEST(MoveGeneration, TestRootMoveStatsDepth2) {
     MoveStatistics statistics{};
     countMoveStatisticsAtPly(GameState::startingPosition(), 2, statistics);
-    const GameState startingPosition = GameState::startingPosition();
 
     EXPECT_EQ(statistics.numMoves, 8'902);
     EXPECT_EQ(statistics.numCaptures, 34);
     EXPECT_EQ(statistics.numEnPassant, 0);
     EXPECT_EQ(statistics.numCastle, 0);
+    EXPECT_EQ(statistics.numPromotions, 0);
 }
 
 // Slow! ~5s in debug mode (~100 ms in release)
-TEST(MoveGenerationSlow, TestMoveStatisticsAt3Ply) {
+TEST(MoveGenerationSlow, TestRootMoveStatsDepth3) {
     MoveStatistics statistics{};
     countMoveStatisticsAtPly(GameState::startingPosition(), 3, statistics);
-    const GameState startingPosition = GameState::startingPosition();
 
     EXPECT_EQ(statistics.numMoves, 197'281);
     EXPECT_EQ(statistics.numCaptures, 1'576);
     EXPECT_EQ(statistics.numEnPassant, 0);
     EXPECT_EQ(statistics.numCastle, 0);
+    EXPECT_EQ(statistics.numPromotions, 0);
 }
 
 // Slow! ~2s in release mode
-TEST(MoveGenerationSlow, TestMoveStatisticsAt4Ply) {
+TEST(MoveGenerationSlow, TestRootMoveStatsDepth4) {
     MoveStatistics statistics{};
     countMoveStatisticsAtPly(GameState::startingPosition(), 4, statistics);
-    const GameState startingPosition = GameState::startingPosition();
 
     EXPECT_EQ(statistics.numMoves, 4'865'609);
     EXPECT_EQ(statistics.numCaptures, 82'719);
     EXPECT_EQ(statistics.numEnPassant, 258);
     EXPECT_EQ(statistics.numCastle, 0);
+    EXPECT_EQ(statistics.numPromotions, 0);
+}
+
+TEST(MoveGeneration, TestKiwipeteStatsDepth0) {
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
+    countMoveStatisticsAtPly(gameState, 0, statistics);
+
+    EXPECT_EQ(statistics.numMoves, 48);
+    EXPECT_EQ(statistics.numCaptures, 8);
+    EXPECT_EQ(statistics.numEnPassant, 0);
+    EXPECT_EQ(statistics.numCastle, 2);
+    EXPECT_EQ(statistics.numPromotions, 0);
+}
+
+TEST(MoveGeneration, TestKiwipeteStatsDepth1) {
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
+    countMoveStatisticsAtPly(gameState, 1, statistics);
+
+    EXPECT_EQ(statistics.numMoves, 2'039);
+    EXPECT_EQ(statistics.numCaptures, 351);
+    EXPECT_EQ(statistics.numEnPassant, 1);
+    EXPECT_EQ(statistics.numCastle, 91);
+    EXPECT_EQ(statistics.numPromotions, 0);
 }

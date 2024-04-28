@@ -95,6 +95,10 @@ constexpr Piece getPromotionPiece(MoveFlags flags) {
     return static_cast<Piece>((int)flags & 7);
 }
 
+constexpr bool isPromotion(MoveFlags flags) {
+    return getPromotionPiece(flags) != Piece::None;
+}
+
 constexpr bool isCapture(MoveFlags flags) {
     return (int)flags & (int)MoveFlags::IsCapture;
 }
@@ -132,7 +136,12 @@ public:
 
     std::vector<Move> generateMoves() const;
 
-    void makeMove(Move move); // TODO
+    void makeMove(Move move);
+    void handleCastle(Move move);
+    void handleSinglePieceMove(Move move);
+    void handlePawnMove(Move move, ColoredPiece& pieceToMove);
+    void handleNormalKingMove();
+    void handleRookMove(BoardPosition from);
 
     const std::vector<PiecePosition>& getPieces() const {
         return pieces_;
