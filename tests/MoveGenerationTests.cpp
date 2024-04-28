@@ -19,13 +19,9 @@ struct MoveStatistics {
 void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
     for (const auto move : moves) {
-        const bool isCapture = (int)move.flags & (int)MoveFlags::IsCapture;
-        const bool isEnPassant = (int)move.flags & (int)MoveFlags::IsEnPassant;
-        const bool isCastle = (int)move.flags & (int)MoveFlags::IsCastle;
-
-        statistics.numCaptures += isCapture;
-        statistics.numEnPassant += isEnPassant;
-        statistics.numCastle += isCastle;
+        statistics.numCaptures += isCapture(move.flags);
+        statistics.numEnPassant += isEnPassant(move.flags);
+        statistics.numCastle += isCastle(move.flags);
     }
 }
 

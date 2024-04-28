@@ -61,3 +61,13 @@ TEST(GameStateHelpers, TestToVisualString) {
 
     EXPECT_EQ(startingVisual, expectedStartingVisual);
 }
+
+TEST(GameStateHelpers, TestGetFlags) {
+    EXPECT_EQ(
+        getFlags(MoveFlags::IsCapture, MoveFlags::IsCastle),
+        (MoveFlags)((int)MoveFlags::IsCapture | (int)MoveFlags::IsCastle));
+
+    EXPECT_EQ(
+        getFlags(MoveFlags::IsCapture, Piece::Bishop),
+        (MoveFlags)((int)MoveFlags::IsCapture | (int)Piece::Bishop));
+}

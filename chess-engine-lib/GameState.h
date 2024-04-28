@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma warning(disable : 26812)
-
 #include <array>
 #include <map>
 #include <set>
@@ -71,9 +69,17 @@ constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
     return { (int)position % 8, (int)position / 8 };
 }
 
-BoardPosition positionFromAlgebraic(std::string_view algebraic);
+constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
+    const int file = algebraic[0] - 'a';
+    const int rank = algebraic[1] - '1';
+    return positionFromFileRank(file, rank);
+}
 
-std::string algebraicFromPosition(BoardPosition position);
+// Can be constexpr under C++20
+inline std::string algebraicFromPosition(BoardPosition position) {
+    const auto [file, rank] = fileRankFromPosition(position);
+    return { (char)('a' + file), (char)('1' + rank) };
+}
 
 using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
 
@@ -87,6 +93,25 @@ enum class MoveFlags : std::uint8_t {
 
 constexpr Piece getPromotionPiece(MoveFlags flags) {
     return static_cast<Piece>((int)flags & 7);
+}
+
+constexpr bool isCapture(MoveFlags flags) {
+    return (int)flags & (int)MoveFlags::IsCapture;
+}
+
+constexpr bool isEnPassant(MoveFlags flags) {
+    return (int)flags & (int)MoveFlags::IsEnPassant;
+}
+
+constexpr bool isCastle(MoveFlags flags) {
+    return (int)flags & (int)MoveFlags::IsCastle;
+}
+
+template <typename... FlagTs>
+constexpr MoveFlags getFlags(FlagTs... flags) {
+    static_assert(
+        ((std::is_same_v<FlagTs, MoveFlags> || std::is_same_v<FlagTs, Piece>) &&...));
+    return static_cast<MoveFlags>((static_cast<int>(flags) |...));
 }
 
 struct Move {

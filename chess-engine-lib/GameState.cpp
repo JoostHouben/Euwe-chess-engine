@@ -10,11 +10,11 @@ namespace {
     constexpr char kLowerCaseBit = 1 << 5;
     constexpr std::array kSigns = { +1, -1 };
 
-    bool isNumber(char c) {
+    constexpr bool isNumber(char c) {
         return c >= '0' && c <= '9';
     }
 
-    Piece pieceFromFenChar(char c) {
+    constexpr Piece pieceFromFenChar(char c) {
         char upperCase = c & ~kLowerCaseBit;
         switch (upperCase) {
         case 'P':
@@ -35,7 +35,7 @@ namespace {
         }
     }
 
-    Side sideFromFenChar(char c) {
+    constexpr Side sideFromFenChar(char c) {
         bool isUpperCase = !(c & kLowerCaseBit);
         if (isUpperCase) {
             return Side::White;
@@ -45,7 +45,7 @@ namespace {
         }
     }
 
-    char toFenChar(Side side) {
+    constexpr char toFenChar(Side side) {
         switch (side) {
         case Side::White:
             return 'w';
@@ -59,11 +59,11 @@ namespace {
         }
     }
 
-    ColoredPiece coloredPieceFromFenChar(char c) {
+    constexpr ColoredPiece coloredPieceFromFenChar(char c) {
         return getColoredPiece(pieceFromFenChar(c), sideFromFenChar(c));
     }
 
-    char toFenChar(Piece piece) {
+    constexpr char toFenChar(Piece piece) {
         switch (piece) {
         case Piece::Pawn:
             return 'P';
@@ -84,7 +84,7 @@ namespace {
 
     }
 
-    char toFenChar(ColoredPiece coloredPiece) {
+    constexpr char toFenChar(ColoredPiece coloredPiece) {
         char c = toFenChar(getPiece(coloredPiece));
         if (getSide(coloredPiece) == Side::Black) {
             c |= kLowerCaseBit;
@@ -271,7 +271,7 @@ namespace {
                 if (newRank == 0 || newRank == 7) {
                     // Promotion
                     for (const auto promotionPiece : kPromotionPieces) {
-                        moves.push_back(Move{ origin, forwardPosition, static_cast<MoveFlags>(promotionPiece) });
+                        moves.push_back(Move{ origin, forwardPosition, getFlags(promotionPiece) });
                     }
                 }
                 else {
@@ -303,8 +303,11 @@ namespace {
             // No need to check for promotion: this can never happen on an en passant target square
             const BoardPosition capturePosition = positionFromFileRank(newFile, newRank);
             if (capturePosition == enPassantTarget) {
-                const MoveFlags flags = static_cast<MoveFlags>((int)MoveFlags::IsCapture | (int)MoveFlags::IsEnPassant);
-                moves.push_back(Move{ origin, capturePosition, flags });
+                moves.push_back(Move{
+                    origin,
+                    capturePosition,
+                    getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)
+                });
                 continue;
             }
 
@@ -315,8 +318,10 @@ namespace {
                 if (!getControlledSquares && (newRank == 0 || newRank == 7)) {
                     // Capture + promotion
                     for (const auto promotionPiece : kPromotionPieces) {
-                        const MoveFlags flags = static_cast<MoveFlags>((int)MoveFlags::IsCapture | (int)promotionPiece);
-                        moves.push_back(Move{ origin, capturePosition, flags });
+                        moves.push_back(Move{
+                            origin,
+                            capturePosition,
+                            getFlags(MoveFlags::IsCapture, promotionPiece) });
                     }
                 }
                 else {
@@ -553,20 +558,6 @@ namespace {
     }
 }
 
-BoardPosition positionFromAlgebraic(std::string_view algebraic) {
-    int file = algebraic[0] - 'a';
-    int rank = algebraic[1] - '1';
-    return positionFromFileRank(file, rank);
-}
-
-std::string algebraicFromPosition(BoardPosition position) {
-    auto [file, rank] = fileRankFromPosition(position);
-    std::string algebraic(2, '\0');
-    algebraic[0] = 'a' + file;
-    algebraic[1] = '1' + rank;
-    return algebraic;
-}
-
 GameState GameState::fromFen(const std::string& fenString) {
     GameState gameState{};
 
@@ -717,10 +708,10 @@ std::vector<Move> GameState::generateMoves() const {
 void GameState::makeMove(Move move) {
     // TODO: castling
 
-    const bool isEnPassantCapture = (int)move.flags & (int)MoveFlags::IsEnPassant;
+    const bool isEnPassantCapture = isEnPassant(move.flags);
     BoardPosition enPassantCapturedSquare = BoardPosition::Invalid;
     if (isEnPassantCapture) {
-        assert((int)move.flags & (int)MoveFlags::IsCapture);
+        assert(isCapture(move.flags));
         assert(move.to == enPassantTarget_);
         const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
         const auto [toFile, toRank] = fileRankFromPosition(move.to);
@@ -778,7 +769,7 @@ void GameState::makeMove(Move move) {
         }
         else if (position == move.to) {
             assert(getSide(coloredPiece) != sideToMove_);
-            assert((int)move.flags & (int)MoveFlags::IsCapture);
+            assert(isCapture(move.flags));
             isCaptureOrPawnMove = true;
             capturedPieceIt = pieceIt;
         }
