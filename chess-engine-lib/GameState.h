@@ -26,14 +26,14 @@ enum Piece : std::uint8_t {
     King
 };
 
-using ColoredPiece = std::uint8_t;
+enum ColoredPiece : std::uint8_t {};
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
     return static_cast<ColoredPiece>((side << 3) | piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {
-    constexpr ColoredPiece kPieceMask = 7;
+    constexpr ColoredPiece kPieceMask = static_cast<ColoredPiece>(7);
     return static_cast<Piece>(coloredPiece & kPieceMask);
 }
 
@@ -41,8 +41,9 @@ constexpr Side getSide(ColoredPiece coloredPiece) {
     return static_cast<Side>(coloredPiece >> 3);
 }
 
-using BoardPosition = std::uint8_t;
-inline constexpr BoardPosition kInvalidPosition = 1 << 6;
+enum BoardPosition : std::uint8_t {
+    kInvalidPosition = 1 << 6
+};
 
 constexpr BoardPosition positionFromFileRank(int file, int rank) {
     return static_cast<BoardPosition>(rank * 8 + file);
