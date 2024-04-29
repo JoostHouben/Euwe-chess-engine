@@ -86,6 +86,8 @@ inline const std::string kPosition4Fen =
         "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 inline const std::string kPosition5Fen =
         "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+inline const std::string kPosition6Fen =
+        "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
 
 std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig>& info) {
     std::string fenName = "";
@@ -99,6 +101,8 @@ std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig
         fenName = "position4";
     } else if (info.param.fen == kPosition5Fen) {
         fenName = "position5";
+    } else if (info.param.fen == kPosition6Fen) {
+        fenName = "position6";
     }
     return fenName + "_depth" + std::to_string(info.param.depth);
 }
@@ -156,6 +160,11 @@ INSTANTIATE_TEST_CASE_P(
             .depth = 2,
             .expectedStats = {.numMoves = 2'812, .numCaptures = 209, .numEnPassant = 2, .numCastle = 0, .numPromotions = 0}
         },
+        TestStatsConfig{
+            .fen = kPosition3Fen,
+            .depth = 3,
+            .expectedStats = {.numMoves = 43'238, .numCaptures = 3'348, .numEnPassant = 123, .numCastle = 0, .numPromotions = 0}
+        },
         // position4
         TestStatsConfig{
             .fen = kPosition4Fen,
@@ -187,30 +196,83 @@ INSTANTIATE_TEST_CASE_P(
             .fen = kPosition5Fen,
             .depth = 2,
             .expectedStats = {.numMoves = 62'379}
+        },
+        // position6
+        TestStatsConfig{
+            .fen = kPosition6Fen,
+            .depth = 0,
+            .expectedStats = {.numMoves = 46}
+        },
+        TestStatsConfig{
+            .fen = kPosition6Fen,
+            .depth = 1,
+            .expectedStats = {.numMoves = 2'079}
+        },
+        TestStatsConfig{
+            .fen = kPosition6Fen,
+            .depth = 2,
+            .expectedStats = {.numMoves = 89'890}
         }
     ),
     validateMoveStatsName
 );
 
+// Total in release mode: ~6.5s
 INSTANTIATE_TEST_CASE_P(
     MoveGenerationSlow,
     ValidateMoveStats,
     ::testing::Values(
-        // Slow! ~3s in debug mode (~90ms in release mode)
+        // Debug mode: ~3s
+        // Release mode: ~100ms
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 3,
             .expectedStats = {.numMoves = 197'281, .numCaptures = 1'576, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
         },
-        // Vey slow! ~60s in debug mode / ~2s in release mode
+        // Debug mode: ~60s
+        // Release mode: ~2s
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 4,
             .expectedStats = {.numMoves = 4'865'609, .numCaptures = 82'719, .numEnPassant = 258, .numCastle = 0, .numPromotions = 0}
+        },
+        // Debug mode: ??s
+        // Release mode: ~1.5s
+        TestStatsConfig{
+            .fen = kKiwipeteFen,
+            .depth = 3,
+            .expectedStats = {.numMoves = 4'085'603, .numCaptures = 757'163, .numEnPassant = 1'929, .numCastle = 128'013, .numPromotions = 15'172}
+        },
+        // Debug mode: ??s
+        // Release mode: ~200ms
+        TestStatsConfig{
+            .fen = kPosition3Fen,
+            .depth = 4,
+            .expectedStats = {.numMoves = 674'624, .numCaptures = 52'051, .numEnPassant = 1'165, .numCastle = 0, .numPromotions = 0}
+        },
+        // Debug mode: ??s
+        // Release mode: ~200ms
+        TestStatsConfig{
+            .fen = kPosition4Fen,
+            .depth = 3,
+            .expectedStats = {.numMoves = 422'333, .numCaptures = 131'393, .numEnPassant = 0, .numCastle = 7'795, .numPromotions = 60'032}
+        },
+        // Debug mode: ??s
+        // Release mode: ~900ms
+        TestStatsConfig{
+            .fen = kPosition5Fen,
+            .depth = 3,
+            .expectedStats = {.numMoves = 2'103'487}
+        },
+        // Debug mode: ??s
+        // Release mode: ~1.5s
+        TestStatsConfig{
+            .fen = kPosition6Fen,
+            .depth = 3,
+            .expectedStats = {.numMoves = 3'894'594}
         }
     ),
     validateMoveStatsName
 );
-            // clang-format on
 
 }  // namespace MoveGenerationTests
