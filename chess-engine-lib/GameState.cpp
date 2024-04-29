@@ -1,6 +1,7 @@
 #include "GameState.h"
 
 #include <array>
+#include <functional>
 
 #include <cassert>
 
@@ -10,11 +11,12 @@ namespace {
 
 constexpr std::array kSigns = {+1, -1};
 
+template <typename FuncT>
 void generateSinglePawnMoves(
         const BoardPosition origin,
         const BoardPosition enPassantTarget,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves,
+        FuncT&& addMove,
         const bool getControlledSquares = false) {
     static constexpr std::array kPromotionPieces = {
             Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
@@ -40,11 +42,11 @@ void generateSinglePawnMoves(
             if (newRank == 0 || newRank == 7) {
                 // Promotion
                 for (const auto promotionPiece : kPromotionPieces) {
-                    moves.push_back(Move{origin, forwardPosition, getFlags(promotionPiece)});
+                    addMove(Move{origin, forwardPosition, getFlags(promotionPiece)});
                 }
             } else {
                 // Normal push
-                moves.push_back(Move{origin, forwardPosition});
+                addMove(Move{origin, forwardPosition});
             }
 
             // Double push
@@ -52,7 +54,7 @@ void generateSinglePawnMoves(
                 const BoardPosition doubleForwardPosition =
                         positionFromFileRank(file, rank + 2 * forwardDirection);
                 if (positionToPiece.count(doubleForwardPosition) == 0) {
-                    moves.push_back(Move{origin, doubleForwardPosition});
+                    addMove(Move{origin, doubleForwardPosition});
                 }
                 // No need to check for promotion: this can never happen from the starting rank
             }
@@ -72,7 +74,7 @@ void generateSinglePawnMoves(
         // No need to check for promotion: this can never happen on an en passant target square
         const BoardPosition capturePosition = positionFromFileRank(newFile, newRank);
         if (capturePosition == enPassantTarget) {
-            moves.push_back(
+            addMove(
                     Move{origin,
                          capturePosition,
                          getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)});
@@ -86,23 +88,24 @@ void generateSinglePawnMoves(
             if (!getControlledSquares && (newRank == 0 || newRank == 7)) {
                 // Capture + promotion
                 for (const auto promotionPiece : kPromotionPieces) {
-                    moves.push_back(
+                    addMove(
                             Move{origin,
                                  capturePosition,
                                  getFlags(MoveFlags::IsCapture, promotionPiece)});
                 }
             } else {
                 // Normal capture
-                moves.push_back(Move{origin, capturePosition, MoveFlags::IsCapture});
+                addMove(Move{origin, capturePosition, MoveFlags::IsCapture});
             }
         }
     }
 }
 
+template <typename FuncT>
 void generateSingleKnightMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     static constexpr std::array kFileRankDsts = {std::pair{1, 2}, std::pair{2, 1}};
 
     assert(positionToPiece.find(origin) != positionToPiece.end());
@@ -129,20 +132,21 @@ void generateSingleKnightMoves(
                 const bool isEnemyPiece = !isEmpty && getSide(targetPieceIt->second) != side;
                 if (isEmpty || isEnemyPiece) {
                     const MoveFlags flags = isEnemyPiece ? MoveFlags::IsCapture : MoveFlags::None;
-                    moves.push_back({origin, newPosition, flags});
+                    addMove({origin, newPosition, flags});
                 }
             }
         }
     }
 }
 
+template <typename FuncT>
 void generateSliderMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
         const int deltaFile,
         const int deltaRank,
         const bool isKing,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     const auto [file, rank] = fileRankFromPosition(origin);
 
     const Side side = getSide(positionToPiece.at(origin));
@@ -165,14 +169,14 @@ void generateSliderMoves(
             const Side targetSide = getSide(targetPieceIt->second);
             if (targetSide != side) {
                 // Capture
-                moves.push_back({origin, newPosition, MoveFlags::IsCapture});
+                addMove({origin, newPosition, MoveFlags::IsCapture});
             }
             // Further moves are blocked
             break;
         }
 
         // Normal move
-        moves.push_back({origin, newPosition});
+        addMove({origin, newPosition});
 
         if (isKing) {
             // King only moves a distance of 1
@@ -181,80 +185,85 @@ void generateSliderMoves(
     } while (true);
 }
 
+template <typename FuncT>
 void generateSingleBishopMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     assert(positionToPiece.find(origin) != positionToPiece.end());
     assert(getPiece(positionToPiece.find(origin)->second) == Piece::Bishop);
 
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, moves);
+            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, addMove);
         }
     }
 }
 
+template <typename FuncT>
 void generateSingleRookMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     assert(positionToPiece.find(origin) != positionToPiece.end());
     assert(getPiece(positionToPiece.find(origin)->second) == Piece::Rook);
 
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, false, moves);
-        generateSliderMoves(origin, positionToPiece, 0, sign, false, moves);
+        generateSliderMoves(origin, positionToPiece, sign, 0, false, addMove);
+        generateSliderMoves(origin, positionToPiece, 0, sign, false, addMove);
     }
 }
 
+template <typename FuncT>
 void generateSingleQueenMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     assert(positionToPiece.find(origin) != positionToPiece.end());
     assert(getPiece(positionToPiece.find(origin)->second) == Piece::Queen);
 
     // Diagonals
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, moves);
+            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, addMove);
         }
     }
     // Cardinal
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, false, moves);
-        generateSliderMoves(origin, positionToPiece, 0, sign, false, moves);
+        generateSliderMoves(origin, positionToPiece, sign, 0, false, addMove);
+        generateSliderMoves(origin, positionToPiece, 0, sign, false, addMove);
     }
 }
 
+template <typename FuncT>
 void generateNormalKingMoves(
         const BoardPosition origin,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     assert(positionToPiece.find(origin) != positionToPiece.end());
     assert(getPiece(positionToPiece.find(origin)->second) == Piece::King);
 
     // Diagonals
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, true, moves);
+            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, true, addMove);
         }
     }
     // Cardinal
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, true, moves);
-        generateSliderMoves(origin, positionToPiece, 0, sign, true, moves);
+        generateSliderMoves(origin, positionToPiece, sign, 0, true, addMove);
+        generateSliderMoves(origin, positionToPiece, 0, sign, true, addMove);
     }
 }
 
+template <typename FuncT>
 void generateCastlingMoves(
         const Side sideToMove,
         const bool canCastleKingSide,
         const bool canCastleQueenSide,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
         BitBoard enemyControlledSquares,
-        std::vector<Move>& moves) {
+        FuncT&& addMove) {
     assert(sideToMove == Side::White || sideToMove == Side::Black);
 
     const BoardPosition kingPosition =
@@ -286,7 +295,7 @@ void generateCastlingMoves(
 
         if (castleIsValid) {
             const BoardPosition targetPosition = positionFromFileRank(kingFile + 2, kingRank);
-            moves.push_back({kingPosition, targetPosition, MoveFlags::IsCastle});
+            addMove({kingPosition, targetPosition, MoveFlags::IsCastle});
         }
     }
     if (canCastleQueenSide) {
@@ -307,7 +316,7 @@ void generateCastlingMoves(
 
         if (castleIsValid) {
             const BoardPosition targetPosition = positionFromFileRank(kingFile - 2, kingRank);
-            moves.push_back({kingPosition, targetPosition, MoveFlags::IsCastle});
+            addMove({kingPosition, targetPosition, MoveFlags::IsCastle});
         }
     }
 }
@@ -336,6 +345,9 @@ std::vector<Move> GameState::generateMoves() {
     const BitBoard enemyControlledSquares = generateEnemyControlledSquares(positionToPiece);
 
     std::vector<Move> moves;
+    auto addMove = [&](const Move& move) {
+        moves.push_back(move);
+    };
 
     for (const auto& [coloredPiece, position] : pieces_) {
         if (getSide(coloredPiece) != sideToMove_) {
@@ -345,22 +357,22 @@ std::vector<Move> GameState::generateMoves() {
 
         switch (getPiece(coloredPiece)) {
             case Piece::Pawn:
-                generateSinglePawnMoves(position, enPassantTarget_, positionToPiece, moves);
+                generateSinglePawnMoves(position, enPassantTarget_, positionToPiece, addMove);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, positionToPiece, moves);
+                generateSingleKnightMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, positionToPiece, moves);
+                generateSingleBishopMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, positionToPiece, moves);
+                generateSingleRookMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, positionToPiece, moves);
+                generateSingleQueenMoves(position, positionToPiece, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, positionToPiece, moves);
+                generateNormalKingMoves(position, positionToPiece, addMove);
                 break;
             default:
                 std::unreachable();
@@ -374,7 +386,7 @@ std::vector<Move> GameState::generateMoves() {
             canCastleQueenSide(sideToMove_),
             positionToPiece,
             enemyControlledSquares,
-            moves);
+            addMove);
 
     // Remove moves that put us in check. Very slow!!
     for (int moveIdx = 0; moveIdx < moves.size();) {
@@ -590,7 +602,10 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
 
 BitBoard GameState::generateEnemyControlledSquares(
         const std::map<BoardPosition, ColoredPiece>& positionToPiece) const {
-    std::vector<Move> moves;
+    BitBoard controlledSquares = BitBoard::Empty;
+    auto addMove = [&](const Move& move) {
+        controlledSquares = set(controlledSquares, move.to);
+    };
 
     for (const auto& [coloredPiece, position] : pieces_) {
         if (getSide(coloredPiece) == sideToMove_) {
@@ -606,33 +621,28 @@ BitBoard GameState::generateEnemyControlledSquares(
                         position,
                         BoardPosition::Invalid,
                         positionToPiece,
-                        moves,
+                        addMove,
                         /*getControlledSquares =*/true);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, positionToPiece, moves);
+                generateSingleKnightMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, positionToPiece, moves);
+                generateSingleBishopMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, positionToPiece, moves);
+                generateSingleRookMoves(position, positionToPiece, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, positionToPiece, moves);
+                generateSingleQueenMoves(position, positionToPiece, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, positionToPiece, moves);
+                generateNormalKingMoves(position, positionToPiece, addMove);
                 break;
             default:
                 std::unreachable();
                 break;
         }
-    }
-
-    BitBoard controlledSquares = BitBoard::Empty;
-    for (const auto& move : moves) {
-        controlledSquares = set(controlledSquares, move.to);
     }
 
     return controlledSquares;
