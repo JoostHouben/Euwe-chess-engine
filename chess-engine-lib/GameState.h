@@ -121,6 +121,9 @@ struct Move {
     MoveFlags flags = MoveFlags::None;
 };
 
+inline const std::string kStartingPositionFen =
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 class GameState {
 public:
     static GameState fromFen(const std::string& fenString);

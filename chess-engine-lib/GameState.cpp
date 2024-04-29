@@ -585,8 +585,7 @@ GameState GameState::fromFen(const std::string& fenString) {
 }
 
 GameState GameState::startingPosition() {
-    std::string startingPositionFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    return fromFen(startingPositionFen);
+    return fromFen(kStartingPositionFen);
 }
 
 std::string GameState::toFen(int moveCounter) const {
