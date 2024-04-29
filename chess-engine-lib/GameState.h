@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -62,9 +61,6 @@ constexpr std::string algebraicFromPosition(BoardPosition position) {
 }
 
 using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
-
-std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
-        const std::vector<PiecePosition>& pieces);
 
 enum class MoveFlags : std::uint8_t {
     None = 0,

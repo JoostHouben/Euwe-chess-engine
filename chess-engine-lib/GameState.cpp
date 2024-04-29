@@ -298,15 +298,6 @@ PieceOccupationBitBoards getPieceOccupationBitBoards(
 
 }  // namespace
 
-std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
-        const std::vector<PiecePosition>& pieces) {
-    std::map<BoardPosition, ColoredPiece> positionToPiece;
-    for (const auto [piece, position] : pieces) {
-        positionToPiece.emplace(position, piece);
-    }
-    return positionToPiece;
-}
-
 GameState GameState::startingPosition() {
     return fromFen(kStartingPositionFen);
 }

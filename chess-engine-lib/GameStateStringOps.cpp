@@ -3,11 +3,21 @@
 #include <cassert>
 #include <cstdlib>
 
+#include <map>
 #include <sstream>
 
 namespace {
 
 constexpr char kLowerCaseBit = 1 << 5;
+
+std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
+        const std::vector<PiecePosition>& pieces) {
+    std::map<BoardPosition, ColoredPiece> positionToPiece;
+    for (const auto [piece, position] : pieces) {
+        positionToPiece.emplace(position, piece);
+    }
+    return positionToPiece;
+}
 
 constexpr bool isNumber(char c) {
     return c >= '0' && c <= '9';
