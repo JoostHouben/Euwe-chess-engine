@@ -1,5 +1,6 @@
 #include "chess-engine-lib/GameState.h"
 
+#pragma warning(disable : 26495)
 #include "gtest/gtest.h"
 
 namespace GameStateHelperTests {
