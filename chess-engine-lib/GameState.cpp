@@ -259,15 +259,14 @@ void generateCastlingMoves(
         const Side sideToMove, const bool canCastleKingSide,
         const bool canCastleQueenSide,
         const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        const std::set<BoardPosition>& enemeyControlledSquares,
-        std::vector<Move>& moves) {
+        BitBoard enemyControlledSquares, std::vector<Move>& moves) {
     assert(sideToMove == Side::White || sideToMove == Side::Black);
 
     const BoardPosition kingPosition = sideToMove == Side::White
                                                ? positionFromAlgebraic("e1")
                                                : positionFromAlgebraic("e8");
 
-    const bool inCheck = enemeyControlledSquares.count(kingPosition);
+    const bool inCheck = isSet(enemyControlledSquares, kingPosition);
     if (inCheck) {
         // No castle moves are possible while in check
         return;
@@ -285,7 +284,7 @@ void generateCastlingMoves(
                 castleIsValid = false;
                 break;
             }
-            if (enemeyControlledSquares.count(position)) {
+            if (isSet(enemyControlledSquares, position)) {
                 // King passes through or into check
                 castleIsValid = false;
                 break;
@@ -309,7 +308,7 @@ void generateCastlingMoves(
                 castleIsValid = false;
                 break;
             }
-            if (fileDelta <= 2 && enemeyControlledSquares.count(position)) {
+            if (fileDelta <= 2 && isSet(enemyControlledSquares, position)) {
                 // King passes through or into check
                 castleIsValid = false;
                 break;
@@ -348,7 +347,7 @@ bool GameState::isInCheck() const {
 std::vector<Move> GameState::generateMoves() {
     const std::map<BoardPosition, ColoredPiece> positionToPiece =
             getPositionToPieceMap(pieces_);
-    const std::set<BoardPosition> enemeyControlledSquares =
+    const BitBoard enemyControlledSquares =
             generateEnemyControlledSquares(positionToPiece);
 
     std::vector<Move> moves;
@@ -387,7 +386,7 @@ std::vector<Move> GameState::generateMoves() {
 
     generateCastlingMoves(sideToMove_, canCastleKingSide(sideToMove_),
                           canCastleQueenSide(sideToMove_), positionToPiece,
-                          enemeyControlledSquares, moves);
+                          enemyControlledSquares, moves);
 
     // Remove moves that put us in check. Very slow!!
     for (int moveIdx = 0; moveIdx < moves.size();) {
@@ -610,7 +609,7 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition,
     }
 }
 
-std::set<BoardPosition> GameState::generateEnemyControlledSquares(
+BitBoard GameState::generateEnemyControlledSquares(
         const std::map<BoardPosition, ColoredPiece>& positionToPiece) const {
     std::vector<Move> moves;
 
@@ -649,20 +648,19 @@ std::set<BoardPosition> GameState::generateEnemyControlledSquares(
         }
     }
 
-    std::set<BoardPosition> controlledSquares;
+    BitBoard controlledSquares = BitBoard::Empty;
     for (const auto& move : moves) {
-        controlledSquares.insert(move.to);
+        controlledSquares = set(controlledSquares, move.to);
     }
 
     return controlledSquares;
 }
 
-bool GameState::isInCheck(
-        const std::set<BoardPosition>& enemeyControlledSquares) const {
+bool GameState::isInCheck(const BitBoard enemyControlledSquares) const {
     const ColoredPiece myKing = getColoredPiece(Piece::King, sideToMove_);
     for (const auto [piece, position] : pieces_) {
         if (piece == myKing) {
-            return enemeyControlledSquares.count(position);
+            return isSet(enemyControlledSquares, position);
         }
     }
     std::unreachable();

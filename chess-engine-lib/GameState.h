@@ -1,7 +1,6 @@
 #pragma once
 
 #include <map>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -117,6 +116,16 @@ struct Move {
     MoveFlags flags = MoveFlags::None;
 };
 
+enum class BitBoard : std::uint64_t { Empty };
+
+constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
+    return (std::uint64_t)bitboard & (1ULL << (int)position);
+}
+
+constexpr BitBoard set(BitBoard bitboard, BoardPosition position) {
+    return (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
+}
+
 inline const std::string kStartingPositionFen =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -177,10 +186,9 @@ class GameState {
     }
 
    private:
-    std::set<BoardPosition> generateEnemyControlledSquares(
+    BitBoard generateEnemyControlledSquares(
             const std::map<BoardPosition, ColoredPiece>& positionToPiece) const;
-    bool isInCheck(
-            const std::set<BoardPosition>& enemeyControlledSquares) const;
+    bool isInCheck(BitBoard enemyControlledSquares) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
     void setCanCastleQueenSide(Side side, bool canCastle);
