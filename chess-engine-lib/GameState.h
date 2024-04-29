@@ -34,7 +34,7 @@ enum class Piece : std::uint8_t {
     King
 };
 
-enum class ColoredPiece : std::uint8_t {};
+enum class ColoredPiece : std::uint8_t { None };
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
     return static_cast<ColoredPiece>(((std::uint8_t)side << 3) |
@@ -111,16 +111,6 @@ constexpr MoveFlags getFlags(FlagTs... flags) {
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
-enum class CastlingRights : uint8_t {
-    None = 0,
-    KingSide = 1 << 0,
-    QueenSide = 1 << 1,
-    WhiteKingSide = 1 << 0,
-    WhiteQueenSide = 1 << 1,
-    BlackKingSide = 1 << 2,
-    BlackQueenSide = 1 << 3,
-};
-
 struct Move {
     BoardPosition from;
     BoardPosition to;
@@ -132,7 +122,23 @@ inline const std::string kStartingPositionFen =
 
 class GameState {
    public:
-    struct UnmakeMoveInfo {};
+    enum class CastlingRights : uint8_t {
+        None = 0,
+        KingSide = 1 << 0,
+        QueenSide = 1 << 1,
+        WhiteKingSide = 1 << 0,
+        WhiteQueenSide = 1 << 1,
+        BlackKingSide = 1 << 2,
+        BlackQueenSide = 1 << 3,
+    };
+
+    struct UnmakeMoveInfo {
+        BoardPosition enPassantTarget = BoardPosition::Invalid;
+        CastlingRights castlingRights = CastlingRights::None;
+        std::uint8_t plySinceCaptureOrPawn = 0;
+        PiecePosition capturedPiece = {ColoredPiece::None,
+                                       BoardPosition::Invalid};
+    };
 
     static GameState fromFen(const std::string& fenString);
     static GameState startingPosition();
@@ -180,11 +186,13 @@ class GameState {
     void setCanCastleQueenSide(Side side, bool canCastle);
     void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
 
-    void handleCastle(const Move& move);
-    void handleSinglePieceMove(const Move& move);
+    void makeCastleMove(const Move& move, bool reverse = false);
+    PiecePosition makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
+
+    void unmakeSinglePieceMove(const Move& move);
 
     GameState() = default;
 

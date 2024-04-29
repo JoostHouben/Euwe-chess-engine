@@ -119,7 +119,7 @@ Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
 }
 
 void parseCastlingRightsFromFen(std::string::const_iterator& strIt,
-                                CastlingRights& castlingRights) {
+                                GameState::CastlingRights& castlingRights) {
     if (*strIt == '-') {
         ++strIt;
         return;
@@ -132,16 +132,18 @@ void parseCastlingRightsFromFen(std::string::const_iterator& strIt,
         int bit;
         switch (piece) {
             case Piece::King:
-                bit = (int)CastlingRights::KingSide << ((int)side * 2);
+                bit = (int)GameState::CastlingRights::KingSide
+                      << ((int)side * 2);
                 break;
             case Piece::Queen:
-                bit = (int)CastlingRights::QueenSide << ((int)side * 2);
+                bit = (int)GameState::CastlingRights::QueenSide
+                      << ((int)side * 2);
                 break;
             default:
                 std::unreachable();
         }
 
-        castlingRights = (CastlingRights)((int)castlingRights | bit);
+        castlingRights = (GameState::CastlingRights)((int)castlingRights | bit);
     }
 }
 
