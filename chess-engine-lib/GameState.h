@@ -112,7 +112,7 @@ template <typename... FlagTs>
 constexpr MoveFlags getFlags(FlagTs... flags) {
     static_assert(
         ((std::is_same_v<FlagTs, MoveFlags> || std::is_same_v<FlagTs, Piece>) &&...));
-    return static_cast<MoveFlags>((static_cast<int>(flags) |...));
+    return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
 struct Move {
@@ -122,7 +122,7 @@ struct Move {
 };
 
 inline const std::string kStartingPositionFen =
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 class GameState {
 public:

@@ -9,7 +9,7 @@
 TEST(FenParsing, TestStartingPosition) {
     GameState startingPosition = GameState::startingPosition();
 
-    std::set<std::pair<ColoredPiece, std::string>> expectedPiecesAlgebraic {
+    std::set<std::pair<ColoredPiece, std::string>> expectedPiecesAlgebraic{
         {getColoredPiece(Piece::Rook, Side::White), "a1"},
         {getColoredPiece(Piece::Knight, Side::White), "b1"},
         {getColoredPiece(Piece::Bishop, Side::White), "c1"},

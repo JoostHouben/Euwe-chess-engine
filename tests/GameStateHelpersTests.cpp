@@ -16,10 +16,10 @@ TEST(GameStateHelpers, TestGetSide) {
 
 TEST(GameStateHelpers, TestFileRankFromPosition) {
     using FileRankT = std::pair<int, int>;
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 0)), FileRankT( 0, 0 ));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 7)), FileRankT( 0, 7 ));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 0)), FileRankT( 7, 0 ));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 7)), FileRankT( 7, 7 ));
+    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 0)), FileRankT(0, 0));
+    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 7)), FileRankT(0, 7));
+    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 0)), FileRankT(7, 0));
+    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 7)), FileRankT(7, 7));
 }
 
 TEST(GameStateHelpers, TestPositionFromAlgebraic) {

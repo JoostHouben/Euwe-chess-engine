@@ -36,7 +36,7 @@ void countMoveStatisticsAtPly(const GameState gameState, int ply, MoveStatistics
         updateStatistics(moves, statistics);
         return;
     }
-;
+    ;
     for (const auto move : moves) {
         GameState nextGameState(gameState);
         nextGameState.makeMove(move);
@@ -86,13 +86,17 @@ std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig
     std::string fenName = "";
     if (info.param.fen == kStartingPositionFen) {
         fenName = "root";
-    } else if (info.param.fen == kKiwipeteFen) {
+    }
+    else if (info.param.fen == kKiwipeteFen) {
         fenName = "kiwipete";
-    } else if (info.param.fen == kPosition3Fen) {
+    }
+    else if (info.param.fen == kPosition3Fen) {
         fenName = "position3";
-    } else if (info.param.fen == kPosition4Fen) {
+    }
+    else if (info.param.fen == kPosition4Fen) {
         fenName = "position4";
-    } else if (info.param.fen == kPosition5Fen) {
+    }
+    else if (info.param.fen == kPosition5Fen) {
         fenName = "position5";
     }
     return fenName + "_depth" + std::to_string(info.param.depth);

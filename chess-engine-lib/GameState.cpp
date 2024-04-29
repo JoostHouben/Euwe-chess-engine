@@ -76,8 +76,9 @@ namespace {
             return 'Q';
         case Piece::King:
             return 'K';
+        default:
+            std::unreachable();
         }
-        std::unreachable();
     }
 
     constexpr char toFenChar(ColoredPiece coloredPiece) {
@@ -301,7 +302,7 @@ namespace {
                     origin,
                     capturePosition,
                     getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)
-                });
+                    });
                 continue;
             }
 
