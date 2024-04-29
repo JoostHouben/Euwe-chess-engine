@@ -148,7 +148,7 @@ class GameState {
 
     bool isInCheck() const;
 
-    std::vector<Move> generateMoves() const;
+    std::vector<Move> generateMoves();
 
     UnmakeMoveInfo makeMove(const Move& move);
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);

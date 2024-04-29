@@ -345,7 +345,7 @@ bool GameState::isInCheck() const {
             generateEnemyControlledSquares(getPositionToPieceMap(pieces_)));
 }
 
-std::vector<Move> GameState::generateMoves() const {
+std::vector<Move> GameState::generateMoves() {
     const std::map<BoardPosition, ColoredPiece> positionToPiece =
             getPositionToPieceMap(pieces_);
     const std::set<BoardPosition> enemeyControlledSquares =
@@ -390,19 +390,18 @@ std::vector<Move> GameState::generateMoves() const {
                           enemeyControlledSquares, moves);
 
     // Remove moves that put us in check. Very slow!!
-    GameState copyState(*this);
     for (int moveIdx = 0; moveIdx < moves.size();) {
         const Move move = moves[moveIdx];
-        const UnmakeMoveInfo unmakeInfo = copyState.makeMove(move);
-        copyState.sideToMove_ = sideToMove_;
-        if (copyState.isInCheck()) {
+        const UnmakeMoveInfo unmakeInfo = makeMove(move);
+        sideToMove_ = nextSide(sideToMove_);
+        if (isInCheck()) {
             moves[moveIdx] = moves.back();
             moves.pop_back();
         } else {
             ++moveIdx;
         }
-        copyState.sideToMove_ = nextSide(sideToMove_);
-        copyState.unmakeMove(move, unmakeInfo);
+        sideToMove_ = nextSide(sideToMove_);
+        unmakeMove(move, unmakeInfo);
     }
 
     return moves;
@@ -562,7 +561,7 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
 void GameState::unmakeSinglePieceMove(const Move& move) {
     for (auto& [coloredPiece, position] : pieces_) {
         if (position == move.to) {
-            assert(getSide(coloredPiece) != sideToMove_);
+            assert(getSide(coloredPiece) == sideToMove_);
 
             position = move.from;
             if (isPromotion(move.flags)) {

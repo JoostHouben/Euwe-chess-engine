@@ -34,7 +34,7 @@ void updateStatistics(const std::vector<Move>& moves,
     }
 }
 
-void countMoveStatisticsAtPly(const GameState gameState, int ply,
+void countMoveStatisticsAtPly(GameState& gameState, int ply,
                               MoveStatistics& statistics) {
     const std::vector<Move> moves = gameState.generateMoves();
     if (ply == 0) {
@@ -42,9 +42,9 @@ void countMoveStatisticsAtPly(const GameState gameState, int ply,
         return;
     };
     for (const auto& move : moves) {
-        GameState nextGameState(gameState);
-        nextGameState.makeMove(move);
-        countMoveStatisticsAtPly(nextGameState, ply - 1, statistics);
+        GameState::UnmakeMoveInfo unmakeInfo = gameState.makeMove(move);
+        countMoveStatisticsAtPly(gameState, ply - 1, statistics);
+        gameState.unmakeMove(move, unmakeInfo);
     }
 }
 
