@@ -120,10 +120,8 @@ Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
     std::unreachable();
 }
 
-void parseCastlingRightsFromFen(
-        std::string::const_iterator& strIt,
-        std::array<bool, kNumSides>& mayCastleKingSide,
-        std::array<bool, kNumSides>& mayCastleQueenSide) {
+void parseCastlingRightsFromFen(std::string::const_iterator& strIt,
+                                CastlingRights& castlingRights) {
     if (*strIt == '-') {
         ++strIt;
         return;
@@ -132,16 +130,20 @@ void parseCastlingRightsFromFen(
     for (; *strIt != ' '; ++strIt) {
         Side side = sideFromFenChar(*strIt);
         Piece piece = pieceFromFenChar(*strIt);
+
+        int bit;
         switch (piece) {
             case Piece::King:
-                mayCastleKingSide[(std::size_t)side] = true;
+                bit = (int)CastlingRights::KingSide << ((int)side * 2);
                 break;
             case Piece::Queen:
-                mayCastleQueenSide[(std::size_t)side] = true;
+                bit = (int)CastlingRights::QueenSide << ((int)side * 2);
                 break;
             default:
                 std::unreachable();
         }
+
+        castlingRights = (CastlingRights)((int)castlingRights | bit);
     }
 }
 
@@ -241,8 +243,7 @@ GameState GameState::fromFen(const std::string& fenString) {
     assert(*strIt == ' ');
     ++strIt;
 
-    parseCastlingRightsFromFen(strIt, gameState.mayCastleKingSide_,
-                               gameState.mayCastleQueenSide_);
+    parseCastlingRightsFromFen(strIt, gameState.castlingRights_);
     assert(*strIt == ' ');
     ++strIt;
 
@@ -272,7 +273,7 @@ std::string GameState::toFen(int moveCounter) const {
     ss << ' ';
     enPassantTargetToFen(enPassantTarget_, ss);
     ss << ' ';
-    ss << plySinceCaptureOrPawn_;
+    ss << (unsigned)plySinceCaptureOrPawn_;
     ss << ' ';
     ss << moveCounter;
 

@@ -408,15 +408,22 @@ std::vector<Move> GameState::generateMoves() const {
     return moves;
 }
 
-void GameState::makeMove(Move move) {
+GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
     if (isCastle(move.flags)) {
         handleCastle(move);
     } else {
         handleSinglePieceMove(move);
     }
+
+    return {};  // TODO
 }
 
-void GameState::handleCastle(Move move) {
+void GameState::unmakeMove(const Move& move,
+                           const UnmakeMoveInfo& unmakeMoveInfo) {
+    // TODO
+}
+
+void GameState::handleCastle(const Move& move) {
     const auto [kingFromFile, kingFromRank] = fileRankFromPosition(move.from);
     const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
     const bool isQueenSide = kingToFile == 2;  // c
@@ -444,15 +451,15 @@ void GameState::handleCastle(Move move) {
         }
     }
 
-    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
-    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
+    setCanCastleKingSide(sideToMove_, false);
+    setCanCastleQueenSide(sideToMove_, false);
 
     sideToMove_ = nextSide(sideToMove_);
     enPassantTarget_ = BoardPosition::Invalid;
     ++plySinceCaptureOrPawn_;
 }
 
-void GameState::handleSinglePieceMove(Move move) {
+void GameState::handleSinglePieceMove(const Move& move) {
     BoardPosition captureTargetSquare = BoardPosition::Invalid;
 
     if (isEnPassant(move.flags)) {
@@ -517,7 +524,7 @@ void GameState::handleSinglePieceMove(Move move) {
     sideToMove_ = nextSide(sideToMove_);
 }
 
-void GameState::handlePawnMove(Move move, ColoredPiece& pieceToMove) {
+void GameState::handlePawnMove(const Move& move, ColoredPiece& pieceToMove) {
     const Piece promotionPiece = getPromotionPiece(move.flags);
     if (promotionPiece != Piece::None) {
         pieceToMove = getColoredPiece(promotionPiece, sideToMove_);
@@ -534,24 +541,24 @@ void GameState::handlePawnMove(Move move, ColoredPiece& pieceToMove) {
 }
 
 void GameState::handleNormalKingMove() {
-    mayCastleKingSide_[(std::size_t)sideToMove_] = false;
-    mayCastleQueenSide_[(std::size_t)sideToMove_] = false;
+    setCanCastleKingSide(sideToMove_, false);
+    setCanCastleQueenSide(sideToMove_, false);
 }
 
 void GameState::updateRookCastlingRights(BoardPosition rookPosition,
                                          Side rookSide) {
     if (rookSide == Side::White &&
         rookPosition == positionFromAlgebraic("a1")) {
-        mayCastleQueenSide_[(std::size_t)rookSide] = false;
+        setCanCastleQueenSide(rookSide, false);
     } else if (rookSide == Side::White &&
                rookPosition == positionFromAlgebraic("h1")) {
-        mayCastleKingSide_[(std::size_t)rookSide] = false;
+        setCanCastleKingSide(rookSide, false);
     } else if (rookSide == Side::Black &&
                rookPosition == positionFromAlgebraic("a8")) {
-        mayCastleQueenSide_[(std::size_t)rookSide] = false;
+        setCanCastleQueenSide(rookSide, false);
     } else if (rookSide == Side::Black &&
                rookPosition == positionFromAlgebraic("h8")) {
-        mayCastleKingSide_[(std::size_t)rookSide] = false;
+        setCanCastleKingSide(rookSide, false);
     }
 }
 
@@ -611,4 +618,22 @@ bool GameState::isInCheck(
         }
     }
     std::unreachable();
+}
+
+void GameState::setCanCastleKingSide(const Side side, const bool canCastle) {
+    setCanCastle(side, CastlingRights::KingSide, canCastle);
+}
+
+void GameState::setCanCastleQueenSide(const Side side, const bool canCastle) {
+    setCanCastle(side, CastlingRights::QueenSide, canCastle);
+}
+
+void GameState::setCanCastle(const Side side, const CastlingRights castlingSide,
+                             const bool canCastle) {
+    const int bit = (int)castlingSide << ((int)side * 2);
+    if (canCastle) {
+        castlingRights_ = (CastlingRights)((int)castlingRights_ | bit);
+    } else {
+        castlingRights_ = (CastlingRights)((int)castlingRights_ & ~bit);
+    }
 }

@@ -157,11 +157,11 @@ TEST(FenParsing, HalfMoveClock) {
     std::string fen42 =
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 42 1";
     std::string fen314 =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 314 1";
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 75 1";
 
     EXPECT_EQ(GameState::fromFen(fen9).getPlySinceCaptureOrPawn(), 9);
     EXPECT_EQ(GameState::fromFen(fen42).getPlySinceCaptureOrPawn(), 42);
-    EXPECT_EQ(GameState::fromFen(fen314).getPlySinceCaptureOrPawn(), 314);
+    EXPECT_EQ(GameState::fromFen(fen314).getPlySinceCaptureOrPawn(), 75);
 }
 
 }  // namespace FenParsingTests

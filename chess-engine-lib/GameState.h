@@ -113,6 +113,16 @@ constexpr MoveFlags getFlags(FlagTs... flags) {
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
+enum class CastlingRights : uint8_t {
+    None = 0,
+    KingSide = 1 << 0,
+    QueenSide = 1 << 1,
+    WhiteKingSide = 1 << 0,
+    WhiteQueenSide = 1 << 1,
+    BlackKingSide = 1 << 2,
+    BlackQueenSide = 1 << 3,
+};
+
 struct Move {
     BoardPosition from;
     BoardPosition to;
@@ -124,6 +134,8 @@ inline const std::string kStartingPositionFen =
 
 class GameState {
    public:
+    struct UnmakeMoveInfo {};
+
     static GameState fromFen(const std::string& fenString);
     static GameState startingPosition();
 
@@ -134,23 +146,24 @@ class GameState {
 
     std::vector<Move> generateMoves() const;
 
-    void makeMove(Move move);
-    void handleCastle(Move move);
-    void handleSinglePieceMove(Move move);
-    void handlePawnMove(Move move, ColoredPiece& pieceToMove);
-    void handleNormalKingMove();
-    void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
+    UnmakeMoveInfo makeMove(const Move& move);
+    void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
 
     const std::vector<PiecePosition>& getPieces() const { return pieces_; }
 
     Side getSideToMove() const { return sideToMove_; }
 
     bool canCastleKingSide(Side side) const {
-        return mayCastleKingSide_[(std::size_t)side];
+        return canCastle(side, CastlingRights::KingSide);
     }
 
     bool canCastleQueenSide(Side side) const {
-        return mayCastleQueenSide_[(std::size_t)side];
+        return canCastle(side, CastlingRights::QueenSide);
+    }
+
+    bool canCastle(Side side, CastlingRights castlingSide) const {
+        const int bit = (int)castlingSide << ((int)side * 2);
+        return (int)castlingRights_ & bit;
     }
 
     BoardPosition getEnPassantTarget() const { return enPassantTarget_; }
@@ -165,16 +178,25 @@ class GameState {
     bool isInCheck(
             const std::set<BoardPosition>& enemeyControlledSquares) const;
 
+    void setCanCastleKingSide(Side side, bool canCastle);
+    void setCanCastleQueenSide(Side side, bool canCastle);
+    void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
+
+    void handleCastle(const Move& move);
+    void handleSinglePieceMove(const Move& move);
+    void handlePawnMove(const Move& move, ColoredPiece& pieceToMove);
+    void handleNormalKingMove();
+    void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
+
     GameState() = default;
 
     Side sideToMove_ = Side::None;
 
     BoardPosition enPassantTarget_ = BoardPosition::Invalid;
 
-    std::uint16_t plySinceCaptureOrPawn_ = 0;
+    CastlingRights castlingRights_ = CastlingRights::None;
 
-    std::array<bool, kNumSides> mayCastleKingSide_ = {false, false};
-    std::array<bool, kNumSides> mayCastleQueenSide_ = {false, false};
+    std::uint8_t plySinceCaptureOrPawn_ = 0;
 
     std::vector<PiecePosition> pieces_ = {};
 };

@@ -26,7 +26,7 @@ struct ExpectedMoveStatistics {
 void updateStatistics(const std::vector<Move>& moves,
                       MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
-    for (const auto move : moves) {
+    for (const auto& move : moves) {
         statistics.numCaptures += isCapture(move.flags);
         statistics.numEnPassant += isEnPassant(move.flags);
         statistics.numCastle += isCastle(move.flags);
@@ -41,7 +41,7 @@ void countMoveStatisticsAtPly(const GameState gameState, int ply,
         updateStatistics(moves, statistics);
         return;
     };
-    for (const auto move : moves) {
+    for (const auto& move : moves) {
         GameState nextGameState(gameState);
         nextGameState.makeMove(move);
         countMoveStatisticsAtPly(nextGameState, ply - 1, statistics);
