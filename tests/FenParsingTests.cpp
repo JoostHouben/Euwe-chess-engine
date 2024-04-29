@@ -73,8 +73,7 @@ TEST(FenParsing, TestStartingPosition) {
 
     EXPECT_EQ(startingPosition.getPlySinceCaptureOrPawn(), 0);
 
-    std::string startingPositionFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    std::string startingPositionFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     EXPECT_EQ(startingPosition.toFen(1), startingPositionFen);
 }
 
@@ -83,8 +82,7 @@ TEST(FenParsing, RoundTrip) {
             {"8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - 1 49", 49},
             {"5r1k/6pp/4Qpb1/p7/8/6PP/P4PK1/3q4 b - - 4 37", 37},
             {"8/8/2P5/4B3/1Q6/4K3/6P1/3k4 w - - 5 67", 67},
-            {"r2q1rk1/pp2ppbp/2p2np1/6B1/3PP1b1/Q1P2N2/P4PPP/3RKB1R b K - 0 13",
-             13}};
+            {"r2q1rk1/pp2ppbp/2p2np1/6B1/3PP1b1/Q1P2N2/P4PPP/3RKB1R b K - 0 13", 13}};
 
     for (const auto& [fenString, moveCounter] : fenStrings) {
         GameState gameState = GameState::fromFen(fenString);
@@ -94,18 +92,12 @@ TEST(FenParsing, RoundTrip) {
 }
 
 TEST(FenParsing, CastlingRights) {
-    std::string noCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
-    std::string blackCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w kq - 0 1";
-    std::string whiteCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1";
-    std::string kingCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kk - 0 1";
-    std::string queenCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Qq - 0 1";
-    std::string blackQueenCastlingFen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q - 0 1";
+    std::string noCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
+    std::string blackCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w kq - 0 1";
+    std::string whiteCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1";
+    std::string kingCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Kk - 0 1";
+    std::string queenCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w Qq - 0 1";
+    std::string blackQueenCastlingFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w q - 0 1";
 
     GameState noCastling = GameState::fromFen(noCastlingFen);
     EXPECT_FALSE(noCastling.canCastleKingSide(Side::White));
@@ -145,19 +137,15 @@ TEST(FenParsing, CastlingRights) {
 }
 
 TEST(FenParsing, EnPassantTarget) {
-    std::string enPassantFen =
-            "rnbqkbnr/1ppppppp/8/p7/8/8/PPPPPPPP/RNBQKBNR w KQkq a3 0 1";
+    std::string enPassantFen = "rnbqkbnr/1ppppppp/8/p7/8/8/PPPPPPPP/RNBQKBNR w KQkq a3 0 1";
     GameState gameState = GameState::fromFen(enPassantFen);
     EXPECT_EQ(gameState.getEnPassantTarget(), positionFromAlgebraic("a3"));
 }
 
 TEST(FenParsing, HalfMoveClock) {
-    std::string fen9 =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 9 1";
-    std::string fen42 =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 42 1";
-    std::string fen314 =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 75 1";
+    std::string fen9 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 9 1";
+    std::string fen42 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 42 1";
+    std::string fen314 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 75 1";
 
     EXPECT_EQ(GameState::fromFen(fen9).getPlySinceCaptureOrPawn(), 9);
     EXPECT_EQ(GameState::fromFen(fen42).getPlySinceCaptureOrPawn(), 42);

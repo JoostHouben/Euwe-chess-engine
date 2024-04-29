@@ -84,8 +84,7 @@ constexpr char toFenChar(ColoredPiece coloredPiece) {
     return c;
 }
 
-std::vector<PiecePosition> parseBoardConfigurationFromFen(
-        std::string::const_iterator& strIt) {
+std::vector<PiecePosition> parseBoardConfigurationFromFen(std::string::const_iterator& strIt) {
     std::vector<PiecePosition> pieces;
 
     for (int rank = 7; rank >= 0; --rank) {
@@ -118,8 +117,8 @@ Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
     std::unreachable();
 }
 
-void parseCastlingRightsFromFen(std::string::const_iterator& strIt,
-                                GameState::CastlingRights& castlingRights) {
+void parseCastlingRightsFromFen(
+        std::string::const_iterator& strIt, GameState::CastlingRights& castlingRights) {
     if (*strIt == '-') {
         ++strIt;
         return;
@@ -132,12 +131,10 @@ void parseCastlingRightsFromFen(std::string::const_iterator& strIt,
         int bit;
         switch (piece) {
             case Piece::King:
-                bit = (int)GameState::CastlingRights::KingSide
-                      << ((int)side * 2);
+                bit = (int)GameState::CastlingRights::KingSide << ((int)side * 2);
                 break;
             case Piece::Queen:
-                bit = (int)GameState::CastlingRights::QueenSide
-                      << ((int)side * 2);
+                bit = (int)GameState::CastlingRights::QueenSide << ((int)side * 2);
                 break;
             default:
                 std::unreachable();
@@ -158,8 +155,7 @@ BoardPosition parseEnPassantTargetFromFen(std::string::const_iterator& strIt) {
     return enPassantTarget;
 }
 
-std::uint8_t parsePlySinceCaptureOrPawnFromFen(
-        std::string::const_iterator& strIt) {
+std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strIt) {
     int plySinceCaptureOrPawn = std::atoi(&*strIt);
     do {
         ++strIt;
@@ -167,15 +163,12 @@ std::uint8_t parsePlySinceCaptureOrPawnFromFen(
     return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
-void boardConfigurationToFen(const std::vector<PiecePosition>& pieces,
-                             std::ostream& out) {
-    std::map<BoardPosition, ColoredPiece> positionToPiece =
-            getPositionToPieceMap(pieces);
+void boardConfigurationToFen(const std::vector<PiecePosition>& pieces, std::ostream& out) {
+    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces);
     for (int rank = 7; rank >= 0; --rank) {
         int numEmptyTiles = 0;
         for (int file = 0; file < 8; ++file) {
-            auto pieceIt =
-                    positionToPiece.find(positionFromFileRank(file, rank));
+            auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
             if (pieceIt == positionToPiece.end()) {
                 ++numEmptyTiles;
                 continue;
@@ -281,8 +274,7 @@ std::string GameState::toFen(int moveCounter) const {
 }
 
 std::string GameState::toVisualString() const {
-    std::map<BoardPosition, ColoredPiece> positionToPiece =
-            getPositionToPieceMap(pieces_);
+    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces_);
 
     std::string boardTopBottom = "  ---------------------------------\n";
     std::string rowSeparator = "  |-------------------------------|\n";
@@ -294,8 +286,7 @@ std::string GameState::toVisualString() const {
         ss << rank + 1 << " |";
         for (int file = 0; file < 8; ++file) {
             ss << ' ';
-            auto pieceIt =
-                    positionToPiece.find(positionFromFileRank(file, rank));
+            auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
             if (pieceIt == positionToPiece.end()) {
                 ss << ' ';
             } else {

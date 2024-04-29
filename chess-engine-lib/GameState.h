@@ -23,21 +23,12 @@ constexpr Side nextSide(Side side) {
     std::unreachable();
 }
 
-enum class Piece : std::uint8_t {
-    None,
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King
-};
+enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King };
 
 enum class ColoredPiece : std::uint8_t { None };
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
-    return static_cast<ColoredPiece>(((std::uint8_t)side << 3) |
-                                     (std::uint8_t)piece);
+    return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | (std::uint8_t)piece);
 }
 
 constexpr Piece getPiece(ColoredPiece coloredPiece) {
@@ -105,8 +96,7 @@ constexpr bool isCastle(MoveFlags flags) {
 
 template <typename... FlagTs>
 constexpr MoveFlags getFlags(FlagTs... flags) {
-    static_assert(((std::is_same_v<FlagTs, MoveFlags> ||
-                    std::is_same_v<FlagTs, Piece>)&&...));
+    static_assert(((std::is_same_v<FlagTs, MoveFlags> || std::is_same_v<FlagTs, Piece>)&&...));
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
@@ -145,8 +135,7 @@ class GameState {
         BoardPosition enPassantTarget = BoardPosition::Invalid;
         CastlingRights castlingRights = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
-        PiecePosition capturedPiece = {ColoredPiece::None,
-                                       BoardPosition::Invalid};
+        PiecePosition capturedPiece = {ColoredPiece::None, BoardPosition::Invalid};
     };
 
     static GameState fromFen(const std::string& fenString);
@@ -166,13 +155,9 @@ class GameState {
 
     Side getSideToMove() const { return sideToMove_; }
 
-    bool canCastleKingSide(Side side) const {
-        return canCastle(side, CastlingRights::KingSide);
-    }
+    bool canCastleKingSide(Side side) const { return canCastle(side, CastlingRights::KingSide); }
 
-    bool canCastleQueenSide(Side side) const {
-        return canCastle(side, CastlingRights::QueenSide);
-    }
+    bool canCastleQueenSide(Side side) const { return canCastle(side, CastlingRights::QueenSide); }
 
     bool canCastle(Side side, CastlingRights castlingSide) const {
         const int bit = (int)castlingSide << ((int)side * 2);
@@ -181,9 +166,7 @@ class GameState {
 
     BoardPosition getEnPassantTarget() const { return enPassantTarget_; }
 
-    std::uint16_t getPlySinceCaptureOrPawn() const {
-        return plySinceCaptureOrPawn_;
-    }
+    std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
     BitBoard generateEnemyControlledSquares(

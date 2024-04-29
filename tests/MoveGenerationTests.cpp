@@ -23,8 +23,7 @@ struct ExpectedMoveStatistics {
     std::optional<std::size_t> numPromotions = std::nullopt;
 };
 
-void updateStatistics(const std::vector<Move>& moves,
-                      MoveStatistics& statistics) {
+void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
     for (const auto& move : moves) {
         statistics.numCaptures += isCapture(move.flags);
@@ -34,8 +33,7 @@ void updateStatistics(const std::vector<Move>& moves,
     }
 }
 
-void countMoveStatisticsAtPly(GameState& gameState, int ply,
-                              MoveStatistics& statistics) {
+void countMoveStatisticsAtPly(GameState& gameState, int ply, MoveStatistics& statistics) {
     const std::vector<Move> moves = gameState.generateMoves();
     if (ply == 0) {
         updateStatistics(moves, statistics);
@@ -66,19 +64,16 @@ TEST_P(ValidateMoveStats, TestMoveStats) {
         EXPECT_EQ(statistics.numMoves, config.expectedStats.numMoves.value());
     }
     if (config.expectedStats.numCaptures.has_value()) {
-        EXPECT_EQ(statistics.numCaptures,
-                  config.expectedStats.numCaptures.value());
+        EXPECT_EQ(statistics.numCaptures, config.expectedStats.numCaptures.value());
     }
     if (config.expectedStats.numEnPassant.has_value()) {
-        EXPECT_EQ(statistics.numEnPassant,
-                  config.expectedStats.numEnPassant.value());
+        EXPECT_EQ(statistics.numEnPassant, config.expectedStats.numEnPassant.value());
     }
     if (config.expectedStats.numCastle.has_value()) {
         EXPECT_EQ(statistics.numCastle, config.expectedStats.numCastle.value());
     }
     if (config.expectedStats.numPromotions.has_value()) {
-        EXPECT_EQ(statistics.numPromotions,
-                  config.expectedStats.numPromotions.value());
+        EXPECT_EQ(statistics.numPromotions, config.expectedStats.numPromotions.value());
     }
 }
 
@@ -86,15 +81,13 @@ TEST_P(ValidateMoveStats, TestMoveStats) {
 
 inline const std::string kKiwipeteFen =
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
-inline const std::string kPosition3Fen =
-        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
+inline const std::string kPosition3Fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1";
 inline const std::string kPosition4Fen =
         "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 inline const std::string kPosition5Fen =
         "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
 
-std::string validateMoveStatsName(
-        const ::testing::TestParamInfo<TestStatsConfig>& info) {
+std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig>& info) {
     std::string fenName = "";
     if (info.param.fen == kStartingPositionFen) {
         fenName = "root";
