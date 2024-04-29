@@ -1,11 +1,8 @@
 #include "GameState.h"
 
-#include <cassert>
-#include <cstdlib>
+#include <array>
 
-#include <map>
-#include <sstream>
-#include <utility>
+#include <cassert>
 
 #define IMPLIES(a, b) (!(a) || (b))
 

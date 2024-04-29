@@ -3,9 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 
-#include <map>
 #include <sstream>
-#include <utility>
 
 namespace {
 
@@ -158,13 +156,13 @@ BoardPosition parseEnPassantTargetFromFen(std::string::const_iterator& strIt) {
     return enPassantTarget;
 }
 
-std::uint16_t parsePlySinceCaptureOrPawnFromFen(
+std::uint8_t parsePlySinceCaptureOrPawnFromFen(
         std::string::const_iterator& strIt) {
     int plySinceCaptureOrPawn = std::atoi(&*strIt);
     do {
         ++strIt;
     } while (*strIt != ' ');
-    return static_cast<std::uint16_t>(plySinceCaptureOrPawn);
+    return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
 void boardConfigurationToFen(const std::vector<PiecePosition>& pieces,

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <map>
 #include <set>
 #include <string>
@@ -8,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include <cassert>
 #include <cstdint>
 
 enum class Side : std::uint8_t { White, Black, None };
