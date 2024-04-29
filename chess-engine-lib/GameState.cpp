@@ -15,19 +15,14 @@ template <typename FuncT>
 void generateSinglePawnMoves(
         const BoardPosition origin,
         const BoardPosition enPassantTarget,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
+        const Side side,
+        const PieceOccupationBitBoards& occupation,
         FuncT&& addMove,
         const bool getControlledSquares = false) {
     static constexpr std::array kPromotionPieces = {
             Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
 
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::Pawn);
-
     const auto [file, rank] = fileRankFromPosition(origin);
-
-    const Side side = getSide(positionToPiece.at(origin));
-    assert(side == Side::White || side == Side::Black);
 
     const int forwardDirection = side == Side::White ? 1 : -1;
     const int startingRank = side == Side::White ? 1 : 6;
@@ -38,7 +33,7 @@ void generateSinglePawnMoves(
     // Skip this if getControlledSquares: pawns don't control squares they can push to
     if (!getControlledSquares) {
         const BoardPosition forwardPosition = positionFromFileRank(file, newRank);
-        if (positionToPiece.count(forwardPosition) == 0) {
+        if (!isSet(occupation.anyPiece, forwardPosition)) {
             if (newRank == 0 || newRank == 7) {
                 // Promotion
                 for (const auto promotionPiece : kPromotionPieces) {
@@ -53,7 +48,7 @@ void generateSinglePawnMoves(
             if (rank == startingRank) {
                 const BoardPosition doubleForwardPosition =
                         positionFromFileRank(file, rank + 2 * forwardDirection);
-                if (positionToPiece.count(doubleForwardPosition) == 0) {
+                if (!isSet(occupation.anyPiece, doubleForwardPosition)) {
                     addMove(Move{origin, doubleForwardPosition});
                 }
                 // No need to check for promotion: this can never happen from the starting rank
@@ -81,9 +76,8 @@ void generateSinglePawnMoves(
             continue;
         }
 
-        const auto targetPieceIt = positionToPiece.find(capturePosition);
-        const bool isEmpty = targetPieceIt == positionToPiece.end();
-        const bool isEnemyPiece = !isEmpty && getSide(targetPieceIt->second) != side;
+        const bool isEmpty = !isSet(occupation.anyPiece, capturePosition);
+        const bool isEnemyPiece = isSet(occupation.enemyPiece, capturePosition);
         if (isEnemyPiece || (getControlledSquares && isEmpty)) {
             if (!getControlledSquares && (newRank == 0 || newRank == 7)) {
                 // Capture + promotion
@@ -103,18 +97,10 @@ void generateSinglePawnMoves(
 
 template <typename FuncT>
 void generateSingleKnightMoves(
-        const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        FuncT&& addMove) {
+        const BoardPosition origin, const PieceOccupationBitBoards& occupation, FuncT&& addMove) {
     static constexpr std::array kFileRankDsts = {std::pair{1, 2}, std::pair{2, 1}};
 
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::Knight);
-
     const auto [file, rank] = fileRankFromPosition(origin);
-
-    const Side side = getSide(positionToPiece.at(origin));
-    assert(side == Side::White || side == Side::Black);
 
     for (const auto [fileDst, rankDst] : kFileRankDsts) {
         for (const auto fileSign : kSigns) {
@@ -127,9 +113,8 @@ void generateSingleKnightMoves(
                 }
                 const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
 
-                const auto targetPieceIt = positionToPiece.find(newPosition);
-                const bool isEmpty = targetPieceIt == positionToPiece.end();
-                const bool isEnemyPiece = !isEmpty && getSide(targetPieceIt->second) != side;
+                const bool isEmpty = !isSet(occupation.anyPiece, newPosition);
+                const bool isEnemyPiece = isSet(occupation.enemyPiece, newPosition);
                 if (isEmpty || isEnemyPiece) {
                     const MoveFlags flags = isEnemyPiece ? MoveFlags::IsCapture : MoveFlags::None;
                     addMove({origin, newPosition, flags});
@@ -142,15 +127,12 @@ void generateSingleKnightMoves(
 template <typename FuncT>
 void generateSliderMoves(
         const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
+        const PieceOccupationBitBoards& occupation,
         const int deltaFile,
         const int deltaRank,
         const bool isKing,
         FuncT&& addMove) {
     const auto [file, rank] = fileRankFromPosition(origin);
-
-    const Side side = getSide(positionToPiece.at(origin));
-    assert(side == Side::White || side == Side::Black);
 
     int newFile = file;
     int newRank = rank;
@@ -163,11 +145,11 @@ void generateSliderMoves(
         }
 
         const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
-        const auto targetPieceIt = positionToPiece.find(newPosition);
+        const bool isOccupied = isSet(occupation.anyPiece, newPosition);
+        const bool isEnemyPiece = isSet(occupation.enemyPiece, newPosition);
 
-        if (targetPieceIt != positionToPiece.end()) {
-            const Side targetSide = getSide(targetPieceIt->second);
-            if (targetSide != side) {
+        if (isOccupied) {
+            if (isEnemyPiece) {
                 // Capture
                 addMove({origin, newPosition, MoveFlags::IsCapture});
             }
@@ -187,72 +169,52 @@ void generateSliderMoves(
 
 template <typename FuncT>
 void generateSingleBishopMoves(
-        const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        FuncT&& addMove) {
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::Bishop);
-
+        const BoardPosition origin, const PieceOccupationBitBoards& occupation, FuncT&& addMove) {
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, addMove);
+            generateSliderMoves(origin, occupation, deltaFile, deltaRank, false, addMove);
         }
     }
 }
 
 template <typename FuncT>
 void generateSingleRookMoves(
-        const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        FuncT&& addMove) {
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::Rook);
-
+        const BoardPosition origin, const PieceOccupationBitBoards& occupation, FuncT&& addMove) {
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, false, addMove);
-        generateSliderMoves(origin, positionToPiece, 0, sign, false, addMove);
+        generateSliderMoves(origin, occupation, sign, 0, false, addMove);
+        generateSliderMoves(origin, occupation, 0, sign, false, addMove);
     }
 }
 
 template <typename FuncT>
 void generateSingleQueenMoves(
-        const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        FuncT&& addMove) {
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::Queen);
-
+        const BoardPosition origin, const PieceOccupationBitBoards& occupation, FuncT&& addMove) {
     // Diagonals
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, false, addMove);
+            generateSliderMoves(origin, occupation, deltaFile, deltaRank, false, addMove);
         }
     }
     // Cardinal
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, false, addMove);
-        generateSliderMoves(origin, positionToPiece, 0, sign, false, addMove);
+        generateSliderMoves(origin, occupation, sign, 0, false, addMove);
+        generateSliderMoves(origin, occupation, 0, sign, false, addMove);
     }
 }
 
 template <typename FuncT>
 void generateNormalKingMoves(
-        const BoardPosition origin,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        FuncT&& addMove) {
-    assert(positionToPiece.find(origin) != positionToPiece.end());
-    assert(getPiece(positionToPiece.find(origin)->second) == Piece::King);
-
+        const BoardPosition origin, const PieceOccupationBitBoards& occupation, FuncT&& addMove) {
     // Diagonals
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
-            generateSliderMoves(origin, positionToPiece, deltaFile, deltaRank, true, addMove);
+            generateSliderMoves(origin, occupation, deltaFile, deltaRank, true, addMove);
         }
     }
     // Cardinal
     for (const auto sign : kSigns) {
-        generateSliderMoves(origin, positionToPiece, sign, 0, true, addMove);
-        generateSliderMoves(origin, positionToPiece, 0, sign, true, addMove);
+        generateSliderMoves(origin, occupation, sign, 0, true, addMove);
+        generateSliderMoves(origin, occupation, 0, sign, true, addMove);
     }
 }
 
@@ -261,8 +223,8 @@ void generateCastlingMoves(
         const Side sideToMove,
         const bool canCastleKingSide,
         const bool canCastleQueenSide,
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece,
-        BitBoard enemyControlledSquares,
+        const PieceOccupationBitBoards& occupation,
+        const BitBoard enemyControlledSquares,
         FuncT&& addMove) {
     assert(sideToMove == Side::White || sideToMove == Side::Black);
 
@@ -281,7 +243,7 @@ void generateCastlingMoves(
         bool castleIsValid = true;
         for (int fileDelta = 1; fileDelta <= 2; ++fileDelta) {
             const BoardPosition position = positionFromFileRank(kingFile + fileDelta, kingRank);
-            if (positionToPiece.count(position)) {
+            if (isSet(occupation.anyPiece, position)) {
                 // Blocking piece
                 castleIsValid = false;
                 break;
@@ -302,7 +264,7 @@ void generateCastlingMoves(
         bool castleIsValid = true;
         for (int fileDelta = 1; fileDelta <= 3; ++fileDelta) {
             const BoardPosition position = positionFromFileRank(kingFile - fileDelta, kingRank);
-            if (positionToPiece.count(position)) {
+            if (isSet(occupation.anyPiece, position)) {
                 // Blocking piece
                 castleIsValid = false;
                 break;
@@ -321,6 +283,19 @@ void generateCastlingMoves(
     }
 }
 
+PieceOccupationBitBoards getPieceOccupationBitBoards(
+        const std::vector<PiecePosition>& pieces, const Side ownSide) {
+    PieceOccupationBitBoards occupation;
+    const Side enemySide = nextSide(ownSide);
+    for (const auto [piece, position] : pieces) {
+        occupation.anyPiece = set(occupation.anyPiece, position);
+        if (getSide(piece) == enemySide) {
+            occupation.enemyPiece = set(occupation.enemyPiece, position);
+        }
+    }
+    return occupation;
+}
+
 }  // namespace
 
 std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
@@ -337,12 +312,13 @@ GameState GameState::startingPosition() {
 }
 
 bool GameState::isInCheck() const {
-    return isInCheck(generateEnemyControlledSquares(getPositionToPieceMap(pieces_)));
+    return isInCheck(
+            generateEnemyControlledSquares(getPieceOccupationBitBoards(pieces_, sideToMove_)));
 }
 
 std::vector<Move> GameState::generateMoves() {
-    const std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces_);
-    const BitBoard enemyControlledSquares = generateEnemyControlledSquares(positionToPiece);
+    const PieceOccupationBitBoards occupation = getPieceOccupationBitBoards(pieces_, sideToMove_);
+    const BitBoard enemyControlledSquares = generateEnemyControlledSquares(occupation);
 
     std::vector<Move> moves;
     auto addMove = [&](const Move& move) {
@@ -357,22 +333,23 @@ std::vector<Move> GameState::generateMoves() {
 
         switch (getPiece(coloredPiece)) {
             case Piece::Pawn:
-                generateSinglePawnMoves(position, enPassantTarget_, positionToPiece, addMove);
+                generateSinglePawnMoves(
+                        position, enPassantTarget_, sideToMove_, occupation, addMove);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, positionToPiece, addMove);
+                generateSingleKnightMoves(position, occupation, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, positionToPiece, addMove);
+                generateSingleBishopMoves(position, occupation, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, positionToPiece, addMove);
+                generateSingleRookMoves(position, occupation, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, positionToPiece, addMove);
+                generateSingleQueenMoves(position, occupation, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, positionToPiece, addMove);
+                generateNormalKingMoves(position, occupation, addMove);
                 break;
             default:
                 std::unreachable();
@@ -384,7 +361,7 @@ std::vector<Move> GameState::generateMoves() {
             sideToMove_,
             canCastleKingSide(sideToMove_),
             canCastleQueenSide(sideToMove_),
-            positionToPiece,
+            occupation,
             enemyControlledSquares,
             addMove);
 
@@ -601,14 +578,20 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
 }
 
 BitBoard GameState::generateEnemyControlledSquares(
-        const std::map<BoardPosition, ColoredPiece>& positionToPiece) const {
+        const PieceOccupationBitBoards& occupation) const {
     BitBoard controlledSquares = BitBoard::Empty;
     auto addMove = [&](const Move& move) {
         controlledSquares = set(controlledSquares, move.to);
     };
+    const Side enemySide = nextSide(sideToMove_);
+
+    const PieceOccupationBitBoards invertedOccupation{
+            .anyPiece = occupation.anyPiece,
+            .enemyPiece = (BitBoard)((std::uint64_t)occupation.anyPiece &
+                                     ~(std::uint64_t)occupation.enemyPiece)};
 
     for (const auto& [coloredPiece, position] : pieces_) {
-        if (getSide(coloredPiece) == sideToMove_) {
+        if (getSide(coloredPiece) != enemySide) {
             // Skip own pieces
             continue;
         }
@@ -620,30 +603,33 @@ BitBoard GameState::generateEnemyControlledSquares(
                 generateSinglePawnMoves(
                         position,
                         BoardPosition::Invalid,
-                        positionToPiece,
+                        enemySide,
+                        invertedOccupation,
                         addMove,
                         /*getControlledSquares =*/true);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, positionToPiece, addMove);
+                generateSingleKnightMoves(position, invertedOccupation, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, positionToPiece, addMove);
+                generateSingleBishopMoves(position, invertedOccupation, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, positionToPiece, addMove);
+                generateSingleRookMoves(position, invertedOccupation, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, positionToPiece, addMove);
+                generateSingleQueenMoves(position, invertedOccupation, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, positionToPiece, addMove);
+                generateNormalKingMoves(position, invertedOccupation, addMove);
                 break;
             default:
                 std::unreachable();
                 break;
         }
     }
+
+    // Skip castling: control is not exerted through castling.
 
     return controlledSquares;
 }

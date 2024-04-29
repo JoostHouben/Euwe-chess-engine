@@ -196,13 +196,13 @@ INSTANTIATE_TEST_CASE_P(
     MoveGenerationSlow,
     ValidateMoveStats,
     ::testing::Values(
-        // Slow! ~1s in release mode
+        // Slow! ~3s in debug mode (~90ms in release mode)
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 3,
             .expectedStats = {.numMoves = 197'281, .numCaptures = 1'576, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
         },
-        // Vey slow! ~25s in release mode
+        // Vey slow! ~60s in debug mode / ~2s in release mode
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 4,

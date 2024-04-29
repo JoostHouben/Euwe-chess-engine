@@ -116,6 +116,11 @@ constexpr BitBoard set(BitBoard bitboard, BoardPosition position) {
     return (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
+struct PieceOccupationBitBoards {
+    BitBoard anyPiece = BitBoard::Empty;
+    BitBoard enemyPiece = BitBoard::Empty;
+};
+
 inline const std::string kStartingPositionFen =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -169,8 +174,7 @@ class GameState {
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
-    BitBoard generateEnemyControlledSquares(
-            const std::map<BoardPosition, ColoredPiece>& positionToPiece) const;
+    BitBoard generateEnemyControlledSquares(const PieceOccupationBitBoards& occupation) const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
