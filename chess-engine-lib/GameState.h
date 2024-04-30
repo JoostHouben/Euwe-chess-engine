@@ -108,8 +108,8 @@ constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
     return (std::uint64_t)bitboard & (1ULL << (int)position);
 }
 
-constexpr BitBoard set(BitBoard bitboard, BoardPosition position) {
-    return (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
+constexpr void set(BitBoard& bitboard, BoardPosition position) {
+    bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
 struct PieceOccupationBitBoards {

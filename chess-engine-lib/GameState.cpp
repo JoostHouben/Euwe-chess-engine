@@ -288,9 +288,9 @@ PieceOccupationBitBoards getPieceOccupationBitBoards(
     PieceOccupationBitBoards occupation;
     const Side enemySide = nextSide(ownSide);
     for (const auto [piece, position] : pieces) {
-        occupation.anyPiece = set(occupation.anyPiece, position);
+        set(occupation.anyPiece, position);
         if (getSide(piece) == enemySide) {
-            occupation.enemyPiece = set(occupation.enemyPiece, position);
+            set(occupation.enemyPiece, position);
         }
     }
     return occupation;
@@ -572,7 +572,7 @@ BitBoard GameState::generateEnemyControlledSquares(
         const PieceOccupationBitBoards& occupation) const {
     BitBoard controlledSquares = BitBoard::Empty;
     auto addMove = [&](const Move& move) {
-        controlledSquares = set(controlledSquares, move.to);
+        set(controlledSquares, move.to);
     };
     const Side enemySide = nextSide(sideToMove_);
 
