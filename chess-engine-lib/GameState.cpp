@@ -312,7 +312,6 @@ void generateCastlingMoves(
 template <typename FuncT>
 void generateSinglePieceMoves(
         const GameState::PieceInfo& pieceInfo,
-        const Side sideToMove,
         const BoardPosition enPassantTarget,
         const PieceOccupationBitBoards& occupation,
         FuncT&& addMove,
@@ -322,7 +321,7 @@ void generateSinglePieceMoves(
             generateSinglePawnMoves(
                     pieceInfo.position,
                     enPassantTarget,
-                    sideToMove,
+                    getSide(pieceInfo.coloredPiece),
                     occupation,
                     addMove,
                     getControlledSquares);
@@ -374,7 +373,7 @@ std::vector<Move> GameState::generateMoves() {
             continue;
         }
 
-        generateSinglePieceMoves(pieceInfo, sideToMove_, enPassantTarget_, occupation_, addMove);
+        generateSinglePieceMoves(pieceInfo, enPassantTarget_, occupation_, addMove);
     }
 
     generateCastlingMoves(
@@ -658,7 +657,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(BitBoard affected
     for (auto& pieceInfo : pieces_) {
         const Piece piece = getPiece(pieceInfo.coloredPiece);
         const bool controlledSquaresAffected =
-                piece != Piece::Pawn && piece != Piece::King &&
+                piece != Piece::Pawn && piece != Piece::King && piece != Piece::Knight &&
                 (bool)intersection(affectedSquares, pieceInfo.controlledSquares);
         const bool positionAffected = isSet(affectedSquares, pieceInfo.position);
         if (controlledSquaresAffected || positionAffected) {
@@ -668,9 +667,8 @@ void GameState::recalculateControlledSquaresForAffectedSquares(BitBoard affected
 }
 
 void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
-    const Side pieceSide = getSide(pieceInfo.coloredPiece);
     PieceOccupationBitBoards pieceSideOccupation = occupation_;
-    if (pieceSide != sideToMove_) {
+    if (getSide(pieceInfo.coloredPiece) != sideToMove_) {
         std::swap(pieceSideOccupation.ownPiece, pieceSideOccupation.enemyPiece);
     }
 
@@ -681,7 +679,6 @@ void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
 
     generateSinglePieceMoves(
             pieceInfo,
-            pieceSide,
             /*en passant*/ BoardPosition::Invalid,
             pieceSideOccupation,
             addMove,
