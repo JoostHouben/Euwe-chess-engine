@@ -120,6 +120,12 @@ constexpr BitBoard any(BitBoardTs... bitboards) {
     return (BitBoard)((std::uint64_t)bitboards | ...);
 }
 
+template <typename... BitBoardTs>
+constexpr BitBoard intersection(BitBoardTs... bitboards) {
+    static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
+    return (BitBoard)((std::uint64_t)bitboards & ...);
+}
+
 struct PieceOccupationBitBoards {
     BitBoard ownPiece = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;
@@ -143,6 +149,7 @@ class GameState {
     struct PieceInfo {
         ColoredPiece coloredPiece = ColoredPiece::None;
         BoardPosition position = BoardPosition::Invalid;
+        BitBoard controlledSquares = BitBoard::Empty;
     };
 
     struct UnmakeMoveInfo {
@@ -185,6 +192,8 @@ class GameState {
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
+    void recalculateControlledSquaresForAffectedSquares(BitBoard affectedSquares);
+    void recalculateControlledSquares(PieceInfo& pieceInfo) const;
     BitBoard generateEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 

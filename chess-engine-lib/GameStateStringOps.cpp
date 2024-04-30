@@ -277,6 +277,9 @@ GameState GameState::fromFen(const std::string& fenString) {
     assert(strIt < fenString.end());
 
     gameState.occupation_ = getPieceOccupationBitBoards(gameState.pieces_, gameState.sideToMove_);
+    for (auto& pieceInfo : gameState.pieces_) {
+        gameState.recalculateControlledSquares(pieceInfo);
+    }
 
     return gameState;
 }
