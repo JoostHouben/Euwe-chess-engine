@@ -29,11 +29,13 @@ void generateSinglePawnMoves(
 
     const int newRank = rank + forwardDirection;
 
+    const BitBoard anyPiece = either(occupation.ownPiece, occupation.enemyPiece);
+
     // Push pawn
     // Skip this if getControlledSquares: pawns don't control squares they can push to
     if (!getControlledSquares) {
         const BoardPosition forwardPosition = positionFromFileRank(file, newRank);
-        if (!isSet(occupation.anyPiece, forwardPosition)) {
+        if (!isSet(anyPiece, forwardPosition)) {
             if (newRank == 0 || newRank == 7) {
                 // Promotion
                 for (const auto promotionPiece : kPromotionPieces) {
@@ -48,7 +50,7 @@ void generateSinglePawnMoves(
             if (rank == startingRank) {
                 const BoardPosition doubleForwardPosition =
                         positionFromFileRank(file, rank + 2 * forwardDirection);
-                if (!isSet(occupation.anyPiece, doubleForwardPosition)) {
+                if (!isSet(anyPiece, doubleForwardPosition)) {
                     addMove(Move{origin, doubleForwardPosition});
                 }
                 // No need to check for promotion: this can never happen from the starting rank
@@ -76,7 +78,7 @@ void generateSinglePawnMoves(
             continue;
         }
 
-        const bool isEmpty = !isSet(occupation.anyPiece, capturePosition);
+        const bool isEmpty = !isSet(anyPiece, capturePosition);
         const bool isEnemyPiece = isSet(occupation.enemyPiece, capturePosition);
         if (isEnemyPiece || (getControlledSquares && isEmpty)) {
             if (!getControlledSquares && (newRank == 0 || newRank == 7)) {
@@ -113,9 +115,9 @@ void generateSingleKnightMoves(
                 }
                 const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
 
-                const bool isEmpty = !isSet(occupation.anyPiece, newPosition);
+                const bool isOwn = isSet(occupation.ownPiece, newPosition);
                 const bool isEnemyPiece = isSet(occupation.enemyPiece, newPosition);
-                if (isEmpty || isEnemyPiece) {
+                if (!isOwn) {
                     const MoveFlags flags = isEnemyPiece ? MoveFlags::IsCapture : MoveFlags::None;
                     addMove({origin, newPosition, flags});
                 }
@@ -145,14 +147,17 @@ void generateSliderMoves(
         }
 
         const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
-        const bool isOccupied = isSet(occupation.anyPiece, newPosition);
+        const bool isOwn = isSet(occupation.ownPiece, newPosition);
         const bool isEnemyPiece = isSet(occupation.enemyPiece, newPosition);
 
-        if (isOccupied) {
-            if (isEnemyPiece) {
-                // Capture
-                addMove({origin, newPosition, MoveFlags::IsCapture});
-            }
+        if (isOwn) {
+            // Further moves are blocked
+            break;
+        }
+
+        if (isEnemyPiece) {
+            // Capture
+            addMove({origin, newPosition, MoveFlags::IsCapture});
             // Further moves are blocked
             break;
         }
@@ -231,6 +236,8 @@ void generateCastlingMoves(
     const BoardPosition kingPosition =
             sideToMove == Side::White ? positionFromAlgebraic("e1") : positionFromAlgebraic("e8");
 
+    const BitBoard anyPiece = either(occupation.ownPiece, occupation.enemyPiece);
+
     const bool inCheck = isSet(enemyControlledSquares, kingPosition);
     if (inCheck) {
         // No castle moves are possible while in check
@@ -243,7 +250,7 @@ void generateCastlingMoves(
         bool castleIsValid = true;
         for (int fileDelta = 1; fileDelta <= 2; ++fileDelta) {
             const BoardPosition position = positionFromFileRank(kingFile + fileDelta, kingRank);
-            if (isSet(occupation.anyPiece, position)) {
+            if (isSet(anyPiece, position)) {
                 // Blocking piece
                 castleIsValid = false;
                 break;
@@ -264,7 +271,7 @@ void generateCastlingMoves(
         bool castleIsValid = true;
         for (int fileDelta = 1; fileDelta <= 3; ++fileDelta) {
             const BoardPosition position = positionFromFileRank(kingFile - fileDelta, kingRank);
-            if (isSet(occupation.anyPiece, position)) {
+            if (isSet(anyPiece, position)) {
                 // Blocking piece
                 castleIsValid = false;
                 break;
@@ -286,10 +293,10 @@ void generateCastlingMoves(
 PieceOccupationBitBoards getPieceOccupationBitBoards(
         const std::vector<PiecePosition>& pieces, const Side ownSide) {
     PieceOccupationBitBoards occupation;
-    const Side enemySide = nextSide(ownSide);
     for (const auto [piece, position] : pieces) {
-        set(occupation.anyPiece, position);
-        if (getSide(piece) == enemySide) {
+        if (getSide(piece) == ownSide) {
+            set(occupation.ownPiece, position);
+        } else {
             set(occupation.enemyPiece, position);
         }
     }
@@ -577,9 +584,7 @@ BitBoard GameState::generateEnemyControlledSquares(
     const Side enemySide = nextSide(sideToMove_);
 
     const PieceOccupationBitBoards invertedOccupation{
-            .anyPiece = occupation.anyPiece,
-            .enemyPiece = (BitBoard)((std::uint64_t)occupation.anyPiece &
-                                     ~(std::uint64_t)occupation.enemyPiece)};
+            .ownPiece = occupation.enemyPiece, .enemyPiece = occupation.ownPiece};
 
     for (const auto& [coloredPiece, position] : pieces_) {
         if (getSide(coloredPiece) != enemySide) {

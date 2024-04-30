@@ -112,8 +112,12 @@ constexpr void set(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
+constexpr BitBoard either(BitBoard a, BitBoard b) {
+    return (BitBoard)((std::uint64_t)a | (std::uint64_t)b);
+}
+
 struct PieceOccupationBitBoards {
-    BitBoard anyPiece = BitBoard::Empty;
+    BitBoard ownPiece = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;
 };
 
