@@ -60,8 +60,6 @@ constexpr std::string algebraicFromPosition(BoardPosition position) {
     return {(char)('a' + file), (char)('1' + rank)};
 }
 
-using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
-
 enum class MoveFlags : std::uint8_t {
     None = 0,
     // Lowest 3 bits: Piece if promoting
@@ -116,8 +114,10 @@ constexpr void clear(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
 }
 
-constexpr BitBoard either(BitBoard a, BitBoard b) {
-    return (BitBoard)((std::uint64_t)a | (std::uint64_t)b);
+template <typename... BitBoardTs>
+constexpr BitBoard any(BitBoardTs... bitboards) {
+    static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
+    return (BitBoard)((std::uint64_t)bitboards | ...);
 }
 
 struct PieceOccupationBitBoards {
@@ -140,11 +140,16 @@ class GameState {
         BlackQueenSide = 1 << 3,
     };
 
+    struct PieceInfo {
+        ColoredPiece coloredPiece = ColoredPiece::None;
+        BoardPosition position = BoardPosition::Invalid;
+    };
+
     struct UnmakeMoveInfo {
         BoardPosition enPassantTarget = BoardPosition::Invalid;
         CastlingRights castlingRights = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
-        PiecePosition capturedPiece = {ColoredPiece::None, BoardPosition::Invalid};
+        PieceInfo capturedPiece = {};
     };
 
     static GameState fromFen(const std::string& fenString);
@@ -162,7 +167,7 @@ class GameState {
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
     void unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo);
 
-    const std::vector<PiecePosition>& getPieces() const { return pieces_; }
+    const std::vector<PieceInfo>& getPieces() const { return pieces_; }
 
     Side getSideToMove() const { return sideToMove_; }
 
@@ -188,7 +193,7 @@ class GameState {
     void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
 
     void makeCastleMove(const Move& move, bool reverse = false);
-    PiecePosition makeSinglePieceMove(const Move& move);
+    PieceInfo makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
@@ -205,7 +210,7 @@ class GameState {
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
-    std::vector<PiecePosition> pieces_ = {};
+    std::vector<PieceInfo> pieces_ = {};
 
     PieceOccupationBitBoards occupation_ = {};
 };

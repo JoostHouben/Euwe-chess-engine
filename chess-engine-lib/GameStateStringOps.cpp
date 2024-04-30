@@ -11,10 +11,10 @@ namespace {
 constexpr char kLowerCaseBit = 1 << 5;
 
 std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
-        const std::vector<PiecePosition>& pieces) {
+        const std::vector<GameState::PieceInfo>& pieces) {
     std::map<BoardPosition, ColoredPiece> positionToPiece;
-    for (const auto [piece, position] : pieces) {
-        positionToPiece.emplace(position, piece);
+    for (const auto& pieceInfo : pieces) {
+        positionToPiece.emplace(pieceInfo.position, pieceInfo.coloredPiece);
     }
     return positionToPiece;
 }
@@ -94,8 +94,9 @@ constexpr char toFenChar(ColoredPiece coloredPiece) {
     return c;
 }
 
-std::vector<PiecePosition> parseBoardConfigurationFromFen(std::string::const_iterator& strIt) {
-    std::vector<PiecePosition> pieces;
+std::vector<GameState::PieceInfo> parseBoardConfigurationFromFen(
+        std::string::const_iterator& strIt) {
+    std::vector<GameState::PieceInfo> pieces;
 
     for (int rank = 7; rank >= 0; --rank) {
         for (int file = 0; file < 8; ++strIt) {
@@ -173,7 +174,7 @@ std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strI
     return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
-void boardConfigurationToFen(const std::vector<PiecePosition>& pieces, std::ostream& out) {
+void boardConfigurationToFen(const std::vector<GameState::PieceInfo>& pieces, std::ostream& out) {
     std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces);
     for (int rank = 7; rank >= 0; --rank) {
         int numEmptyTiles = 0;
@@ -232,13 +233,13 @@ void enPassantTargetToFen(BoardPosition enPassantTarget, std::ostream& out) {
 }
 
 PieceOccupationBitBoards getPieceOccupationBitBoards(
-        const std::vector<PiecePosition>& pieces, const Side ownSide) {
+        const std::vector<GameState::PieceInfo>& pieces, const Side ownSide) {
     PieceOccupationBitBoards occupation;
-    for (const auto [piece, position] : pieces) {
-        if (getSide(piece) == ownSide) {
-            set(occupation.ownPiece, position);
+    for (const auto& pieceInfo : pieces) {
+        if (getSide(pieceInfo.coloredPiece) == ownSide) {
+            set(occupation.ownPiece, pieceInfo.position);
         } else {
-            set(occupation.enemyPiece, position);
+            set(occupation.enemyPiece, pieceInfo.position);
         }
     }
     return occupation;

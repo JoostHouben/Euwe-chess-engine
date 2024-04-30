@@ -29,7 +29,7 @@ void generateSinglePawnMoves(
 
     const int newRank = rank + forwardDirection;
 
-    const BitBoard anyPiece = either(occupation.ownPiece, occupation.enemyPiece);
+    const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
 
     // Push pawn
     // Skip this if getControlledSquares: pawns don't control squares they can push to
@@ -236,7 +236,7 @@ void generateCastlingMoves(
     const BoardPosition kingPosition =
             sideToMove == Side::White ? positionFromAlgebraic("e1") : positionFromAlgebraic("e8");
 
-    const BitBoard anyPiece = either(occupation.ownPiece, occupation.enemyPiece);
+    const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
 
     const bool inCheck = isSet(enemyControlledSquares, kingPosition);
     if (inCheck) {
@@ -308,31 +308,31 @@ std::vector<Move> GameState::generateMoves() {
         moves.push_back(move);
     };
 
-    for (const auto& [coloredPiece, position] : pieces_) {
-        if (getSide(coloredPiece) != sideToMove_) {
+    for (const auto& pieceInfo : pieces_) {
+        if (getSide(pieceInfo.coloredPiece) != sideToMove_) {
             // Skip enemy pieces
             continue;
         }
 
-        switch (getPiece(coloredPiece)) {
+        switch (getPiece(pieceInfo.coloredPiece)) {
             case Piece::Pawn:
                 generateSinglePawnMoves(
-                        position, enPassantTarget_, sideToMove_, occupation_, addMove);
+                        pieceInfo.position, enPassantTarget_, sideToMove_, occupation_, addMove);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, occupation_, addMove);
+                generateSingleKnightMoves(pieceInfo.position, occupation_, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, occupation_, addMove);
+                generateSingleBishopMoves(pieceInfo.position, occupation_, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, occupation_, addMove);
+                generateSingleRookMoves(pieceInfo.position, occupation_, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, occupation_, addMove);
+                generateSingleQueenMoves(pieceInfo.position, occupation_, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, occupation_, addMove);
+                generateNormalKingMoves(pieceInfo.position, occupation_, addMove);
                 break;
             default:
                 std::unreachable();
@@ -409,11 +409,11 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     }
 
     if (isCapture(move.flags)) {
-        assert(unmakeMoveInfo.capturedPiece.first != ColoredPiece::None);
-        assert(unmakeMoveInfo.capturedPiece.second != BoardPosition::Invalid);
+        assert(unmakeMoveInfo.capturedPiece.coloredPiece != ColoredPiece::None);
+        assert(unmakeMoveInfo.capturedPiece.position != BoardPosition::Invalid);
 
         pieces_.push_back(unmakeMoveInfo.capturedPiece);
-        set(occupation_.enemyPiece, unmakeMoveInfo.capturedPiece.second);
+        set(occupation_.enemyPiece, unmakeMoveInfo.capturedPiece.position);
     }
 }
 
@@ -446,17 +446,17 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
         std::swap(kingFromPosition, kingToPosition);
     }
 
-    for (auto& [coloredPiece, position] : pieces_) {
-        if (position == kingFromPosition) {
-            assert(getPiece(coloredPiece) == Piece::King);
-            assert(getSide(coloredPiece) == sideToMove_);
+    for (auto& pieceInfo : pieces_) {
+        if (pieceInfo.position == kingFromPosition) {
+            assert(getPiece(pieceInfo.coloredPiece) == Piece::King);
+            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
 
-            position = kingToPosition;
-        } else if (position == rookFromPosition) {
-            assert(getPiece(coloredPiece) == Piece::Rook);
-            assert(getSide(coloredPiece) == sideToMove_);
+            pieceInfo.position = kingToPosition;
+        } else if (pieceInfo.position == rookFromPosition) {
+            assert(getPiece(pieceInfo.coloredPiece) == Piece::Rook);
+            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
 
-            position = rookToPosition;
+            pieceInfo.position = rookToPosition;
         }
     }
 
@@ -477,8 +477,8 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     }
 }
 
-PiecePosition GameState::makeSinglePieceMove(const Move& move) {
-    PiecePosition capturedPiece = {ColoredPiece::None, BoardPosition::Invalid};
+GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
+    PieceInfo capturedPiece = {};
     BoardPosition captureTargetSquare = BoardPosition::Invalid;
 
     if (isEnPassant(move.flags)) {
@@ -528,8 +528,8 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
     set(occupation_.ownPiece, move.to);
 
     if (capturedPieceIt != pieces_.end()) {
-        if (getPiece(capturedPieceIt->first) == Piece::Rook) {
-            updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceIt->first));
+        if (getPiece(capturedPieceIt->coloredPiece) == Piece::Rook) {
+            updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceIt->coloredPiece));
         }
 
         capturedPiece = *capturedPieceIt;
@@ -552,14 +552,14 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
 }
 
 void GameState::unmakeSinglePieceMove(const Move& move) {
-    for (auto& [coloredPiece, position] : pieces_) {
-        if (position == move.to) {
-            assert(getSide(coloredPiece) == sideToMove_);
+    for (auto& pieceInfo : pieces_) {
+        if (pieceInfo.position == move.to) {
+            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
 
-            position = move.from;
+            pieceInfo.position = move.from;
             if (isPromotion(move.flags)) {
-                assert(getPiece(coloredPiece) == getPromotionPiece(move.flags));
-                coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
+                assert(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
+                pieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
             }
         }
     }
@@ -610,18 +610,18 @@ BitBoard GameState::generateEnemyControlledSquares() const {
     const PieceOccupationBitBoards invertedOccupation{
             .ownPiece = occupation_.enemyPiece, .enemyPiece = occupation_.ownPiece};
 
-    for (const auto& [coloredPiece, position] : pieces_) {
-        if (getSide(coloredPiece) != enemySide) {
+    for (const auto& pieceInfo : pieces_) {
+        if (getSide(pieceInfo.coloredPiece) != enemySide) {
             // Skip own pieces
             continue;
         }
 
-        switch (getPiece(coloredPiece)) {
+        switch (getPiece(pieceInfo.coloredPiece)) {
             case Piece::Pawn:
                 // No en passant target square: enemy just moved so the last move definitely wasn't a
                 // double pawn push by us.
                 generateSinglePawnMoves(
-                        position,
+                        pieceInfo.position,
                         BoardPosition::Invalid,
                         enemySide,
                         invertedOccupation,
@@ -629,19 +629,19 @@ BitBoard GameState::generateEnemyControlledSquares() const {
                         /*getControlledSquares =*/true);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, invertedOccupation, addMove);
+                generateSingleKnightMoves(pieceInfo.position, invertedOccupation, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, invertedOccupation, addMove);
+                generateSingleBishopMoves(pieceInfo.position, invertedOccupation, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, invertedOccupation, addMove);
+                generateSingleRookMoves(pieceInfo.position, invertedOccupation, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, invertedOccupation, addMove);
+                generateSingleQueenMoves(pieceInfo.position, invertedOccupation, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, invertedOccupation, addMove);
+                generateNormalKingMoves(pieceInfo.position, invertedOccupation, addMove);
                 break;
             default:
                 std::unreachable();
@@ -656,9 +656,9 @@ BitBoard GameState::generateEnemyControlledSquares() const {
 
 bool GameState::isInCheck(const BitBoard enemyControlledSquares) const {
     const ColoredPiece myKing = getColoredPiece(Piece::King, sideToMove_);
-    for (const auto [piece, position] : pieces_) {
-        if (piece == myKing) {
-            return isSet(enemyControlledSquares, position);
+    for (const auto& pieceInfo : pieces_) {
+        if (pieceInfo.coloredPiece == myKing) {
+            return isSet(enemyControlledSquares, pieceInfo.position);
         }
     }
     std::unreachable();

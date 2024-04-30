@@ -50,14 +50,16 @@ TEST(FenParsing, TestStartingPosition) {
             {getColoredPiece(Piece::Rook, Side::Black), "h8"},
     };
 
+    using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
+
     std::set<PiecePosition> expectedPieces;
     for (const auto& [piece, algebraic] : expectedPiecesAlgebraic) {
         expectedPieces.insert({piece, positionFromAlgebraic(algebraic)});
     }
 
     std::set<PiecePosition> actualPieces;
-    for (const auto& piecePosition : startingPosition.getPieces()) {
-        actualPieces.insert(piecePosition);
+    for (const auto& pieceInfo : startingPosition.getPieces()) {
+        actualPieces.insert({pieceInfo.coloredPiece, pieceInfo.position});
     }
 
     EXPECT_EQ(expectedPieces, actualPieces);
