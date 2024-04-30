@@ -442,9 +442,10 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     } else {
         unmakeSinglePieceMove(move);
 
-        BitBoard affectedSquares = BitBoard::Empty;
-        set(affectedSquares, move.from);
-        set(affectedSquares, move.to);
+        std::array<BoardPosition, 4> affectedSquares;
+        int numAffectedSquares = 0;
+        affectedSquares[numAffectedSquares++] = move.from;
+        affectedSquares[numAffectedSquares++] = move.to;
 
         if (isCapture(move.flags)) {
             assert(unmakeMoveInfo.capturedPiece.coloredPiece != ColoredPiece::None);
@@ -453,10 +454,15 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
             pieces_.push_back(unmakeMoveInfo.capturedPiece);
             set(occupation_.enemyPiece, unmakeMoveInfo.capturedPiece.position);
 
-            set(affectedSquares, unmakeMoveInfo.capturedPiece.position);
+            if (isEnPassant(move.flags)) {
+                affectedSquares[numAffectedSquares++] = unmakeMoveInfo.capturedPiece.position;
+            } else {
+                // The capture square didn't change occupancy, and the restored piece doesn't need its control re-calculated.
+                --numAffectedSquares;
+            }
         }
 
-        recalculateControlledSquaresForAffectedSquares(affectedSquares);
+        recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
     }
 }
 
@@ -509,12 +515,9 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     clear(occupation_.ownPiece, rookFromPosition);
     set(occupation_.ownPiece, rookToPosition);
 
-    BitBoard affectedSquares = BitBoard::Empty;
-    set(affectedSquares, kingFromPosition);
-    set(affectedSquares, kingToPosition);
-    set(affectedSquares, rookFromPosition);
-    set(affectedSquares, rookToPosition);
-    recalculateControlledSquaresForAffectedSquares(affectedSquares);
+    std::array<BoardPosition, 4> affectedSquares = {
+            kingFromPosition, kingToPosition, rookFromPosition, rookToPosition};
+    recalculateControlledSquaresForAffectedSquares(affectedSquares, 4);
 
     if (!reverse) {
         setCanCastleKingSide(sideToMove_, false);
@@ -544,6 +547,7 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
 
     bool isCaptureOrPawnMove = isCapture(move.flags);
     auto capturedPieceIt = pieces_.end();
+    auto movedPieceIt = pieces_.end();
 
     for (auto pieceIt = pieces_.begin(); pieceIt != pieces_.end(); ++pieceIt) {
         if (pieceIt->position == move.from) {
@@ -560,6 +564,8 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
             } else if (piece == Piece::Rook) {
                 updateRookCastlingRights(move.from, sideToMove_);
             }
+
+            movedPieceIt = pieceIt;
         } else if (pieceIt->position == captureTargetSquare) {
             assert(getSide(pieceIt->coloredPiece) != sideToMove_);
             assert(isCapture(move.flags));
@@ -568,6 +574,7 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
         }
     }
 
+    assert(movedPieceIt != pieces_.end());
     assert(IMPLIES(isCapture(move.flags), capturedPieceIt != pieces_.end()));
 
     clear(occupation_.ownPiece, move.from);
@@ -580,16 +587,27 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
 
         capturedPiece = *capturedPieceIt;
         *capturedPieceIt = pieces_.back();
+        if (movedPieceIt == std::prev(pieces_.end())) {
+            movedPieceIt = capturedPieceIt;
+        }
         pieces_.pop_back();
 
         clear(occupation_.enemyPiece, captureTargetSquare);
     }
 
-    BitBoard affectedSquares = BitBoard::Empty;
-    set(affectedSquares, move.from);
-    set(affectedSquares, move.to);
-    set(affectedSquares, captureTargetSquare);
-    recalculateControlledSquaresForAffectedSquares(affectedSquares);
+    std::array<BoardPosition, 4> affectedSquares;
+    int numAffectedSquares = 0;
+    affectedSquares[numAffectedSquares++] = move.from;
+    affectedSquares[numAffectedSquares++] = move.to;
+    if (isEnPassant(move.flags)) {
+        affectedSquares[numAffectedSquares++] = captureTargetSquare;
+    } else if (isCapture(move.flags)) {
+        // The occupancy of the square on which we captured didn't change.
+        --numAffectedSquares;
+        // But we do need to recalculate the controlled squares for the moved piece.
+        recalculateControlledSquares(*movedPieceIt);
+    }
+    recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
 
     if (isCaptureOrPawnMove) {
         plySinceCaptureOrPawn_ = 0;
@@ -653,15 +671,81 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
     }
 }
 
-void GameState::recalculateControlledSquaresForAffectedSquares(BitBoard affectedSquares) {
+void GameState::recalculateControlledSquaresForAffectedSquares(
+        const std::array<BoardPosition, 4>& affectedSquares, const int numAffectedSquares) {
+    BitBoard affectedSquaresBitBoard = BitBoard::Empty;
+    for (int i = 0; i < numAffectedSquares; ++i) {
+        set(affectedSquaresBitBoard, affectedSquares[i]);
+    }
+
     for (auto& pieceInfo : pieces_) {
+        if (isSet(affectedSquaresBitBoard, pieceInfo.position)) {
+            recalculateControlledSquares(pieceInfo);
+            continue;
+        }
+
         const Piece piece = getPiece(pieceInfo.coloredPiece);
         const bool controlledSquaresAffected =
                 piece != Piece::Pawn && piece != Piece::King && piece != Piece::Knight &&
-                (bool)intersection(affectedSquares, pieceInfo.controlledSquares);
-        const bool positionAffected = isSet(affectedSquares, pieceInfo.position);
-        if (controlledSquaresAffected || positionAffected) {
-            recalculateControlledSquares(pieceInfo);
+                (bool)intersection(affectedSquaresBitBoard, pieceInfo.controlledSquares);
+        if (controlledSquaresAffected) {
+            for (int i = 0; i < numAffectedSquares; ++i) {
+                const BoardPosition affectedSquare = affectedSquares[i];
+                if (!isSet(pieceInfo.controlledSquares, affectedSquare)) {
+                    continue;
+                }
+
+                const auto [affectedFile, affectedRank] = fileRankFromPosition(affectedSquare);
+                const auto [pieceFile, pieceRank] = fileRankFromPosition(pieceInfo.position);
+                const int numSteps = std::max(
+                        std::abs(affectedFile - pieceFile), std::abs(affectedRank - pieceRank));
+                const int deltaFile = (affectedFile - pieceFile) / numSteps;
+                const int deltaRank = (affectedRank - pieceRank) / numSteps;
+
+                const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
+
+                const bool isOccupied = isSet(anyPiece, affectedSquare);
+
+                if (isOccupied) {
+                    int file = affectedFile + deltaFile;
+                    int rank = affectedRank + deltaRank;
+                    // Affected square is now occupied, but wasn't before.
+                    // Clear controlled squares starting from the square after the affected square.
+                    // We stop when we reach a square that was already marked not controlled.
+                    while (true) {
+                        if (file < 0 || file > 7 || rank < 0 || rank > 7) {
+                            break;
+                        }
+                        if (!isSet(pieceInfo.controlledSquares, positionFromFileRank(file, rank))) {
+                            break;
+                        }
+                        clear(pieceInfo.controlledSquares, positionFromFileRank(file, rank));
+
+                        file += deltaFile;
+                        rank += deltaRank;
+                    }
+                } else {
+                    int file = affectedFile;
+                    int rank = affectedRank;
+                    // Affected square is now unoccupied, but wasn't before.
+                    // Set controlled squares starting from the affected square.
+                    // We stop after reaching a square that is occupied.
+                    while (true) {
+                        set(pieceInfo.controlledSquares, positionFromFileRank(file, rank));
+
+                        if (isSet(anyPiece, positionFromFileRank(file, rank))) {
+                            break;
+                        }
+
+                        file += deltaFile;
+                        rank += deltaRank;
+
+                        if (file < 0 || file > 7 || rank < 0 || rank > 7) {
+                            break;
+                        }
+                    }
+                }
+            }
         }
     }
 }

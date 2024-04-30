@@ -218,7 +218,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 // Total in debug mode: ~195s (~3m)
-// Total in release mode: ~5.5s
+// Total in release mode: ~5s
 INSTANTIATE_TEST_CASE_P(
     MoveGenerationSlow,
     ValidateMoveStats,

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -192,7 +193,8 @@ class GameState {
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
-    void recalculateControlledSquaresForAffectedSquares(BitBoard affectedSquares);
+    void recalculateControlledSquaresForAffectedSquares(
+            const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
     void recalculateControlledSquares(PieceInfo& pieceInfo) const;
     BitBoard generateEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
