@@ -290,19 +290,6 @@ void generateCastlingMoves(
     }
 }
 
-PieceOccupationBitBoards getPieceOccupationBitBoards(
-        const std::vector<PiecePosition>& pieces, const Side ownSide) {
-    PieceOccupationBitBoards occupation;
-    for (const auto [piece, position] : pieces) {
-        if (getSide(piece) == ownSide) {
-            set(occupation.ownPiece, position);
-        } else {
-            set(occupation.enemyPiece, position);
-        }
-    }
-    return occupation;
-}
-
 }  // namespace
 
 GameState GameState::startingPosition() {
@@ -310,13 +297,11 @@ GameState GameState::startingPosition() {
 }
 
 bool GameState::isInCheck() const {
-    return isInCheck(
-            generateEnemyControlledSquares(getPieceOccupationBitBoards(pieces_, sideToMove_)));
+    return isInCheck(generateEnemyControlledSquares());
 }
 
 std::vector<Move> GameState::generateMoves() {
-    const PieceOccupationBitBoards occupation = getPieceOccupationBitBoards(pieces_, sideToMove_);
-    const BitBoard enemyControlledSquares = generateEnemyControlledSquares(occupation);
+    const BitBoard enemyControlledSquares = generateEnemyControlledSquares();
 
     std::vector<Move> moves;
     auto addMove = [&](const Move& move) {
@@ -332,22 +317,22 @@ std::vector<Move> GameState::generateMoves() {
         switch (getPiece(coloredPiece)) {
             case Piece::Pawn:
                 generateSinglePawnMoves(
-                        position, enPassantTarget_, sideToMove_, occupation, addMove);
+                        position, enPassantTarget_, sideToMove_, occupation_, addMove);
                 break;
             case Piece::Knight:
-                generateSingleKnightMoves(position, occupation, addMove);
+                generateSingleKnightMoves(position, occupation_, addMove);
                 break;
             case Piece::Bishop:
-                generateSingleBishopMoves(position, occupation, addMove);
+                generateSingleBishopMoves(position, occupation_, addMove);
                 break;
             case Piece::Rook:
-                generateSingleRookMoves(position, occupation, addMove);
+                generateSingleRookMoves(position, occupation_, addMove);
                 break;
             case Piece::Queen:
-                generateSingleQueenMoves(position, occupation, addMove);
+                generateSingleQueenMoves(position, occupation_, addMove);
                 break;
             case Piece::King:
-                generateNormalKingMoves(position, occupation, addMove);
+                generateNormalKingMoves(position, occupation_, addMove);
                 break;
             default:
                 std::unreachable();
@@ -359,7 +344,7 @@ std::vector<Move> GameState::generateMoves() {
             sideToMove_,
             canCastleKingSide(sideToMove_),
             canCastleQueenSide(sideToMove_),
-            occupation,
+            occupation_,
             enemyControlledSquares,
             addMove);
 
@@ -367,14 +352,14 @@ std::vector<Move> GameState::generateMoves() {
     for (int moveIdx = 0; moveIdx < moves.size();) {
         const Move move = moves[moveIdx];
         const UnmakeMoveInfo unmakeInfo = makeMove(move);
-        sideToMove_ = nextSide(sideToMove_);
+        const UnmakeMoveInfo unmakeNullInfo = makeNullMove();
         if (isInCheck()) {
             moves[moveIdx] = moves.back();
             moves.pop_back();
         } else {
             ++moveIdx;
         }
-        sideToMove_ = nextSide(sideToMove_);
+        unmakeNullMove(unmakeNullInfo);
         unmakeMove(move, unmakeInfo);
     }
 
@@ -396,11 +381,26 @@ GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
     return unmakeInfo;
 }
 
+GameState::UnmakeMoveInfo GameState::makeNullMove() {
+    UnmakeMoveInfo unmakeInfo = {
+            .enPassantTarget = enPassantTarget_,
+            .castlingRights = castlingRights_,
+            .plySinceCaptureOrPawn = plySinceCaptureOrPawn_};
+
+    sideToMove_ = nextSide(sideToMove_);
+    enPassantTarget_ = BoardPosition::Invalid;
+    // Not increment plySinceCaptureOrPawn_
+    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+
+    return unmakeInfo;
+}
+
 void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo) {
     sideToMove_ = nextSide(sideToMove_);
     enPassantTarget_ = unmakeMoveInfo.enPassantTarget;
     castlingRights_ = unmakeMoveInfo.castlingRights;
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
+    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
 
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
@@ -413,7 +413,16 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
         assert(unmakeMoveInfo.capturedPiece.second != BoardPosition::Invalid);
 
         pieces_.push_back(unmakeMoveInfo.capturedPiece);
+        set(occupation_.enemyPiece, unmakeMoveInfo.capturedPiece.second);
     }
+}
+
+void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
+    sideToMove_ = nextSide(sideToMove_);
+    enPassantTarget_ = unmakeMoveInfo.enPassantTarget;
+    castlingRights_ = unmakeMoveInfo.castlingRights;
+    plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
+    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {
@@ -451,6 +460,12 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
         }
     }
 
+    clear(occupation_.ownPiece, kingFromPosition);
+    set(occupation_.ownPiece, kingToPosition);
+
+    clear(occupation_.ownPiece, rookFromPosition);
+    set(occupation_.ownPiece, rookToPosition);
+
     if (!reverse) {
         setCanCastleKingSide(sideToMove_, false);
         setCanCastleQueenSide(sideToMove_, false);
@@ -458,6 +473,7 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
         sideToMove_ = nextSide(sideToMove_);
         enPassantTarget_ = BoardPosition::Invalid;
         ++plySinceCaptureOrPawn_;
+        std::swap(occupation_.ownPiece, occupation_.enemyPiece);
     }
 }
 
@@ -508,6 +524,9 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
 
     assert(IMPLIES(isCapture(move.flags), capturedPieceIt != pieces_.end()));
 
+    clear(occupation_.ownPiece, move.from);
+    set(occupation_.ownPiece, move.to);
+
     if (capturedPieceIt != pieces_.end()) {
         if (getPiece(capturedPieceIt->first) == Piece::Rook) {
             updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceIt->first));
@@ -516,6 +535,8 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
         capturedPiece = *capturedPieceIt;
         *capturedPieceIt = pieces_.back();
         pieces_.pop_back();
+
+        clear(occupation_.enemyPiece, captureTargetSquare);
     }
 
     if (isCaptureOrPawnMove) {
@@ -525,6 +546,7 @@ PiecePosition GameState::makeSinglePieceMove(const Move& move) {
     }
 
     sideToMove_ = nextSide(sideToMove_);
+    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
 
     return capturedPiece;
 }
@@ -541,6 +563,9 @@ void GameState::unmakeSinglePieceMove(const Move& move) {
             }
         }
     }
+
+    clear(occupation_.ownPiece, move.to);
+    set(occupation_.ownPiece, move.from);
 }
 
 void GameState::handlePawnMove(const Move& move, ColoredPiece& pieceToMove) {
@@ -575,8 +600,7 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
     }
 }
 
-BitBoard GameState::generateEnemyControlledSquares(
-        const PieceOccupationBitBoards& occupation) const {
+BitBoard GameState::generateEnemyControlledSquares() const {
     BitBoard controlledSquares = BitBoard::Empty;
     auto addMove = [&](const Move& move) {
         set(controlledSquares, move.to);
@@ -584,7 +608,7 @@ BitBoard GameState::generateEnemyControlledSquares(
     const Side enemySide = nextSide(sideToMove_);
 
     const PieceOccupationBitBoards invertedOccupation{
-            .ownPiece = occupation.enemyPiece, .enemyPiece = occupation.ownPiece};
+            .ownPiece = occupation_.enemyPiece, .enemyPiece = occupation_.ownPiece};
 
     for (const auto& [coloredPiece, position] : pieces_) {
         if (getSide(coloredPiece) != enemySide) {

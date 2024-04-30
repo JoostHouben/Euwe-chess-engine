@@ -218,20 +218,20 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 // Total in debug mode: ~195s (~3m)
-// Total in release mode: ~6.5s
+// Total in release mode: ~5.5s
 INSTANTIATE_TEST_CASE_P(
     MoveGenerationSlow,
     ValidateMoveStats,
     ::testing::Values(
         // Debug mode: ~2s
-        // Release mode: ~100ms
+        // Release mode: ~50ms
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 3,
             .expectedStats = {.numMoves = 197'281, .numCaptures = 1'576, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
         },
         // Debug mode: ~60s
-        // Release mode: ~2s
+        // Release mode: ~1.5s
         TestStatsConfig{
             .fen = kStartingPositionFen,
             .depth = 4,
@@ -245,21 +245,21 @@ INSTANTIATE_TEST_CASE_P(
             .expectedStats = {.numMoves = 4'085'603, .numCaptures = 757'163, .numEnPassant = 1'929, .numCastle = 128'013, .numPromotions = 15'172}
         },
         // Debug mode: 4s
-        // Release mode: ~200ms
+        // Release mode: ~150ms
         TestStatsConfig{
             .fen = kPosition3Fen,
             .depth = 4,
             .expectedStats = {.numMoves = 674'624, .numCaptures = 52'051, .numEnPassant = 1'165, .numCastle = 0, .numPromotions = 0}
         },
         // Debug mode: 5s
-        // Release mode: ~200ms
+        // Release mode: ~150ms
         TestStatsConfig{
             .fen = kPosition4Fen,
             .depth = 3,
             .expectedStats = {.numMoves = 422'333, .numCaptures = 131'393, .numEnPassant = 0, .numCastle = 7'795, .numPromotions = 60'032}
         },
         // Debug mode: 25s
-        // Release mode: ~900ms
+        // Release mode: ~700ms
         TestStatsConfig{
             .fen = kPosition5Fen,
             .depth = 3,

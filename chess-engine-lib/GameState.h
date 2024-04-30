@@ -112,6 +112,10 @@ constexpr void set(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
+constexpr void clear(BitBoard& bitboard, BoardPosition position) {
+    bitboard = (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
+}
+
 constexpr BitBoard either(BitBoard a, BitBoard b) {
     return (BitBoard)((std::uint64_t)a | (std::uint64_t)b);
 }
@@ -154,7 +158,9 @@ class GameState {
     std::vector<Move> generateMoves();
 
     UnmakeMoveInfo makeMove(const Move& move);
+    UnmakeMoveInfo makeNullMove();
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
+    void unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo);
 
     const std::vector<PiecePosition>& getPieces() const { return pieces_; }
 
@@ -174,7 +180,7 @@ class GameState {
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
-    BitBoard generateEnemyControlledSquares(const PieceOccupationBitBoards& occupation) const;
+    BitBoard generateEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
@@ -200,6 +206,8 @@ class GameState {
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
     std::vector<PiecePosition> pieces_ = {};
+
+    PieceOccupationBitBoards occupation_ = {};
 };
 
 Move moveFromAlgebraic(std::string_view algebraic,
