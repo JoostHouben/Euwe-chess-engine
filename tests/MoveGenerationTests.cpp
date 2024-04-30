@@ -40,9 +40,9 @@ void countMoveStatisticsAtPly(GameState& gameState, int ply, MoveStatistics& sta
         return;
     };
     for (const auto& move : moves) {
-        GameState::UnmakeMoveInfo unmakeInfo = gameState.makeMove(move);
-        countMoveStatisticsAtPly(gameState, ply - 1, statistics);
-        gameState.unmakeMove(move, unmakeInfo);
+        GameState copyState(gameState);
+        (void)copyState.makeMove(move);
+        countMoveStatisticsAtPly(copyState, ply - 1, statistics);
     }
 }
 

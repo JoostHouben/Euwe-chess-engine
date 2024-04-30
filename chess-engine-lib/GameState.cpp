@@ -387,17 +387,16 @@ std::vector<Move> GameState::generateMoves() {
 
     // Remove moves that put us in check. Very slow!!
     for (int moveIdx = 0; moveIdx < moves.size();) {
+        GameState copyState(*this);
         const Move move = moves[moveIdx];
-        const UnmakeMoveInfo unmakeInfo = makeMove(move);
-        const UnmakeMoveInfo unmakeNullInfo = makeNullMove();
-        if (isInCheck()) {
+        (void)copyState.makeMove(move);
+        (void)copyState.makeNullMove();
+        if (copyState.isInCheck()) {
             moves[moveIdx] = moves.back();
             moves.pop_back();
         } else {
             ++moveIdx;
         }
-        unmakeNullMove(unmakeNullInfo);
-        unmakeMove(move, unmakeInfo);
     }
 
     return moves;
