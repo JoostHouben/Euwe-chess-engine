@@ -101,15 +101,15 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
         std::string::const_iterator& strIt) {
     std::array<GameState::PieceInfo, kNumTotalPieces> pieces;
 
-    int whitePawnIdx = (int)GameState::PieceIndex::WhitePawn0;
-    int whiteKnightIdx = (int)GameState::PieceIndex::WhiteKnight0;
-    int whiteBishopIdx = (int)GameState::PieceIndex::WhiteBishop0;
-    int whiteRookIdx = (int)GameState::PieceIndex::WhiteRook0;
+    int whitePawnIdx = (int)PieceIndex::WhitePawn0;
+    int whiteKnightIdx = (int)PieceIndex::WhiteKnight0;
+    int whiteBishopIdx = (int)PieceIndex::WhiteBishop0;
+    int whiteRookIdx = (int)PieceIndex::WhiteRook0;
 
-    int blackPawnIdx = (int)GameState::PieceIndex::BlackPawn0;
-    int blackKnightIdx = (int)GameState::PieceIndex::BlackKnight0;
-    int blackBishopIdx = (int)GameState::PieceIndex::BlackBishop0;
-    int blackRookIdx = (int)GameState::PieceIndex::BlackRook0;
+    int blackPawnIdx = (int)PieceIndex::BlackPawn0;
+    int blackKnightIdx = (int)PieceIndex::BlackKnight0;
+    int blackBishopIdx = (int)PieceIndex::BlackBishop0;
+    int blackRookIdx = (int)PieceIndex::BlackRook0;
 
     for (int rank = 7; rank >= 0; --rank) {
         for (int file = 0; file < 8; ++strIt) {
@@ -136,10 +136,10 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
                         index = whiteRookIdx++;
                         break;
                     case Piece::Queen:
-                        index = (int)GameState::PieceIndex::WhiteQueen;
+                        index = (int)PieceIndex::WhiteQueen;
                         break;
                     case Piece::King:
-                        index = (int)GameState::PieceIndex::WhiteKing;
+                        index = (int)PieceIndex::WhiteKing;
                         break;
                     default:
                         std::unreachable();
@@ -159,10 +159,10 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
                         index = blackRookIdx++;
                         break;
                     case Piece::Queen:
-                        index = (int)GameState::PieceIndex::BlackQueen;
+                        index = (int)PieceIndex::BlackQueen;
                         break;
                     case Piece::King:
-                        index = (int)GameState::PieceIndex::BlackKing;
+                        index = (int)PieceIndex::BlackKing;
                         break;
                     default:
                         std::unreachable();

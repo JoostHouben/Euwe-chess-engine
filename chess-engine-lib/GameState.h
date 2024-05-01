@@ -103,9 +103,54 @@ constexpr MoveFlags getFlags(FlagTs... flags) {
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
+enum class PieceIndex : int {
+    Invalid = -1,
+
+    WhitePieces = 0,
+    WhitePawn0 = WhitePieces,
+    WhitePawn1,
+    WhitePawn2,
+    WhitePawn3,
+    WhitePawn4,
+    WhitePawn5,
+    WhitePawn6,
+    WhitePawn7,
+    WhiteNonPawns,
+    WhiteKnight0 = WhiteNonPawns,
+    WhiteKnight1,
+    WhiteBishop0,
+    WhiteBishop1,
+    WhiteRook0,
+    WhiteRook1,
+    WhiteQueen,
+    WhiteKing,
+
+    BlackPieces,
+    BlackPawn0 = BlackPieces,
+    BlackPawn1,
+    BlackPawn2,
+    BlackPawn3,
+    BlackPawn4,
+    BlackPawn5,
+    BlackPawn6,
+    BlackPawn7,
+    BlackNonPawns,
+    BlackKnight0 = BlackNonPawns,
+    BlackKnight1,
+    BlackBishop0,
+    BlackBishop1,
+    BlackRook0,
+    BlackRook1,
+    BlackQueen,
+    BlackKing,
+};
+
+constexpr PieceIndex getKingIndex(Side side) {
+    return side == Side::Black ? PieceIndex::BlackKing : PieceIndex::WhiteKing;
+}
+
 struct Move {
-    // TODO: using PieceIndex instead of from would help eliminate some lookup loops
-    BoardPosition from;
+    PieceIndex pieceToMove;
     BoardPosition to;
     MoveFlags flags = MoveFlags::None;
 };
@@ -157,48 +202,6 @@ class GameState {
         BlackQueenSide = 1 << 3,
     };
 
-    enum class PieceIndex : int {
-        Invalid = -1,
-
-        WhitePieces = 0,
-        WhitePawn0 = WhitePieces,
-        WhitePawn1,
-        WhitePawn2,
-        WhitePawn3,
-        WhitePawn4,
-        WhitePawn5,
-        WhitePawn6,
-        WhitePawn7,
-        WhiteNonPawns,
-        WhiteKnight0 = WhiteNonPawns,
-        WhiteKnight1,
-        WhiteBishop0,
-        WhiteBishop1,
-        WhiteRook0,
-        WhiteRook1,
-        WhiteQueen,
-        WhiteKing,
-
-        BlackPieces,
-        BlackPawn0 = BlackPieces,
-        BlackPawn1,
-        BlackPawn2,
-        BlackPawn3,
-        BlackPawn4,
-        BlackPawn5,
-        BlackPawn6,
-        BlackPawn7,
-        BlackNonPawns,
-        BlackKnight0 = BlackNonPawns,
-        BlackKnight1,
-        BlackBishop0,
-        BlackBishop1,
-        BlackRook0,
-        BlackRook1,
-        BlackQueen,
-        BlackKing,
-    };
-
     struct PieceInfo {
         // TODO: store coloredPiece implicitly using the index?
         ColoredPiece coloredPiece = ColoredPiece::None;
@@ -209,6 +212,7 @@ class GameState {
     };
 
     struct UnmakeMoveInfo {
+        BoardPosition from = BoardPosition::Invalid;
         BoardPosition enPassantTarget = BoardPosition::Invalid;
         CastlingRights castlingRights = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
@@ -263,7 +267,7 @@ class GameState {
 
     void makeCastleMove(const Move& move, bool reverse = false);
     PieceIndex makeSinglePieceMove(const Move& move);
-    void handlePawnMove(const Move& move, ColoredPiece& pieceToMove);
+    void handlePawnMove(const Move& move, BoardPosition moveFrom, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
