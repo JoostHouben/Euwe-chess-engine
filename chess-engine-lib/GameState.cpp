@@ -352,7 +352,7 @@ void generateSinglePieceMoves(
 }  // namespace
 
 GameState GameState::startingPosition() {
-    return fromFen(kStartingPositionFen);
+    return fromFen(getStartingPositionFen());
 }
 
 bool GameState::isInCheck() const {
@@ -424,7 +424,7 @@ GameState::UnmakeMoveInfo GameState::makeNullMove() {
 
     sideToMove_ = nextSide(sideToMove_);
     enPassantTarget_ = BoardPosition::Invalid;
-    // Not increment plySinceCaptureOrPawn_
+    // Do not increment plySinceCaptureOrPawn_
     std::swap(occupation_.ownPiece, occupation_.enemyPiece);
 
     return unmakeInfo;
@@ -515,6 +515,7 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     clear(occupation_.ownPiece, rookFromPosition);
     set(occupation_.ownPiece, rookToPosition);
 
+    // Possible optimization here: only rookToPosition needs to be considered.
     std::array<BoardPosition, 4> affectedSquares = {
             kingFromPosition, kingToPosition, rookFromPosition, rookToPosition};
     recalculateControlledSquaresForAffectedSquares(affectedSquares, 4);

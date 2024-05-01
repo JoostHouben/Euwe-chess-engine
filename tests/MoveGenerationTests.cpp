@@ -23,6 +23,24 @@ struct ExpectedMoveStatistics {
     std::optional<std::size_t> numPromotions = std::nullopt;
 };
 
+void compareStatistics(const MoveStatistics& actual, const ExpectedMoveStatistics& expected) {
+    if (expected.numMoves.has_value()) {
+        EXPECT_EQ(actual.numMoves, expected.numMoves.value());
+    }
+    if (expected.numCaptures.has_value()) {
+        EXPECT_EQ(actual.numCaptures, expected.numCaptures.value());
+    }
+    if (expected.numEnPassant.has_value()) {
+        EXPECT_EQ(actual.numEnPassant, expected.numEnPassant.value());
+    }
+    if (expected.numCastle.has_value()) {
+        EXPECT_EQ(actual.numCastle, expected.numCastle.value());
+    }
+    if (expected.numPromotions.has_value()) {
+        EXPECT_EQ(actual.numPromotions, expected.numPromotions.value());
+    }
+}
+
 void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
     for (const auto& move : moves) {
@@ -46,6 +64,19 @@ void countMoveStatisticsAtPly(GameState& gameState, int ply, MoveStatistics& sta
     }
 }
 
+void countMoveStatisticsAtPlyWithUnmake(GameState& gameState, int ply, MoveStatistics& statistics) {
+    const std::vector<Move> moves = gameState.generateMoves();
+    if (ply == 0) {
+        updateStatistics(moves, statistics);
+        return;
+    };
+    for (const auto& move : moves) {
+        auto unmakeInfo = gameState.makeMove(move);
+        countMoveStatisticsAtPlyWithUnmake(gameState, ply - 1, statistics);
+        gameState.unmakeMove(move, unmakeInfo);
+    }
+}
+
 struct TestStatsConfig {
     std::string fen;
     int depth;
@@ -59,22 +90,17 @@ TEST_P(ValidateMoveStats, TestMoveStats) {
     MoveStatistics statistics{};
     GameState gameState = GameState::fromFen(config.fen);
     countMoveStatisticsAtPly(gameState, config.depth, statistics);
+    compareStatistics(statistics, config.expectedStats);
+}
 
-    if (config.expectedStats.numMoves.has_value()) {
-        EXPECT_EQ(statistics.numMoves, config.expectedStats.numMoves.value());
-    }
-    if (config.expectedStats.numCaptures.has_value()) {
-        EXPECT_EQ(statistics.numCaptures, config.expectedStats.numCaptures.value());
-    }
-    if (config.expectedStats.numEnPassant.has_value()) {
-        EXPECT_EQ(statistics.numEnPassant, config.expectedStats.numEnPassant.value());
-    }
-    if (config.expectedStats.numCastle.has_value()) {
-        EXPECT_EQ(statistics.numCastle, config.expectedStats.numCastle.value());
-    }
-    if (config.expectedStats.numPromotions.has_value()) {
-        EXPECT_EQ(statistics.numPromotions, config.expectedStats.numPromotions.value());
-    }
+class ValidateMoveStatsWithUnmake : public ::testing::TestWithParam<TestStatsConfig> {};
+
+TEST_P(ValidateMoveStatsWithUnmake, TestMoveStats) {
+    const TestStatsConfig config = GetParam();
+    MoveStatistics statistics{};
+    GameState gameState = GameState::fromFen(config.fen);
+    countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics);
+    compareStatistics(statistics, config.expectedStats);
 }
 
 // Positions and statistics taken from https://www.chessprogramming.org/Perft_Results
@@ -91,7 +117,7 @@ inline const std::string kPosition6Fen =
 
 std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig>& info) {
     std::string fenName = "";
-    if (info.param.fen == kStartingPositionFen) {
+    if (info.param.fen == getStartingPositionFen()) {
         fenName = "root";
     } else if (info.param.fen == kKiwipeteFen) {
         fenName = "kiwipete";
@@ -107,173 +133,205 @@ std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig
     return fenName + "_depth" + std::to_string(info.param.depth);
 }
 
-// clang-format off
-INSTANTIATE_TEST_CASE_P(
-    MoveGeneration,
-    ValidateMoveStats,
-    ::testing::Values(
+auto testCasesFast = ::testing::Values(
         // root
         TestStatsConfig{
-            .fen = kStartingPositionFen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 20, .numCaptures = 0, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = getStartingPositionFen(),
+                .depth = 0,
+                .expectedStats =
+                        {.numMoves = 20,
+                         .numCaptures = 0,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kStartingPositionFen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 400, .numCaptures = 0, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = getStartingPositionFen(),
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves = 400,
+                         .numCaptures = 0,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kStartingPositionFen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 8'902, .numCaptures = 34, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = getStartingPositionFen(),
+                .depth = 2,
+                .expectedStats =
+                        {.numMoves = 8902,
+                         .numCaptures = 34,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // kiwipete
         TestStatsConfig{
-            .fen = kKiwipeteFen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 48, .numCaptures = 8, .numEnPassant = 0, .numCastle = 2, .numPromotions = 0}
-        },
+                .fen = kKiwipeteFen,
+                .depth = 0,
+                .expectedStats =
+                        {.numMoves = 48,
+                         .numCaptures = 8,
+                         .numEnPassant = 0,
+                         .numCastle = 2,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kKiwipeteFen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 2'039, .numCaptures = 351, .numEnPassant = 1, .numCastle = 91, .numPromotions = 0}
-        },
+                .fen = kKiwipeteFen,
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves = 2039,
+                         .numCaptures = 351,
+                         .numEnPassant = 1,
+                         .numCastle = 91,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kKiwipeteFen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 97'862, .numCaptures = 17'102, .numEnPassant = 45, .numCastle = 3'162, .numPromotions = 0}
-        },
+                .fen = kKiwipeteFen,
+                .depth = 2,
+                .expectedStats =
+                        {.numMoves = 97862,
+                         .numCaptures = 17102,
+                         .numEnPassant = 45,
+                         .numCastle = 3162,
+                         .numPromotions = 0}},
         // position3
         TestStatsConfig{
-            .fen = kPosition3Fen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 14, .numCaptures = 1, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition3Fen,
+                .depth = 0,
+                .expectedStats =
+                        {.numMoves = 14,
+                         .numCaptures = 1,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kPosition3Fen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 191, .numCaptures = 14, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition3Fen,
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves = 191,
+                         .numCaptures = 14,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kPosition3Fen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 2'812, .numCaptures = 209, .numEnPassant = 2, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition3Fen,
+                .depth = 2,
+                .expectedStats =
+                        {.numMoves = 2812,
+                         .numCaptures = 209,
+                         .numEnPassant = 2,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kPosition3Fen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 43'238, .numCaptures = 3'348, .numEnPassant = 123, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition3Fen,
+                .depth = 3,
+                .expectedStats =
+                        {.numMoves = 43238,
+                         .numCaptures = 3348,
+                         .numEnPassant = 123,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // position4
         TestStatsConfig{
-            .fen = kPosition4Fen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 6, .numCaptures = 0, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition4Fen,
+                .depth = 0,
+                .expectedStats =
+                        {.numMoves = 6,
+                         .numCaptures = 0,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         TestStatsConfig{
-            .fen = kPosition4Fen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 264, .numCaptures = 87, .numEnPassant = 0, .numCastle = 6, .numPromotions = 48}
-        },
+                .fen = kPosition4Fen,
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves = 264,
+                         .numCaptures = 87,
+                         .numEnPassant = 0,
+                         .numCastle = 6,
+                         .numPromotions = 48}},
         TestStatsConfig{
-            .fen = kPosition4Fen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 9'467, .numCaptures = 1'021, .numEnPassant = 4, .numCastle = 0, .numPromotions = 120}
-        },
+                .fen = kPosition4Fen,
+                .depth = 2,
+                .expectedStats =
+                        {.numMoves = 9467,
+                         .numCaptures = 1021,
+                         .numEnPassant = 4,
+                         .numCastle = 0,
+                         .numPromotions = 120}},
         // position5
-        TestStatsConfig{
-            .fen = kPosition5Fen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 44}
-        },
-        TestStatsConfig{
-            .fen = kPosition5Fen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 1'486}
-        },
-        TestStatsConfig{
-            .fen = kPosition5Fen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 62'379}
-        },
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 0, .expectedStats = {.numMoves = 44}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 1, .expectedStats = {.numMoves = 1486}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 2, .expectedStats = {.numMoves = 62379}},
         // position6
-        TestStatsConfig{
-            .fen = kPosition6Fen,
-            .depth = 0,
-            .expectedStats = {.numMoves = 46}
-        },
-        TestStatsConfig{
-            .fen = kPosition6Fen,
-            .depth = 1,
-            .expectedStats = {.numMoves = 2'079}
-        },
-        TestStatsConfig{
-            .fen = kPosition6Fen,
-            .depth = 2,
-            .expectedStats = {.numMoves = 89'890}
-        }
-    ),
-    validateMoveStatsName
-);
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 0, .expectedStats = {.numMoves = 46}},
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 2079}},
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 89890}});
 
 // Total in debug mode: ~195s (~3m)
 // Total in release mode: ~5s
-INSTANTIATE_TEST_CASE_P(
-    MoveGenerationSlow,
-    ValidateMoveStats,
-    ::testing::Values(
+auto testCasesSlow = ::testing::Values(
         // Debug mode: ~2s
         // Release mode: ~50ms
         TestStatsConfig{
-            .fen = kStartingPositionFen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 197'281, .numCaptures = 1'576, .numEnPassant = 0, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = getStartingPositionFen(),
+                .depth = 3,
+                .expectedStats =
+                        {.numMoves = 197281,
+                         .numCaptures = 1576,
+                         .numEnPassant = 0,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // Debug mode: ~60s
         // Release mode: ~1.5s
         TestStatsConfig{
-            .fen = kStartingPositionFen,
-            .depth = 4,
-            .expectedStats = {.numMoves = 4'865'609, .numCaptures = 82'719, .numEnPassant = 258, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = getStartingPositionFen(),
+                .depth = 4,
+                .expectedStats =
+                        {.numMoves = 4865609,
+                         .numCaptures = 82719,
+                         .numEnPassant = 258,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // Debug mode: 50s
         // Release mode: ~1.5s
         TestStatsConfig{
-            .fen = kKiwipeteFen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 4'085'603, .numCaptures = 757'163, .numEnPassant = 1'929, .numCastle = 128'013, .numPromotions = 15'172}
-        },
+                .fen = kKiwipeteFen,
+                .depth = 3,
+                .expectedStats =
+                        {.numMoves = 4085603,
+                         .numCaptures = 757163,
+                         .numEnPassant = 1929,
+                         .numCastle = 128013,
+                         .numPromotions = 15172}},
         // Debug mode: 4s
         // Release mode: ~150ms
         TestStatsConfig{
-            .fen = kPosition3Fen,
-            .depth = 4,
-            .expectedStats = {.numMoves = 674'624, .numCaptures = 52'051, .numEnPassant = 1'165, .numCastle = 0, .numPromotions = 0}
-        },
+                .fen = kPosition3Fen,
+                .depth = 4,
+                .expectedStats =
+                        {.numMoves = 674624,
+                         .numCaptures = 52051,
+                         .numEnPassant = 1165,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // Debug mode: 5s
         // Release mode: ~150ms
         TestStatsConfig{
-            .fen = kPosition4Fen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 422'333, .numCaptures = 131'393, .numEnPassant = 0, .numCastle = 7'795, .numPromotions = 60'032}
-        },
+                .fen = kPosition4Fen,
+                .depth = 3,
+                .expectedStats =
+                        {.numMoves = 422333,
+                         .numCaptures = 131393,
+                         .numEnPassant = 0,
+                         .numCastle = 7795,
+                         .numPromotions = 60032}},
         // Debug mode: 25s
         // Release mode: ~700ms
-        TestStatsConfig{
-            .fen = kPosition5Fen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 2'103'487}
-        },
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 2103487}},
         // Debug mode: 50s
         // Release mode: ~1.5s
-        TestStatsConfig{
-            .fen = kPosition6Fen,
-            .depth = 3,
-            .expectedStats = {.numMoves = 3'894'594}
-        }
-    ),
-    validateMoveStatsName
-);
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 3894594}});
+
+INSTANTIATE_TEST_CASE_P(MoveGeneration, ValidateMoveStats, testCasesFast, validateMoveStatsName);
+
+INSTANTIATE_TEST_CASE_P(
+        MoveGenerationSlow, ValidateMoveStats, testCasesSlow, validateMoveStatsName);
 
 }  // namespace MoveGenerationTests
