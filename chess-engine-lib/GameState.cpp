@@ -367,9 +367,11 @@ std::vector<Move> GameState::generateMoves() {
         moves.push_back(move);
     };
 
-    for (const auto& pieceInfo : pieces_) {
-        if (getSide(pieceInfo.coloredPiece) != sideToMove_) {
-            // Skip enemy pieces
+    const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
+    const int endIdx = ownStartIdx + kNumPiecesPerSide;
+    for (int pieceIdx = ownStartIdx; pieceIdx < endIdx; ++pieceIdx) {
+        const PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.captured) {
             continue;
         }
 
@@ -410,7 +412,7 @@ GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
     if (isCastle(move.flags)) {
         makeCastleMove(move);
     } else {
-        unmakeInfo.capturedPiece = makeSinglePieceMove(move);
+        unmakeInfo.capturedPieceIndex = makeSinglePieceMove(move);
     }
 
     return unmakeInfo;
@@ -479,21 +481,36 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     clear(occupation_.ownPiece, rookFromPosition);
     set(occupation_.ownPiece, rookToPosition);
 
-    for (auto& pieceInfo : pieces_) {
-        if (pieceInfo.position == kingFromPosition) {
-            assert(getPiece(pieceInfo.coloredPiece) == Piece::King);
-            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
+    const PieceIndex kingIdx =
+            sideToMove_ == Side::White ? PieceIndex::WhiteKing : PieceIndex::BlackKing;
+    PieceInfo& kingPieceInfo = getPieceInfo(kingIdx);
 
-            pieceInfo.position = kingToPosition;
-            recalculateControlledSquares(pieceInfo);
-        } else if (pieceInfo.position == rookFromPosition) {
-            assert(getPiece(pieceInfo.coloredPiece) == Piece::Rook);
-            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
-
-            pieceInfo.position = rookToPosition;
-            recalculateControlledSquares(pieceInfo);
+    // TODO: could get rid of this loop if we make the fen parsing smart enough to put rooks at a
+    // consistent index if at their starting position. Not sure if this would speed things up.
+    PieceIndex rookIdx = PieceIndex::Invalid;
+    const int rookStartIdx =
+            sideToMove_ == Side::White ? (int)PieceIndex::WhiteRook0 : (int)PieceIndex::BlackRook0;
+    for (int pieceIdx = rookStartIdx; pieceIdx < rookStartIdx + 2; ++pieceIdx) {
+        PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.position == rookFromPosition) {
+            rookIdx = (PieceIndex)pieceIdx;
+            break;
         }
     }
+    assert(rookIdx != PieceIndex::Invalid);
+    PieceInfo& rookPieceInfo = getPieceInfo(rookIdx);
+
+    // Update king
+    assert(getPiece(kingPieceInfo.coloredPiece) == Piece::King);
+    assert(getSide(kingPieceInfo.coloredPiece) == sideToMove_);
+    kingPieceInfo.position = kingToPosition;
+    recalculateControlledSquares(kingPieceInfo);
+
+    // Update rook
+    assert(getPiece(rookPieceInfo.coloredPiece) == Piece::Rook);
+    assert(getSide(rookPieceInfo.coloredPiece) == sideToMove_);
+    rookPieceInfo.position = rookToPosition;
+    recalculateControlledSquares(rookPieceInfo);
 
     // Possible optimization here: only rookToPosition needs to be considered.
     std::array<BoardPosition, 4> affectedSquares = {
@@ -511,8 +528,8 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     }
 }
 
-GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
-    PieceInfo capturedPiece = {};
+GameState::PieceIndex GameState::makeSinglePieceMove(const Move& move) {
+    PieceIndex capturedPieceIndex = PieceIndex::Invalid;
     BoardPosition captureTargetSquare = move.to;
 
     if (isEnPassant(move.flags)) {
@@ -527,48 +544,60 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
     enPassantTarget_ = BoardPosition::Invalid;
 
     bool isCaptureOrPawnMove = isCapture(move.flags);
-    auto capturedPieceIt = pieces_.end();
 
     clear(occupation_.ownPiece, move.from);
     set(occupation_.ownPiece, move.to);
 
-    for (auto pieceIt = pieces_.begin(); pieceIt != pieces_.end(); ++pieceIt) {
-        if (pieceIt->position == move.from) {
-            assert(getSide(pieceIt->coloredPiece) == sideToMove_);
+    const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
+    for (int pieceIdx = ownStartIdx;; ++pieceIdx) {
+        PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.captured || pieceInfo.position != move.from) {
+            continue;
+        }
+        assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
 
-            pieceIt->position = move.to;
+        pieceInfo.position = move.to;
 
-            const Piece piece = getPiece(pieceIt->coloredPiece);
-            if (piece == Piece::Pawn) {
-                isCaptureOrPawnMove = true;
-                handlePawnMove(move, pieceIt->coloredPiece);
-            } else if (piece == Piece::King) {
-                handleNormalKingMove();
-            } else if (piece == Piece::Rook) {
-                updateRookCastlingRights(move.from, sideToMove_);
+        const Piece piece = getPiece(pieceInfo.coloredPiece);
+        if (piece == Piece::Pawn) {
+            isCaptureOrPawnMove = true;
+            handlePawnMove(move, pieceInfo.coloredPiece);
+        } else if (piece == Piece::King) {
+            handleNormalKingMove();
+        } else if (piece == Piece::Rook) {
+            updateRookCastlingRights(move.from, sideToMove_);
+        }
+
+        recalculateControlledSquares(pieceInfo);
+
+        break;
+    }
+
+    if (isCapture(move.flags)) {
+        const int enemyStartIdx = kNumPiecesPerSide * (int)nextSide(sideToMove_);
+        for (int pieceIdx = enemyStartIdx;; ++pieceIdx) {
+            PieceInfo& pieceInfo = pieces_[pieceIdx];
+            if (pieceInfo.captured || pieceInfo.position != captureTargetSquare) {
+                continue;
             }
-
-            recalculateControlledSquares(*pieceIt);
-        } else if (pieceIt->position == captureTargetSquare) {
-            assert(getSide(pieceIt->coloredPiece) != sideToMove_);
+            assert(getSide(pieceInfo.coloredPiece) != sideToMove_);
             assert(isCapture(move.flags));
 
-            capturedPieceIt = pieceIt;
+            capturedPieceIndex = (PieceIndex)pieceIdx;
+
+            break;
         }
     }
 
-    assert(movedPieceIt != pieces_.end());
-    assert(IMPLIES(isCapture(move.flags), capturedPieceIt != pieces_.end()));
+    assert(IMPLIES(isCapture(move.flags), capturedPieceIndex != PieceIndex::Invalid));
 
-    if (capturedPieceIt != pieces_.end()) {
-        if (getPiece(capturedPieceIt->coloredPiece) == Piece::Rook) {
-            updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceIt->coloredPiece));
+    if (capturedPieceIndex != PieceIndex::Invalid) {
+        PieceInfo& capturedPieceInfo = getPieceInfo(capturedPieceIndex);
+
+        if (getPiece(capturedPieceInfo.coloredPiece) == Piece::Rook) {
+            updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceInfo.coloredPiece));
         }
-
-        capturedPiece = *capturedPieceIt;
-        *capturedPieceIt = pieces_.back();
-        pieces_.pop_back();
-
+        capturedPieceInfo.captured = true;
         clear(occupation_.enemyPiece, captureTargetSquare);
     }
 
@@ -593,31 +622,35 @@ GameState::PieceInfo GameState::makeSinglePieceMove(const Move& move) {
     sideToMove_ = nextSide(sideToMove_);
     std::swap(occupation_.ownPiece, occupation_.enemyPiece);
 
-    return capturedPiece;
+    return capturedPieceIndex;
 }
 
 void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo) {
-    clear(occupation_.ownPiece, move.to);
     set(occupation_.ownPiece, move.from);
     if (isCapture(move.flags)) {
-        assert(unmakeMoveInfo.capturedPiece.position != BoardPosition::Invalid);
-        set(occupation_.enemyPiece, unmakeMoveInfo.capturedPiece.position);
+        assert(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
+        set(occupation_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
+    } else {
+        clear(occupation_.ownPiece, move.to);
     }
 
-    for (auto& pieceInfo : pieces_) {
-        if (pieceInfo.position == move.to) {
-            assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
-
-            pieceInfo.position = move.from;
-            if (isPromotion(move.flags)) {
-                assert(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
-                pieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
-            }
-
-            recalculateControlledSquares(pieceInfo);
-
-            break;
+    const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
+    for (int pieceIdx = ownStartIdx;; ++pieceIdx) {
+        PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.captured || pieceInfo.position != move.to) {
+            continue;
         }
+        assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
+
+        pieceInfo.position = move.from;
+        if (isPromotion(move.flags)) {
+            assert(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
+            pieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
+        }
+
+        recalculateControlledSquares(pieceInfo);
+
+        break;
     }
 
     std::array<BoardPosition, 4> affectedSquares;
@@ -626,14 +659,14 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     affectedSquares[numAffectedSquares++] = move.to;
 
     if (isCapture(move.flags)) {
-        assert(unmakeMoveInfo.capturedPiece.coloredPiece != ColoredPiece::None);
-        assert(unmakeMoveInfo.capturedPiece.position != BoardPosition::Invalid);
-        pieces_.push_back(unmakeMoveInfo.capturedPiece);
+        assert(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
+        PieceInfo& capturedPieceInfo = getPieceInfo(unmakeMoveInfo.capturedPieceIndex);
+        capturedPieceInfo.captured = false;
 
         if (isEnPassant(move.flags)) {
-            affectedSquares[numAffectedSquares++] = unmakeMoveInfo.capturedPiece.position;
+            affectedSquares[numAffectedSquares++] = capturedPieceInfo.position;
         } else {
-            // The capture square didn't change occupancy, and the restored piece doesn't need its control re-calculated.
+            // The capture square didn't change occupancy.
             --numAffectedSquares;
         }
     }
@@ -681,6 +714,10 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
     }
 
     for (auto& pieceInfo : pieces_) {
+        if (pieceInfo.captured) {
+            continue;
+        }
+
         const Piece piece = getPiece(pieceInfo.coloredPiece);
         const bool controlledSquaresAffected =
                 piece != Piece::Pawn && piece != Piece::King && piece != Piece::Knight &&
@@ -771,12 +808,13 @@ void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
 BitBoard GameState::generateEnemyControlledSquares() const {
     BitBoard controlledSquares = BitBoard::Empty;
     const Side enemySide = nextSide(sideToMove_);
-
-    for (const auto& pieceInfo : pieces_) {
-        if (getSide(pieceInfo.coloredPiece) != enemySide) {
-            // Skip own pieces
+    const int enemyStartIdx = kNumPiecesPerSide * (int)enemySide;
+    for (int pieceIdx = enemyStartIdx; pieceIdx < enemyStartIdx + kNumPiecesPerSide; ++pieceIdx) {
+        const PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.captured) {
             continue;
         }
+
         controlledSquares = any(controlledSquares, pieceInfo.controlledSquares);
     }
 
@@ -784,13 +822,10 @@ BitBoard GameState::generateEnemyControlledSquares() const {
 }
 
 bool GameState::isInCheck(const BitBoard enemyControlledSquares) const {
-    const ColoredPiece myKing = getColoredPiece(Piece::King, sideToMove_);
-    for (const auto& pieceInfo : pieces_) {
-        if (pieceInfo.coloredPiece == myKing) {
-            return isSet(enemyControlledSquares, pieceInfo.position);
-        }
-    }
-    std::unreachable();
+    const PieceIndex kingIdx =
+            sideToMove_ == Side::White ? PieceIndex::WhiteKing : PieceIndex::BlackKing;
+    const PieceInfo& kingPieceInfo = getPieceInfo(kingIdx);
+    return isSet(enemyControlledSquares, kingPieceInfo.position);
 }
 
 void GameState::setCanCastleKingSide(const Side side, const bool canCastle) {

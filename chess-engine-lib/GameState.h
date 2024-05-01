@@ -11,6 +11,14 @@
 enum class Side : std::uint8_t { White, Black, None };
 inline constexpr int kNumSides = 2;
 
+inline constexpr int kRows = 8;
+inline constexpr int kColumns = 8;
+
+inline constexpr int kNumPawns = 8;
+inline constexpr int kNumNonPawns = 8;
+inline constexpr int kNumPiecesPerSide = kNumPawns + kNumNonPawns;
+inline constexpr int kNumTotalPieces = kNumPiecesPerSide * kNumSides;
+
 constexpr Side nextSide(Side side) {
     switch (side) {
         case Side::White:
@@ -96,6 +104,7 @@ constexpr MoveFlags getFlags(FlagTs... flags) {
 }
 
 struct Move {
+    // TODO: using PieceIndex instead of from would help eliminate some lookup loops
     BoardPosition from;
     BoardPosition to;
     MoveFlags flags = MoveFlags::None;
@@ -148,9 +157,54 @@ class GameState {
         BlackQueenSide = 1 << 3,
     };
 
+    enum class PieceIndex : int {
+        Invalid = -1,
+
+        WhitePieces = 0,
+        WhitePawn0 = WhitePieces,
+        WhitePawn1,
+        WhitePawn2,
+        WhitePawn3,
+        WhitePawn4,
+        WhitePawn5,
+        WhitePawn6,
+        WhitePawn7,
+        WhiteNonPawns,
+        WhiteKnight0 = WhiteNonPawns,
+        WhiteKnight1,
+        WhiteBishop0,
+        WhiteBishop1,
+        WhiteRook0,
+        WhiteRook1,
+        WhiteQueen,
+        WhiteKing,
+
+        BlackPieces,
+        BlackPawn0 = BlackPieces,
+        BlackPawn1,
+        BlackPawn2,
+        BlackPawn3,
+        BlackPawn4,
+        BlackPawn5,
+        BlackPawn6,
+        BlackPawn7,
+        BlackNonPawns,
+        BlackKnight0 = BlackNonPawns,
+        BlackKnight1,
+        BlackBishop0,
+        BlackBishop1,
+        BlackRook0,
+        BlackRook1,
+        BlackQueen,
+        BlackKing,
+    };
+
     struct PieceInfo {
+        // TODO: store coloredPiece implicitly using the index?
         ColoredPiece coloredPiece = ColoredPiece::None;
+        bool captured = true;
         BoardPosition position = BoardPosition::Invalid;
+        // 5 unused bytes... :(
         BitBoard controlledSquares = BitBoard::Empty;
     };
 
@@ -158,7 +212,7 @@ class GameState {
         BoardPosition enPassantTarget = BoardPosition::Invalid;
         CastlingRights castlingRights = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
-        PieceInfo capturedPiece = {};
+        PieceIndex capturedPieceIndex = PieceIndex::Invalid;
     };
 
     static GameState fromFen(const std::string& fenString);
@@ -176,7 +230,8 @@ class GameState {
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
     void unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo);
 
-    const std::vector<PieceInfo>& getPieces() const { return pieces_; }
+    const PieceInfo& getPieceInfo(PieceIndex pieceIndex) const { return pieces_[(int)pieceIndex]; }
+    const std::array<PieceInfo, kNumTotalPieces>& getPieces() const { return pieces_; }
 
     Side getSideToMove() const { return sideToMove_; }
 
@@ -194,6 +249,8 @@ class GameState {
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
    private:
+    PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
+
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
     void recalculateControlledSquares(PieceInfo& pieceInfo) const;
@@ -205,7 +262,7 @@ class GameState {
     void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
 
     void makeCastleMove(const Move& move, bool reverse = false);
-    PieceInfo makeSinglePieceMove(const Move& move);
+    PieceIndex makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
@@ -222,7 +279,7 @@ class GameState {
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
-    std::vector<PieceInfo> pieces_ = {};
+    std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
 
     PieceOccupationBitBoards occupation_ = {};
 };
