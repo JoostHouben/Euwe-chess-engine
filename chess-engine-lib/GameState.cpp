@@ -446,6 +446,7 @@ std::vector<Move> GameState::generateMoves() {
 
 GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
     UnmakeMoveInfo unmakeInfo = {
+            .from = getPieceInfo(move.pieceToMove).position,
             .enPassantTarget = enPassantTarget_,
             .castlingRights = castlingRights_,
             .plySinceCaptureOrPawn = plySinceCaptureOrPawn_};
@@ -659,11 +660,10 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
 
 void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo) {
     set(occupation_.ownPiece, unmakeMoveInfo.from);
+    clear(occupation_.ownPiece, move.to);
     if (isCapture(move.flags)) {
         assert(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
         set(occupation_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
-    } else {
-        clear(occupation_.ownPiece, move.to);
     }
 
     const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;

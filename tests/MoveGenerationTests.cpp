@@ -333,6 +333,9 @@ auto testCasesSlow = ::testing::Values(
 INSTANTIATE_TEST_CASE_P(MoveGeneration, ValidateMoveStats, testCasesFast, validateMoveStatsName);
 
 INSTANTIATE_TEST_CASE_P(
+        MoveGeneration, ValidateMoveStatsWithUnmake, testCasesFast, validateMoveStatsName);
+
+INSTANTIATE_TEST_CASE_P(
         MoveGenerationSlow, ValidateMoveStats, testCasesSlow, validateMoveStatsName);
 
 }  // namespace MoveGenerationTests
