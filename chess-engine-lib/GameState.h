@@ -210,7 +210,7 @@ class GameState {
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
-    void unmakeSinglePieceMove(const Move& move);
+    void unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
 
     GameState() = default;
 
