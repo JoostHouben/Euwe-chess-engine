@@ -33,6 +33,10 @@ constexpr Side nextSide(Side side) {
 
 enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King };
 
+constexpr bool isPinningPiece(Piece piece) {
+    return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
+}
+
 enum class ColoredPiece : std::uint8_t { None };
 
 constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
@@ -153,9 +157,13 @@ struct Move {
     PieceIndex pieceToMove;
     BoardPosition to;
     MoveFlags flags = MoveFlags::None;
+
+    bool operator==(const Move& other) const = default;
 };
 
 enum class BitBoard : std::uint64_t { Empty };
+
+std::string bitBoardToVisualString(BitBoard bitboard);
 
 constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
     return (std::uint64_t)bitboard & (1ULL << (int)position);
@@ -179,6 +187,10 @@ template <typename... BitBoardTs>
 constexpr BitBoard intersection(BitBoardTs... bitboards) {
     static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
     return (BitBoard)((std::uint64_t)bitboards & ...);
+}
+
+constexpr BitBoard subtract(BitBoard lhs, BitBoard rhs) {
+    return (BitBoard)((std::uint64_t)lhs & ~(std::uint64_t)rhs);
 }
 
 struct PieceOccupationBitBoards {
@@ -208,6 +220,8 @@ class GameState {
         bool captured = true;
         BoardPosition position = BoardPosition::Invalid;
         // 5 unused bytes... :(
+
+        // Controlled squares are squares that the piece attacks or defends (including empty squares)
         BitBoard controlledSquares = BitBoard::Empty;
     };
 
@@ -255,10 +269,15 @@ class GameState {
    private:
     PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
 
+    std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares);
+
+    void recalculatePinOrKingAttackBitBoards(Side kingSide);
+    BitBoard getPinOrKingAttackBitBoard() const;
+
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
     void recalculateControlledSquares(PieceInfo& pieceInfo) const;
-    BitBoard generateEnemyControlledSquares() const;
+    BitBoard getEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
@@ -286,6 +305,10 @@ class GameState {
     std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
 
     PieceOccupationBitBoards occupation_ = {};
+
+    // Pin or king attack bitboards
+    // TODO: could strip out the king here
+    std::array<BitBoard, kNumTotalPieces> pinOrKingAttackBitBoards_ = {};
 };
 
 Move moveFromAlgebraic(std::string_view algebraic,

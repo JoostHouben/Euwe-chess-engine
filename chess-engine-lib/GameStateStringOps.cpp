@@ -353,6 +353,11 @@ GameState GameState::fromFen(const std::string& fenString) {
         }
         gameState.recalculateControlledSquares(pieceInfo);
     }
+    for (int i = 0; i < kNumTotalPieces; ++i) {
+        gameState.pinOrKingAttackBitBoards_[i] = BitBoard::Empty;
+    }
+    gameState.recalculatePinOrKingAttackBitBoards(Side::White);
+    gameState.recalculatePinOrKingAttackBitBoards(Side::Black);
 
     return gameState;
 }
@@ -393,6 +398,37 @@ std::string GameState::toVisualString() const {
                 ss << ' ';
             } else {
                 ss << toFenChar(pieceIt->second);
+            }
+            ss << " |";
+        }
+        ss << "\n";
+        if (rank > 0) {
+            ss << rowSeparator;
+        }
+    }
+    ss << boardTopBottom;
+    ss << "    a   b   c   d   e   f   g   h\n";
+
+    return ss.str();
+}
+
+std::string bitBoardToVisualString(BitBoard bitboard) {
+
+    std::string boardTopBottom = "  ---------------------------------\n";
+    std::string rowSeparator = "  |-------------------------------|\n";
+
+    std::ostringstream ss;
+    ss << boardTopBottom;
+
+    for (int rank = 7; rank >= 0; --rank) {
+        ss << rank + 1 << " |";
+        for (int file = 0; file < 8; ++file) {
+            ss << ' ';
+            BoardPosition position = positionFromFileRank(file, rank);
+            if (isSet(bitboard, position)) {
+                ss << 'X';
+            } else {
+                ss << ' ';
             }
             ss << " |";
         }
