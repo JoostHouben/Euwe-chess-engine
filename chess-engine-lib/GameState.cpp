@@ -655,6 +655,9 @@ std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquare
     for (int enemyPieceIdx = enemyPieceStartIdx;
          enemyPieceIdx < enemyPieceStartIdx + kNumPiecesPerSide;
          ++enemyPieceIdx) {
+        if (pieces_[enemyPieceIdx].captured) {
+            continue;
+        }
         if (!isSet(pieces_[enemyPieceIdx].controlledSquares, kingPosition)) {
             continue;
         }
