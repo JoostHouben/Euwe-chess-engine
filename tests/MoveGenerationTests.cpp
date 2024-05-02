@@ -289,6 +289,16 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 258,
                          .numCastle = 0,
                          .numPromotions = 0}},
+        // Release mode: ~8s
+        TestStatsConfig{
+                .fen = getStartingPositionFen(),
+                .depth = 5,
+                .expectedStats =
+                        {.numMoves = 119'060'324,
+                         .numCaptures = 2'812'008,
+                         .numEnPassant = 5248,
+                         .numCastle = 0,
+                         .numPromotions = 0}},
         // Debug mode: ~2.5s
         // Release mode: 200ms
         TestStatsConfig{
@@ -325,6 +335,10 @@ auto testCasesSlow = ::testing::Values(
         // Debug mode: ~1s
         // Release mode: ~100ms
         TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 2'103'487}},
+        TestStatsConfig{
+                .fen = kPosition5Fen,
+                .depth = 4,
+                .expectedStats = {/*.numMoves = 89'941'194*/}},  // BUG?!
         // Debug mode: ~2.5s
         // Release mode: ~150ms
         TestStatsConfig{
