@@ -264,11 +264,11 @@ auto testCasesFast = ::testing::Values(
         TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 2'079}},
         TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 89'890}});
 
-// Total in debug mode: ~30s
-// Total in release mode: ~2.9s
+// Total in debug mode: ~11s
+// Total in release mode: ~0.9s
 auto testCasesSlow = ::testing::Values(
-        // Debug mode: ~400ms
-        // Release mode: ~40ms
+        // Debug mode: ~200ms
+        // Release mode: ~15ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
                 .depth = 3,
@@ -278,8 +278,8 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 0,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Debug mode: ~9s
-        // Release mode: ~800ms
+        // Debug mode: ~4s
+        // Release mode: ~300ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
                 .depth = 4,
@@ -289,8 +289,8 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 258,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Debug mode: 8s
-        // Release mode: ~700ms
+        // Debug mode: ~2.5s
+        // Release mode: 200ms
         TestStatsConfig{
                 .fen = kKiwipeteFen,
                 .depth = 3,
@@ -300,8 +300,8 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 1'929,
                          .numCastle = 128'013,
                          .numPromotions = 15'172}},
-        // Debug mode: 1.5s
-        // Release mode: ~150ms
+        // Debug mode: ~600ms
+        // Release mode: ~60ms
         TestStatsConfig{
                 .fen = kPosition3Fen,
                 .depth = 4,
@@ -311,8 +311,8 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 1'165,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Debug mode: 800ms
-        // Release mode: ~80ms
+        // Debug mode: ~200ms
+        // Release mode: ~20ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
                 .depth = 3,
@@ -322,11 +322,11 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 0,
                          .numCastle = 7'795,
                          .numPromotions = 60'032}},
-        // Debug mode: 4s
-        // Release mode: ~400ms
+        // Debug mode: ~1s
+        // Release mode: ~100ms
         TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 2'103'487}},
-        // Debug mode: 7s
-        // Release mode: ~600ms
+        // Debug mode: ~2.5s
+        // Release mode: ~150ms
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 3'894'594}});
 
