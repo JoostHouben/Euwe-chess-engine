@@ -272,7 +272,7 @@ class GameState {
     std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares);
 
     void recalculatePinOrKingAttackBitBoards(Side kingSide);
-    BitBoard getPinOrKingAttackBitBoard() const;
+    BitBoard getPinOrKingAttackBitBoard(Side kingSide) const;
 
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);

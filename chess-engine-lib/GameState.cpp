@@ -516,6 +516,8 @@ std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquare
     const auto addMoveIfEscapesCheck = [&](const Move& move) {
         // Can we do better here? The controlled squares change when the king move, so we can't rely
         // solely on the current controlled squares value.
+        // TODO: We should just be able to check for the checking piece(s), if they're pinning pieces, whether
+        // there's now a blocking piece between the king and checking piece.
         GameState copyState(*this);
         (void)copyState.makeMove(move);
         (void)copyState.makeNullMove();
@@ -580,7 +582,7 @@ std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquare
     assert(checkingPieceIndex != PieceIndex::Invalid);
     const PieceInfo& checkingPieceInfo = getPieceInfo(checkingPieceIndex);
 
-    BitBoard pinOrKingAttackBitBoard = getPinOrKingAttackBitBoard();
+    BitBoard pinOrKingAttackBitBoard = getPinOrKingAttackBitBoard(sideToMove_);
     BitBoard blockBitBoard = BitBoard::Empty;
     if (isPinningPiece(getPiece(checkingPieceInfo.coloredPiece))) {
         const BitBoard checkingPieceKingAttackBitBoard =
@@ -933,15 +935,24 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
     recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
 
     // TODO: partial recalculation
+    //const bool capturedPieceisPinning =
+    //        isPinningPiece(getPiece(getPieceInfo(capturedPieceIndex).coloredPiece));
+    //const BitBoard ownPinOrKingAttackBitBoard = getPinOrKingAttackBitBoard(sideToMove_);
     //if (move.pieceToMove == getKingIndex(sideToMove_) ||
-    //    (isCapture(move.flags) && isPinningPiece(capturedPieceIndex))) {
+    //    (isCapture(move.flags) && capturedPieceisPinning) ||
+    //    isSet(ownPinOrKingAttackBitBoard, move.to)) {
     //    recalculatePinOrKingAttackBitBoards(sideToMove_);
     //}
-    //if (isPinningPiece(move.pieceToMove)) {
+    //// movedPieceIsPinning also handles promotions to pinning pieces
+    //const bool movedPieceIsPinning = isPinningPiece(getPiece(movedPieceInfo.coloredPiece));
+    //const BitBoard enemyPinOrKingAttackBitBoard = getPinOrKingAttackBitBoard(nextSide(sideToMove_));
+    //const Piece promotionPiece = getPromotionPiece(move.flags);
+    //if (movedPieceIsPinning || isSet(enemyPinOrKingAttackBitBoard, move.to)) {
     //    recalculatePinOrKingAttackBitBoards(nextSide(sideToMove_));
     //}
-    recalculatePinOrKingAttackBitBoards(sideToMove_);
+    // The above is not sufficient because it doesn't handle 'discoverd' pins.
     recalculatePinOrKingAttackBitBoards(nextSide(sideToMove_));
+    recalculatePinOrKingAttackBitBoards(sideToMove_);
 
     if (isCaptureOrPawnMove) {
         plySinceCaptureOrPawn_ = 0;
@@ -1117,8 +1128,8 @@ void GameState::recalculatePinOrKingAttackBitBoards(Side kingSide) {
     }
 }
 
-BitBoard GameState::getPinOrKingAttackBitBoard() const {
-    const int enemyStartIdx = kNumPiecesPerSide * (int)nextSide(sideToMove_);
+BitBoard GameState::getPinOrKingAttackBitBoard(Side kingSide) const {
+    const int enemyStartIdx = kNumPiecesPerSide * (int)nextSide(kingSide);
 
     BitBoard pinningBitBoard = BitBoard::Empty;
     for (int pieceIdx = enemyStartIdx; pieceIdx < enemyStartIdx + kNumPiecesPerSide; ++pieceIdx) {
