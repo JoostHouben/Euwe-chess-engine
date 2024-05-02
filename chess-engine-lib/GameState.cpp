@@ -140,7 +140,8 @@ void generateSliderMoves(
         const int deltaRank,
         const bool isKing,
         FuncT&& addMove,
-        const bool getControlledSquares) {
+        const bool getControlledSquares,
+        BitBoard enemyControlledSquares = BitBoard::Empty) {
     const auto [file, rank] = fileRankFromPosition(origin);
 
     int newFile = file;
@@ -156,6 +157,11 @@ void generateSliderMoves(
         const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
         const bool isOwn = isSet(occupation.ownPiece, newPosition);
         const bool isEnemyPiece = isSet(occupation.enemyPiece, newPosition);
+
+        if (isKing && isSet(enemyControlledSquares, newPosition)) {
+            // King can't move into check
+            break;
+        }
 
         if (isOwn && !getControlledSquares) {
             // Further moves are blocked
@@ -252,7 +258,8 @@ void generateNormalKingMoves(
         const PieceIndex pieceToMove,
         const PieceOccupationBitBoards& occupation,
         FuncT&& addMove,
-        const bool getControlledSquares) {
+        const bool getControlledSquares,
+        BitBoard enemyControlledSquares = BitBoard::Empty) {
     // Diagonals
     for (const auto deltaFile : kSigns) {
         for (const auto deltaRank : kSigns) {
@@ -264,15 +271,32 @@ void generateNormalKingMoves(
                     deltaRank,
                     true,
                     addMove,
-                    getControlledSquares);
+                    getControlledSquares,
+                    enemyControlledSquares);
         }
     }
     // Cardinal
     for (const auto sign : kSigns) {
         generateSliderMoves(
-                origin, pieceToMove, occupation, sign, 0, true, addMove, getControlledSquares);
+                origin,
+                pieceToMove,
+                occupation,
+                sign,
+                0,
+                true,
+                addMove,
+                getControlledSquares,
+                enemyControlledSquares);
         generateSliderMoves(
-                origin, pieceToMove, occupation, 0, sign, true, addMove, getControlledSquares);
+                origin,
+                pieceToMove,
+                occupation,
+                0,
+                sign,
+                true,
+                addMove,
+                getControlledSquares,
+                enemyControlledSquares);
     }
 }
 
@@ -351,7 +375,8 @@ void generateSinglePieceMoves(
         const BoardPosition enPassantTarget,
         const PieceOccupationBitBoards& occupation,
         FuncT&& addMove,
-        const bool getControlledSquares = false) {
+        const bool getControlledSquares = false,
+        BitBoard enemyControlledSquares = BitBoard::Empty) {
     switch (getPiece(pieceInfo.coloredPiece)) {
         case Piece::Pawn:
             generateSinglePawnMoves(
@@ -381,7 +406,12 @@ void generateSinglePieceMoves(
             break;
         case Piece::King:
             generateNormalKingMoves(
-                    pieceInfo.position, pieceToMove, occupation, addMove, getControlledSquares);
+                    pieceInfo.position,
+                    pieceToMove,
+                    occupation,
+                    addMove,
+                    getControlledSquares,
+                    enemyControlledSquares);
             break;
         default:
             std::unreachable();
@@ -416,7 +446,13 @@ std::vector<Move> GameState::generateMoves() {
         }
 
         generateSinglePieceMoves(
-                pieceInfo, (PieceIndex)pieceIdx, enPassantTarget_, occupation_, addMove);
+                pieceInfo,
+                (PieceIndex)pieceIdx,
+                enPassantTarget_,
+                occupation_,
+                addMove,
+                /*getControlledSquares =*/false,
+                enemyControlledSquares);
     }
 
     generateCastlingMoves(
