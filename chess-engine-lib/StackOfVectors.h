@@ -127,8 +127,24 @@ class StackVector {
     using value_type = T;
     using iterator = Iterator;
     using const_iterator = ConstIterator;
-    //using reverse_iterator = typename ContainerT::reverse_iterator;
-    //using const_reverse_iterator = typename ContainerT::const_reverse_iterator;
+
+    StackVector(const StackVector&) = delete;
+    StackVector(StackVector&& other)
+        : parent_(other.parent_), startIdx_(other.startIdx_), endIdx_(other.endIdx_) {
+        other.endIdx_ = other.startIdx_;
+#ifndef NDEBUG
+        isLocked_ = other.isLocked_;
+        other.isLocked_ = true;
+#endif
+    }
+
+    ~StackVector() {
+        // Note: when moved-from, size() == 0
+        if (size() > 0) {
+            assert((int)parent_.size() == endIdx_);
+            parent_.items_.resize(startIdx_);
+        }
+    }
 
     void push_back(const T& item) {
         assert(!isLocked_);

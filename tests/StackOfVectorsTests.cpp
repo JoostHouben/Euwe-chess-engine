@@ -45,12 +45,6 @@ TEST(StackOfVectors, basicTest) {
     EXPECT_EQ(*stackVector2.begin(), 5);
     EXPECT_EQ(*(stackVector2.end() - 1), 8);
 
-    StackVector<int> stackVector1Copy = stackVector1;
-    EXPECT_EQ(stackVector1Copy.size(), 3);
-    EXPECT_EQ(stackVector1Copy[0], 1);
-    EXPECT_EQ(stackVector1Copy[1], 2);
-    EXPECT_EQ(stackVector1Copy[2], 4);
-
     StackVector<int> stackVector2Moved = std::move(stackVector2);
     EXPECT_EQ(stackVector2Moved.size(), 3);
     EXPECT_EQ(stackVector2Moved[0], 5);
@@ -76,15 +70,23 @@ TEST(StackOfVectors, nestedRangeBasedForLoop) {
             stackVector3.push_back(j * 1);
             stackVector3.push_back(j * 2);
             stackVector3.lock();
+            EXPECT_EQ(stackVector1[0], 1);
+            EXPECT_EQ(stackVector1[1], 2);
+            EXPECT_EQ(stackVector2[0], i);
+            EXPECT_EQ(stackVector2[1], i * 2);
             EXPECT_EQ(stackVector3[0], j);
             EXPECT_EQ(stackVector3[1], j * 2);
+            EXPECT_EQ(stackOfVectors.size(), 6);
         }
+        EXPECT_EQ(stackVector1[0], 1);
+        EXPECT_EQ(stackVector1[1], 2);
         EXPECT_EQ(stackVector2[0], i);
         EXPECT_EQ(stackVector2[1], i * 2);
+        EXPECT_EQ(stackOfVectors.size(), 4);
     }
     EXPECT_EQ(stackVector1[0], 1);
     EXPECT_EQ(stackVector1[1], 2);
-    EXPECT_EQ(stackOfVectors.size(), 2 + 2 * 2 + 2 * 2 * 2);
+    EXPECT_EQ(stackOfVectors.size(), 2);
 }
 
 }  // namespace StackOfVectorsTests
