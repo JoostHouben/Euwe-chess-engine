@@ -353,11 +353,6 @@ GameState GameState::fromFen(const std::string& fenString) {
         }
         gameState.recalculateControlledSquares(pieceInfo);
     }
-    for (int i = 0; i < kNumTotalPieces; ++i) {
-        gameState.pinOrKingAttackBitBoards_[i] = BitBoard::Empty;
-    }
-    gameState.recalculatePinOrKingAttackBitBoards(Side::White);
-    gameState.recalculatePinOrKingAttackBitBoards(Side::Black);
 
     return gameState;
 }

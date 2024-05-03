@@ -241,7 +241,7 @@ class GameState {
 
     bool isInCheck() const;
 
-    std::vector<Move> generateMoves();
+    std::vector<Move> generateMoves() const;
 
     UnmakeMoveInfo makeMove(const Move& move);
     UnmakeMoveInfo makeNullMove();
@@ -269,10 +269,12 @@ class GameState {
    private:
     PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
 
-    std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares);
+    std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares) const;
 
-    void recalculatePinOrKingAttackBitBoards(Side kingSide);
-    BitBoard getPinOrKingAttackBitBoard(Side kingSide) const;
+    std::array<BitBoard, kNumPiecesPerSide - 1> calculatePiecePinOrKingAttackBitBoards(
+            Side kingSide) const;
+    BitBoard calculatePinOrKingAttackBitBoard(
+            const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinOrKingAttackBitBoards) const;
 
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
@@ -305,10 +307,6 @@ class GameState {
     std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
 
     PieceOccupationBitBoards occupation_ = {};
-
-    // Pin or king attack bitboards
-    // TODO: could strip out the king here
-    std::array<BitBoard, kNumTotalPieces> pinOrKingAttackBitBoards_ = {};
 };
 
 Move moveFromAlgebraic(std::string_view algebraic,
