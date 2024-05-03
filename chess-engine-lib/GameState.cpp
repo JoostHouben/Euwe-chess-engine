@@ -1077,16 +1077,17 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
     const BitBoard pinningSideOccupancy =
             sideToMove_ == kingSide ? occupation_.enemyPiece : occupation_.ownPiece;
 
-    const int pinningPieceStartIdx =
+    const int enemyPieceStartIdx =
             kingSide == Side::Black ? (int)PieceIndex::WhitePieces : (int)PieceIndex::BlackPieces;
 
-    for (int pieceIdx = pinningPieceStartIdx;
-         pieceIdx < pinningPieceStartIdx + kNumPiecesPerSide - 1;
+    for (int pieceIdx = enemyPieceStartIdx; pieceIdx < enemyPieceStartIdx + kNumPiecesPerSide - 1;
          ++pieceIdx) {
         const PieceInfo& pinningPieceInfo = pieces_[pieceIdx];
-        const int pinIdx = pieceIdx - pinningPieceStartIdx;
+        const int pinIdx = pieceIdx - enemyPieceStartIdx;
         piecePinOrKingAttackBitBoards[pinIdx] = BitBoard::Empty;
-        if (pinningPieceInfo.captured) {
+
+        const Piece pinningPiece = getPiece(pinningPieceInfo.coloredPiece);
+        if (!isPinningPiece(pinningPiece) || pinningPieceInfo.captured) {
             continue;
         }
 
@@ -1098,7 +1099,6 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
             continue;
         }
 
-        const Piece pinningPiece = getPiece(pinningPieceInfo.coloredPiece);
         if (!isValidDeltaFileRankForPiece(deltaFile, deltaRank, pinningPiece)) {
             continue;
         }
