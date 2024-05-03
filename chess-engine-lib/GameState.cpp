@@ -697,32 +697,8 @@ StackVector<Move> GameState::generateMovesInCheck(
     const PieceIndex kingIndex = getKingIndex(sideToMove_);
     const BoardPosition kingPosition = getPieceInfo(kingIndex).position;
 
-    const auto addMoveIfEscapesCheck = [&](const Move& move) {
-        // Can we do better here? The controlled squares change when the king move, so we can't rely
-        // solely on the current controlled squares value.
-        // TODO: We should just be able to check for the checking piece(s), if they're pinning pieces, whether
-        // there's now a blocking piece between the king and checking piece.
-        // Or maybe by calculating a controlled squares bitboard that ignores the king?
-        GameState copyState(*this);
-        (void)copyState.makeMove(move);
-        (void)copyState.makeNullMove();
-        if (!copyState.isInCheck()) {
-            moves.push_back(move);
-        }
-    };
-
-    BitBoard kingControlledSquares = pieces_[(int)kingIndex].controlledSquares;
-    // King can't walk into check
-    kingControlledSquares = subtract(kingControlledSquares, enemyControlledSquares);
-    generateSinglePieceMovesFromControl(
-            kingIndex,
-            kingControlledSquares,
-            occupation_,
-            addMoveIfEscapesCheck,
-            /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */);
-
-    bool isDoubleCheck = false;
     PieceIndex checkingPieceIndex = PieceIndex::Invalid;
+    PieceIndex secondCheckingPieceIndex = PieceIndex::Invalid;
 
     const int enemyPieceStartIdx = kNumPiecesPerSide * (int)nextSide(sideToMove_);
     for (int enemyPieceIdx = enemyPieceStartIdx;
@@ -735,16 +711,10 @@ StackVector<Move> GameState::generateMovesInCheck(
             continue;
         }
         if (checkingPieceIndex != PieceIndex::Invalid) {
-            isDoubleCheck = true;
+            secondCheckingPieceIndex = (PieceIndex)enemyPieceIdx;
             break;
         }
         checkingPieceIndex = (PieceIndex)enemyPieceIdx;
-    }
-
-    if (isDoubleCheck) {
-        // Only the king can move in a double check
-        moves.lock();
-        return moves;
     }
 
     MY_ASSERT(checkingPieceIndex != PieceIndex::Invalid);
@@ -754,6 +724,34 @@ StackVector<Move> GameState::generateMovesInCheck(
             calculatePiecePinOrKingAttackBitBoards(sideToMove_);
     const BitBoard pinOrKingAttackBitBoard =
             calculatePinOrKingAttackBitBoard(piecePinOrKingAttackBitBoards);
+
+    BitBoard kingAttackBitBoard =
+            piecePinOrKingAttackBitBoards[(int)checkingPieceIndex - enemyPieceStartIdx];
+    if (secondCheckingPieceIndex != PieceIndex::Invalid) {
+        kingAttackBitBoard = any(
+                kingAttackBitBoard,
+                piecePinOrKingAttackBitBoards[(int)secondCheckingPieceIndex - enemyPieceStartIdx]);
+    }
+
+    BitBoard kingControlledSquares = pieces_[(int)kingIndex].controlledSquares;
+    // King can't walk into check
+    kingControlledSquares = subtract(kingControlledSquares, enemyControlledSquares);
+    kingControlledSquares = subtract(kingControlledSquares, kingAttackBitBoard);
+    const auto addMove = [&](const Move& move) {
+        moves.push_back(move);
+    };
+    generateSinglePieceMovesFromControl(
+            kingIndex,
+            kingControlledSquares,
+            occupation_,
+            addMove,
+            /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */);
+
+    if (secondCheckingPieceIndex != PieceIndex::Invalid) {
+        // Double check: only the king can move
+        moves.lock();
+        return moves;
+    }
 
     BitBoard blockBitBoard = BitBoard::Empty;
     if (isPinningPiece(getPiece(checkingPieceInfo.coloredPiece))) {
@@ -1195,18 +1193,33 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
             }
 
             const BoardPosition position = positionFromFileRank(file, rank);
-            if (position == kingPieceInfo.position) {
-                reachedKing = true;
+
+            if (reachedKing) {
+                // This is the x-ray square behind the king. Mark it and stop.
+                set(pinningBitBoard, position);
                 break;
             }
 
+            if (position == kingPieceInfo.position) {
+                reachedKing = true;
+                if (numKingSidePieces > 0) {
+                    // We've seen a king side piece, so this is a pin. Stop.
+                    break;
+                }
+                // Otherwise, this is a king attack. Continue to mark the 'x-ray' square behind the king.
+                continue;
+            }
+
             if (isSet(pinningSideOccupancy, position)) {
+                // We haven't reached the king yet, this piece blocks the pin.
                 pinningSidePieces = true;
                 break;
             }
+
             if (isSet(kingSideOccupancy, position)) {
                 ++numKingSidePieces;
                 if (numKingSidePieces > 1) {
+                    // If there's more than one king side piece, this can't be a pin, so stop.
                     break;
                 }
             }
