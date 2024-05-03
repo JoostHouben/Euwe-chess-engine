@@ -1,6 +1,6 @@
 #include "chess-engine-lib/GameState.h"
 
-#include "gtest/gtest.h"
+#include "MyGTest.h"
 
 #include <algorithm>
 #include <iostream>

@@ -2,4 +2,5 @@
 
 int main() {
     GameState startingPosition = GameState::startingPosition();
+    (void)startingPosition;
 }

@@ -1,3 +1,5 @@
+#include "ClangDiagnosticIgnore.h"
+
 #pragma once
 
 #include "MyAssert.h"
@@ -129,7 +131,7 @@ class StackVector {
     using const_iterator = ConstIterator;
 
     StackVector(const StackVector&) = delete;
-    StackVector(StackVector&& other)
+    StackVector(StackVector&& other) noexcept
         : parent_(other.parent_), startIdx_(other.startIdx_), endIdx_(other.endIdx_) {
         other.endIdx_ = other.startIdx_;
 #ifndef NDEBUG

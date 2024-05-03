@@ -47,6 +47,7 @@ void generateSinglePawnMoves(
     const int startingRank = side == Side::White ? 1 : 6;
 
     const int newRank = rank + forwardDirection;
+    MY_ASSERT(newRank >= 0 && newRank < kRanks);
 
     const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
 
@@ -90,6 +91,7 @@ void generateSinglePawnMoves(
         // No need to check for a blocking piece: the en passant target square is always empty
         // No need to check for promotion: this can never happen on an en passant target square
         const BoardPosition capturePosition = positionFromFileRank(newFile, newRank);
+        MY_ASSERT(capturePosition != BoardPosition::Invalid);
         if (!isSet(piecePinBitBoard, capturePosition)) {
             // Piece is pinned: only moves along the pinning direction are allowed
             continue;
@@ -1038,7 +1040,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
         clear(occupation_.enemyPiece, captureTargetSquare);
     }
 
-    std::array<BoardPosition, 4> affectedSquares;
+    std::array<BoardPosition, 4> affectedSquares{};
     int numAffectedSquares = 0;
     affectedSquares[numAffectedSquares++] = moveFrom;
     affectedSquares[numAffectedSquares++] = move.to;
@@ -1089,7 +1091,7 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
         break;
     }
 
-    std::array<BoardPosition, 4> affectedSquares;
+    std::array<BoardPosition, 4> affectedSquares{};
     int numAffectedSquares = 0;
     affectedSquares[numAffectedSquares++] = unmakeMoveInfo.from;
     affectedSquares[numAffectedSquares++] = move.to;
@@ -1145,7 +1147,7 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
 
 std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAttackBitBoards(
         Side kingSide) const {
-    std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards;
+    std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards{};
     const PieceInfo& kingPieceInfo = getPieceInfo(getKingIndex(kingSide));
     const BitBoard kingSideOccupancy =
             sideToMove_ == kingSide ? occupation_.ownPiece : occupation_.enemyPiece;
@@ -1159,7 +1161,8 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
          ++pieceIdx) {
         const PieceInfo& pinningPieceInfo = pieces_[pieceIdx];
         const int pinIdx = pieceIdx - enemyPieceStartIdx;
-        piecePinOrKingAttackBitBoards[pinIdx] = BitBoard::Empty;
+
+        MY_ASSERT(piecePinOrKingAttackBitBoards[pinIdx] == BitBoard::Empty);
 
         const Piece pinningPiece = getPiece(pinningPieceInfo.coloredPiece);
         if (!isPinningPiece(pinningPiece) || pinningPieceInfo.captured) {

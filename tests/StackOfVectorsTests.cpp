@@ -1,6 +1,6 @@
 #include "chess-engine-lib/StackOfVectors.h"
 
-#include "gtest/gtest.h"
+#include "MyGTest.h"
 
 namespace StackOfVectorsTests {
 

@@ -1,3 +1,5 @@
+#include "ClangDiagnosticIgnore.h"
+
 #pragma once
 
 #include "MyAssert.h"
@@ -180,8 +182,8 @@ enum class PieceIndex : int {
 }
 
 struct Move {
-    PieceIndex pieceToMove;
-    BoardPosition to;
+    PieceIndex pieceToMove = PieceIndex::Invalid;
+    BoardPosition to = BoardPosition::Invalid;
     MoveFlags flags = MoveFlags::None;
 
     bool operator==(const Move& other) const = default;
@@ -198,11 +200,11 @@ enum class BitBoard : std::uint64_t {
     return (std::uint64_t)bitboard & (1ULL << (int)position);
 }
 
-[[nodiscard]] constexpr void set(BitBoard& bitboard, BoardPosition position) {
+constexpr void set(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
-[[nodiscard]] constexpr void clear(BitBoard& bitboard, BoardPosition position) {
+constexpr void clear(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
 }
 

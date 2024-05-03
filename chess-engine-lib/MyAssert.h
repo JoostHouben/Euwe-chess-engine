@@ -13,16 +13,12 @@
 #define ENSURE_ASSERT_BREAKS (void)0
 #endif
 
-#ifdef _MSC_VER
-#define ASSUME(condition) __assume(condition)
-#else
-#define ASSUME(condition)            \
-    do {                             \
-        if (!(condition)) {          \
-            __builtin_unreachable(); \
-        }                            \
+#define ASSUME(condition)       \
+    do {                        \
+        if (!(condition)) {     \
+            std::unreachable(); \
+        }                       \
     } while (0)
-#endif
 
 #ifndef NDEBUG
 #define MY_ASSERT(condition)  \
