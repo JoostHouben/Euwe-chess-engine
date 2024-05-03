@@ -1,9 +1,9 @@
 #pragma once
 
+#include "MyAssert.h"
+
 #include <utility>
 #include <vector>
-
-#include <cassert>
 
 template <typename T>
 class StackVector;
@@ -26,7 +26,7 @@ class StackOfVectors {
 
     StackVector<T> makeStackVector() {
 #ifndef NDEBUG
-        assert(!isLocked_);
+        MY_ASSERT(!isLocked_);
         isLocked_ = true;
 #endif
         return StackVector<T>(*this);
@@ -74,12 +74,12 @@ class StackVector {
         Iterator operator-(int offset) const { return Iterator(parent_, idx_ - offset); }
 
         auto operator<=>(const Iterator& rhs) const {
-            assert(&parent_ == &rhs.parent_);
+            MY_ASSERT(&parent_ == &rhs.parent_);
             return idx_ <=> rhs.idx_;
         }
 
         bool operator==(const Iterator& rhs) const {
-            assert(&parent_ == &rhs.parent_);
+            MY_ASSERT(&parent_ == &rhs.parent_);
             return idx_ == rhs.idx_;
         }
 
@@ -110,12 +110,12 @@ class StackVector {
         ConstIterator operator-(int offset) const { return ConstIterator(parent_, idx_ - offset); }
 
         auto operator<=>(const ConstIterator& rhs) const {
-            assert(&parent_ == &rhs.parent_);
+            MY_ASSERT(&parent_ == &rhs.parent_);
             return idx_ <=> rhs.idx_;
         }
 
         bool operator==(const ConstIterator& rhs) const {
-            assert(&parent_ == &rhs.parent_);
+            MY_ASSERT(&parent_ == &rhs.parent_);
             return idx_ == rhs.idx_;
         }
 
@@ -141,46 +141,56 @@ class StackVector {
     ~StackVector() {
         // Note: when moved-from, size() == 0
         if (size() > 0) {
-            assert((int)parent_.size() == endIdx_);
+            MY_ASSERT((int)parent_.size() == endIdx_);
             parent_.items_.resize(startIdx_);
         }
     }
 
     void push_back(const T& item) {
-        assert(!isLocked_);
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
         parent_.items_.push_back(item);
         ++endIdx_;
     }
     void push_back(T&& item) {
-        assert(!isLocked_);
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
         parent_.items_.push_back(std::move(item));
         ++endIdx_;
     }
 
     template <typename... Args>
     void emplace_back(Args&&... args) {
-        assert(!isLocked_);
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
         parent_.items_.emplace_back(std::forward<Args>(args)...);
         ++endIdx_;
     }
 
     void pop_back() {
-        assert(!isLocked_);
-        assert(endIdx_ > startIdx_);
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
+        MY_ASSERT(endIdx_ > startIdx_);
         parent_.items_.pop_back();
         --endIdx_;
     }
 
     void lock() {
 #ifndef NDEBUG
-        assert(!isLocked_);
+        MY_ASSERT(!isLocked_);
         isLocked_ = true;
         parent_.isLocked_ = false;
 #endif
     }
 
     void reserve(size_t size) {
-        assert(!isLocked_);
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
         parent_.reserve(size + startIdx_);
     }
 
@@ -196,30 +206,30 @@ class StackVector {
     const_iterator cend() const { return end(); }
 
     T& operator[](int idx) {
-        assert(idx < size());
+        MY_ASSERT(idx < size());
         return parent_.items_[startIdx_ + idx];
     }
 
     const T& operator[](int idx) const {
-        assert(idx < size());
+        MY_ASSERT(idx < size());
         return parent_.items_[startIdx_ + idx];
     }
 
     T& front() {
-        assert(size() > 0);
+        MY_ASSERT(size() > 0);
         return (*this)[0];
     }
     const T& front() const {
-        assert(size() > 0);
+        MY_ASSERT(size() > 0);
         return (*this)[0];
     }
 
     T& back() {
-        assert(size() > 0);
+        MY_ASSERT(size() > 0);
         return (*this)[size() - 1];
     }
     const T& back() const {
-        assert(size() > 0);
+        MY_ASSERT(size() > 0);
         return (*this)[size() - 1];
     }
 

@@ -1,6 +1,7 @@
 #include "GameState.h"
 
-#include <cassert>
+#include "MyAssert.h"
+
 #include <cstdlib>
 
 #include <map>
@@ -42,7 +43,7 @@ constexpr Piece pieceFromFenChar(char c) {
         case 'K':
             return Piece::King;
     }
-    std::unreachable();
+    UNREACHABLE;
 }
 
 constexpr Side sideFromFenChar(char c) {
@@ -63,7 +64,7 @@ constexpr char toFenChar(Side side) {
         case Side::None:
             return 'x';
     }
-    std::unreachable();
+    UNREACHABLE;
 }
 
 constexpr ColoredPiece coloredPieceFromFenChar(char c) {
@@ -85,7 +86,7 @@ constexpr char toFenChar(Piece piece) {
         case Piece::King:
             return 'K';
         default:
-            std::unreachable();
+            UNREACHABLE;
     }
 }
 
@@ -142,7 +143,7 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
                         index = (int)PieceIndex::WhiteKing;
                         break;
                     default:
-                        std::unreachable();
+                        UNREACHABLE;
                 }
             } else {
                 switch (getPiece(piece)) {
@@ -165,7 +166,7 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
                         index = (int)PieceIndex::BlackKing;
                         break;
                     default:
-                        std::unreachable();
+                        UNREACHABLE;
                 }
             }
 
@@ -175,7 +176,7 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
 
             file += 1;
         }
-        assert((rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' '));
+        MY_ASSERT((rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' '));
         if (rank > 0) {
             ++strIt;
         }
@@ -191,7 +192,7 @@ Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
         case 'b':
             return Side::Black;
     }
-    std::unreachable();
+    UNREACHABLE;
 }
 
 void parseCastlingRightsFromFen(
@@ -214,7 +215,7 @@ void parseCastlingRightsFromFen(
                 bit = (int)GameState::CastlingRights::QueenSide << ((int)side * 2);
                 break;
             default:
-                std::unreachable();
+                UNREACHABLE;
         }
 
         castlingRights = (GameState::CastlingRights)((int)castlingRights | bit);
@@ -323,28 +324,28 @@ GameState GameState::fromFen(const std::string& fenString) {
     auto strIt = fenString.begin();
 
     gameState.pieces_ = parseBoardConfigurationFromFen(strIt);
-    assert(*strIt == ' ');
+    MY_ASSERT(*strIt == ' ');
     ++strIt;
 
     gameState.sideToMove_ = parseSideToMoveFromFen(strIt);
-    assert(*strIt == ' ');
+    MY_ASSERT(*strIt == ' ');
     ++strIt;
 
     parseCastlingRightsFromFen(strIt, gameState.castlingRights_);
-    assert(*strIt == ' ');
+    MY_ASSERT(*strIt == ' ');
     ++strIt;
 
     gameState.enPassantTarget_ = parseEnPassantTargetFromFen(strIt);
-    assert(*strIt == ' ');
+    MY_ASSERT(*strIt == ' ');
     ++strIt;
 
     gameState.plySinceCaptureOrPawn_ = parsePlySinceCaptureOrPawnFromFen(strIt);
-    assert(*strIt == ' ');
+    MY_ASSERT(*strIt == ' ');
     ++strIt;
 
     // Ignore: move counter
 
-    assert(strIt < fenString.end());
+    MY_ASSERT(strIt < fenString.end());
 
     gameState.occupation_ = getPieceOccupationBitBoards(gameState.pieces_, gameState.sideToMove_);
     for (auto& pieceInfo : gameState.pieces_) {

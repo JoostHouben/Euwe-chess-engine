@@ -11,6 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>

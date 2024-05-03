@@ -1,5 +1,6 @@
 #pragma once
 
+#include "MyAssert.h"
 #include "StackOfVectors.h"
 
 #include <array>
@@ -29,7 +30,7 @@ inline constexpr int kNumTotalPieces = kNumPiecesPerSide * kNumSides;
         case Side::None:
             return Side::None;
     }
-    std::unreachable();
+    UNREACHABLE;
 }
 
 enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King };
@@ -51,7 +52,7 @@ enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King 
         case Piece::King:
             return "K";
     }
-    std::unreachable();
+    UNREACHABLE;
 }
 
 [[nodiscard]] constexpr bool isSlidingPiece(Piece piece) {

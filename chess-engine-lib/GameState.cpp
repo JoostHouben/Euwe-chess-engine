@@ -1,11 +1,9 @@
 #include "GameState.h"
 
+#include "MyAssert.h"
+
 #include <array>
 #include <bit>
-#include <functional>
-#include <iostream>
-
-#include <cassert>
 
 #define IMPLIES(a, b) (!(a) || (b))
 
@@ -375,7 +373,7 @@ void generateCastlingMoves(
         const PieceOccupationBitBoards& occupation,
         const BitBoard enemyControlledSquares,
         FuncT&& addMove) {
-    assert(sideToMove == Side::White || sideToMove == Side::Black);
+    MY_ASSERT(sideToMove == Side::White || sideToMove == Side::Black);
 
     const BoardPosition kingPosition =
             sideToMove == Side::White ? positionFromAlgebraic("e1") : positionFromAlgebraic("e8");
@@ -502,8 +500,7 @@ void generateSinglePieceMoves(
                     enemyControlledSquares);
             break;
         default:
-            std::unreachable();
-            break;
+            UNREACHABLE;
     }
 }
 
@@ -607,7 +604,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
                 return piecePinBitBoard;
             }
         }
-        std::unreachable();
+        UNREACHABLE;
     };
 
     const BoardPosition enPassantTarget =
@@ -748,7 +745,7 @@ StackVector<Move> GameState::generateMovesInCheck(
         return moves;
     }
 
-    assert(checkingPieceIndex != PieceIndex::Invalid);
+    MY_ASSERT(checkingPieceIndex != PieceIndex::Invalid);
     const PieceInfo& checkingPieceInfo = getPieceInfo(checkingPieceIndex);
 
     const std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards =
@@ -910,8 +907,8 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
     const bool isQueenSide = kingToFile == 2;  // c
 
-    assert(IMPLIES(isQueenSide, canCastleQueenSide(sideToMove_)));
-    assert(IMPLIES(!isQueenSide, canCastleKingSide(sideToMove_)));
+    MY_ASSERT(IMPLIES(isQueenSide, canCastleQueenSide(sideToMove_)));
+    MY_ASSERT(IMPLIES(!isQueenSide, canCastleKingSide(sideToMove_)));
 
     const int rookFromFile = isQueenSide ? /*a*/ 0 : /*h*/ 7;
     BoardPosition rookFromPosition = positionFromFileRank(rookFromFile, kingFromRank);
@@ -947,18 +944,18 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
             break;
         }
     }
-    assert(rookIdx != PieceIndex::Invalid);
+    MY_ASSERT(rookIdx != PieceIndex::Invalid);
     PieceInfo& rookPieceInfo = getPieceInfo(rookIdx);
 
     // Update king
-    assert(getPiece(kingPieceInfo.coloredPiece) == Piece::King);
-    assert(getSide(kingPieceInfo.coloredPiece) == sideToMove_);
+    MY_ASSERT(getPiece(kingPieceInfo.coloredPiece) == Piece::King);
+    MY_ASSERT(getSide(kingPieceInfo.coloredPiece) == sideToMove_);
     kingPieceInfo.position = kingToPosition;
     recalculateControlledSquares(kingPieceInfo);
 
     // Update rook
-    assert(getPiece(rookPieceInfo.coloredPiece) == Piece::Rook);
-    assert(getSide(rookPieceInfo.coloredPiece) == sideToMove_);
+    MY_ASSERT(getPiece(rookPieceInfo.coloredPiece) == Piece::Rook);
+    MY_ASSERT(getSide(rookPieceInfo.coloredPiece) == sideToMove_);
     rookPieceInfo.position = rookToPosition;
     recalculateControlledSquares(rookPieceInfo);
 
@@ -986,8 +983,8 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
     BoardPosition captureTargetSquare = move.to;
 
     if (isEnPassant(move.flags)) {
-        assert(isCapture(move.flags));
-        assert(move.to == enPassantTarget_);
+        MY_ASSERT(isCapture(move.flags));
+        MY_ASSERT(move.to == enPassantTarget_);
 
         const auto [fromFile, fromRank] = fileRankFromPosition(moveFrom);
         const auto [toFile, toRank] = fileRankFromPosition(move.to);
@@ -1001,7 +998,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
     clear(occupation_.ownPiece, moveFrom);
     set(occupation_.ownPiece, move.to);
 
-    assert(getSide(movedPieceInfo.coloredPiece) == sideToMove_);
+    MY_ASSERT(getSide(movedPieceInfo.coloredPiece) == sideToMove_);
     {
         const Piece piece = getPiece(movedPieceInfo.coloredPiece);
         if (piece == Piece::Pawn) {
@@ -1023,14 +1020,14 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
             if (pieceInfo.captured || pieceInfo.position != captureTargetSquare) {
                 continue;
             }
-            assert(getSide(pieceInfo.coloredPiece) != sideToMove_);
-            assert(isCapture(move.flags));
+            MY_ASSERT(getSide(pieceInfo.coloredPiece) != sideToMove_);
+            MY_ASSERT(isCapture(move.flags));
 
             capturedPieceIndex = (PieceIndex)pieceIdx;
 
             break;
         }
-        assert(capturedPieceIndex != PieceIndex::Invalid);
+        MY_ASSERT(capturedPieceIndex != PieceIndex::Invalid);
 
         PieceInfo& capturedPieceInfo = getPieceInfo(capturedPieceIndex);
 
@@ -1069,7 +1066,7 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     set(occupation_.ownPiece, unmakeMoveInfo.from);
     clear(occupation_.ownPiece, move.to);
     if (isCapture(move.flags)) {
-        assert(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
+        MY_ASSERT(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
         set(occupation_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
     }
 
@@ -1079,11 +1076,11 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
         if (pieceInfo.captured || pieceInfo.position != move.to) {
             continue;
         }
-        assert(getSide(pieceInfo.coloredPiece) == sideToMove_);
+        MY_ASSERT(getSide(pieceInfo.coloredPiece) == sideToMove_);
 
         pieceInfo.position = unmakeMoveInfo.from;
         if (isPromotion(move.flags)) {
-            assert(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
+            MY_ASSERT(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
             pieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
         }
 
@@ -1098,7 +1095,7 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     affectedSquares[numAffectedSquares++] = move.to;
 
     if (isCapture(move.flags)) {
-        assert(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
+        MY_ASSERT(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
         PieceInfo& capturedPieceInfo = getPieceInfo(unmakeMoveInfo.capturedPieceIndex);
         capturedPieceInfo.captured = false;
 
@@ -1295,7 +1292,7 @@ bool GameState::enPassantWillPutUsInCheck() const {
             }
         }
 
-        assert(isLeft != kingIsLeft);
+        MY_ASSERT(isLeft != kingIsLeft);
         const int distance = std::abs(file - enPassantTargetFile);
 
         if (side != sideToMove_ && (piece == Piece::Rook || piece == Piece::Queen)) {
@@ -1352,7 +1349,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
             int deltaRank;
             const bool deltaFileRankOk =
                     getDeltaFileRank(pieceInfo.position, affectedSquare, deltaFile, deltaRank);
-            assert(deltaFileRankOk);
+            MY_ASSERT(deltaFileRankOk);
 
             const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
 
