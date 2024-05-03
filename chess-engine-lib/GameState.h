@@ -20,7 +20,7 @@ inline constexpr int kNumNonPawns = 8;
 inline constexpr int kNumPiecesPerSide = kNumPawns + kNumNonPawns;
 inline constexpr int kNumTotalPieces = kNumPiecesPerSide * kNumSides;
 
-constexpr Side nextSide(Side side) {
+[[nodiscard]] constexpr Side nextSide(Side side) {
     switch (side) {
         case Side::White:
             return Side::Black;
@@ -34,42 +34,66 @@ constexpr Side nextSide(Side side) {
 
 enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King };
 
-constexpr bool isPinningPiece(Piece piece) {
+[[nodiscard]] constexpr std::string pieceToString(Piece piece) {
+    switch (piece) {
+        case Piece::None:
+            return "0";
+        case Piece::Pawn:
+            return "p";
+        case Piece::Knight:
+            return "N";
+        case Piece::Bishop:
+            return "B";
+        case Piece::Rook:
+            return "R";
+        case Piece::Queen:
+            return "Q";
+        case Piece::King:
+            return "K";
+    }
+    std::unreachable();
+}
+
+[[nodiscard]] constexpr bool isSlidingPiece(Piece piece) {
+    return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
+}
+
+[[nodiscard]] constexpr bool isPinningPiece(Piece piece) {
     return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
 }
 
 enum class ColoredPiece : std::uint8_t { None };
 
-constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
+[[nodiscard]] constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
     return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | (std::uint8_t)piece);
 }
 
-constexpr Piece getPiece(ColoredPiece coloredPiece) {
+[[nodiscard]] constexpr Piece getPiece(ColoredPiece coloredPiece) {
     constexpr std::uint8_t kPieceMask = 7;
     return static_cast<Piece>((std::uint8_t)coloredPiece & kPieceMask);
 }
 
-constexpr Side getSide(ColoredPiece coloredPiece) {
+[[nodiscard]] constexpr Side getSide(ColoredPiece coloredPiece) {
     return static_cast<Side>((std::uint8_t)coloredPiece >> 3);
 }
 
 enum class BoardPosition : std::uint8_t { Invalid = 1 << 6 };
 
-constexpr BoardPosition positionFromFileRank(int file, int rank) {
+[[nodiscard]] constexpr BoardPosition positionFromFileRank(int file, int rank) {
     return static_cast<BoardPosition>(rank * 8 + file);
 }
 
-constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
+[[nodiscard]] constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
     return {(int)position % 8, (int)position / 8};
 }
 
-constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
+[[nodiscard]] constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
     const int file = algebraic[0] - 'a';
     const int rank = algebraic[1] - '1';
     return positionFromFileRank(file, rank);
 }
 
-constexpr std::string algebraicFromPosition(BoardPosition position) {
+[[nodiscard]] constexpr std::string algebraicFromPosition(BoardPosition position) {
     const auto [file, rank] = fileRankFromPosition(position);
     return {(char)('a' + file), (char)('1' + rank)};
 }
@@ -82,28 +106,28 @@ enum class MoveFlags : std::uint8_t {
     IsCastle = 1 << 5,
 };
 
-constexpr Piece getPromotionPiece(MoveFlags flags) {
+[[nodiscard]] constexpr Piece getPromotionPiece(MoveFlags flags) {
     return static_cast<Piece>((int)flags & 7);
 }
 
-constexpr bool isPromotion(MoveFlags flags) {
+[[nodiscard]] constexpr bool isPromotion(MoveFlags flags) {
     return getPromotionPiece(flags) != Piece::None;
 }
 
-constexpr bool isCapture(MoveFlags flags) {
+[[nodiscard]] constexpr bool isCapture(MoveFlags flags) {
     return (int)flags & (int)MoveFlags::IsCapture;
 }
 
-constexpr bool isEnPassant(MoveFlags flags) {
+[[nodiscard]] constexpr bool isEnPassant(MoveFlags flags) {
     return (int)flags & (int)MoveFlags::IsEnPassant;
 }
 
-constexpr bool isCastle(MoveFlags flags) {
+[[nodiscard]] constexpr bool isCastle(MoveFlags flags) {
     return (int)flags & (int)MoveFlags::IsCastle;
 }
 
 template <typename... FlagTs>
-constexpr MoveFlags getFlags(FlagTs... flags) {
+[[nodiscard]] constexpr MoveFlags getFlags(FlagTs... flags) {
     static_assert(((std::is_same_v<FlagTs, MoveFlags> || std::is_same_v<FlagTs, Piece>)&&...));
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
@@ -150,7 +174,7 @@ enum class PieceIndex : int {
     BlackKing,
 };
 
-constexpr PieceIndex getKingIndex(Side side) {
+[[nodiscard]] constexpr PieceIndex getKingIndex(Side side) {
     return side == Side::Black ? PieceIndex::BlackKing : PieceIndex::WhiteKing;
 }
 
@@ -162,35 +186,38 @@ struct Move {
     bool operator==(const Move& other) const = default;
 };
 
-enum class BitBoard : std::uint64_t { Empty };
+enum class BitBoard : std::uint64_t {
+    Empty = 0,
+    Full = ~0ULL,
+};
 
-std::string bitBoardToVisualString(BitBoard bitboard);
+[[nodiscard]] std::string bitBoardToVisualString(BitBoard bitboard);
 
-constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
+[[nodiscard]] constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
     return (std::uint64_t)bitboard & (1ULL << (int)position);
 }
 
-constexpr void set(BitBoard& bitboard, BoardPosition position) {
+[[nodiscard]] constexpr void set(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
 }
 
-constexpr void clear(BitBoard& bitboard, BoardPosition position) {
+[[nodiscard]] constexpr void clear(BitBoard& bitboard, BoardPosition position) {
     bitboard = (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
 }
 
 template <typename... BitBoardTs>
-constexpr BitBoard any(BitBoardTs... bitboards) {
+[[nodiscard]] constexpr BitBoard any(BitBoardTs... bitboards) {
     static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
     return (BitBoard)((std::uint64_t)bitboards | ...);
 }
 
 template <typename... BitBoardTs>
-constexpr BitBoard intersection(BitBoardTs... bitboards) {
+[[nodiscard]] constexpr BitBoard intersection(BitBoardTs... bitboards) {
     static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
     return (BitBoard)((std::uint64_t)bitboards & ...);
 }
 
-constexpr BitBoard subtract(BitBoard lhs, BitBoard rhs) {
+[[nodiscard]] constexpr BitBoard subtract(BitBoard lhs, BitBoard rhs) {
     return (BitBoard)((std::uint64_t)lhs & ~(std::uint64_t)rhs);
 }
 
@@ -199,7 +226,7 @@ struct PieceOccupationBitBoards {
     BitBoard enemyPiece = BitBoard::Empty;
 };
 
-inline std::string getStartingPositionFen() {
+[[nodiscard]] inline std::string getStartingPositionFen() {
     return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 }
 
@@ -234,54 +261,64 @@ class GameState {
         PieceIndex capturedPieceIndex = PieceIndex::Invalid;
     };
 
-    static GameState fromFen(const std::string& fenString);
-    static GameState startingPosition();
+    [[nodiscard]] static GameState fromFen(const std::string& fenString);
+    [[nodiscard]] static GameState startingPosition();
 
-    std::string toFen(int moveCounter) const;
-    std::string toVisualString() const;
+    [[nodiscard]] std::string toFen(int moveCounter) const;
+    [[nodiscard]] std::string toVisualString() const;
 
-    bool isInCheck() const;
+    [[nodiscard]] bool isInCheck() const;
 
-    StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
+    [[nodiscard]] StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
 
     UnmakeMoveInfo makeMove(const Move& move);
     UnmakeMoveInfo makeNullMove();
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
     void unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo);
 
-    const PieceInfo& getPieceInfo(PieceIndex pieceIndex) const { return pieces_[(int)pieceIndex]; }
-    const std::array<PieceInfo, kNumTotalPieces>& getPieces() const { return pieces_; }
+    [[nodiscard]] const PieceInfo& getPieceInfo(PieceIndex pieceIndex) const {
+        return pieces_[(int)pieceIndex];
+    }
+    [[nodiscard]] const std::array<PieceInfo, kNumTotalPieces>& getPieces() const {
+        return pieces_;
+    }
 
-    Side getSideToMove() const { return sideToMove_; }
+    [[nodiscard]] Side getSideToMove() const { return sideToMove_; }
 
-    bool canCastleKingSide(Side side) const { return canCastle(side, CastlingRights::KingSide); }
+    [[nodiscard]] bool canCastleKingSide(Side side) const {
+        return canCastle(side, CastlingRights::KingSide);
+    }
 
-    bool canCastleQueenSide(Side side) const { return canCastle(side, CastlingRights::QueenSide); }
+    [[nodiscard]] bool canCastleQueenSide(Side side) const {
+        return canCastle(side, CastlingRights::QueenSide);
+    }
 
-    bool canCastle(Side side, CastlingRights castlingSide) const {
+    [[nodiscard]] bool canCastle(Side side, CastlingRights castlingSide) const {
         const int bit = (int)castlingSide << ((int)side * 2);
         return (int)castlingRights_ & bit;
     }
 
-    BoardPosition getEnPassantTarget() const { return enPassantTarget_; }
+    [[nodiscard]] BoardPosition getEnPassantTarget() const { return enPassantTarget_; }
 
-    std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
+    [[nodiscard]] std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
   private:
-    PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
+    [[nodiscard]] PieceInfo& getPieceInfo(PieceIndex pieceIndex) {
+        return pieces_[(int)pieceIndex];
+    }
 
-    StackVector<Move> generateMovesInCheck(
+    [[nodiscard]] StackVector<Move> generateMovesInCheck(
             StackOfVectors<Move>& stack, BitBoard enemyControlledSquares) const;
 
-    std::array<BitBoard, kNumPiecesPerSide - 1> calculatePiecePinOrKingAttackBitBoards(
-            Side kingSide) const;
-    BitBoard calculatePinOrKingAttackBitBoard(
+    [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide - 1>
+    calculatePiecePinOrKingAttackBitBoards(Side kingSide) const;
+    [[nodiscard]] BitBoard calculatePinOrKingAttackBitBoard(
             const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinOrKingAttackBitBoards) const;
 
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
     void recalculateControlledSquares(PieceInfo& pieceInfo) const;
-    BitBoard getEnemyControlledSquares() const;
+    [[nodiscard]] BitBoard getEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
@@ -289,7 +326,7 @@ class GameState {
     void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
 
     void makeCastleMove(const Move& move, bool reverse = false);
-    PieceIndex makeSinglePieceMove(const Move& move);
+    [[nodiscard]] PieceIndex makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move, BoardPosition moveFrom, ColoredPiece& pieceToMove);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
