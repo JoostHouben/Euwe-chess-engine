@@ -11,7 +11,12 @@ class StackVector;
 template <typename T>
 class StackOfVectors {
   public:
-    StackOfVectors() : isLocked_(false) {}
+    StackOfVectors()
+#ifndef NDEBUG
+        : isLocked_(false)
+#endif
+    {
+    }
 
     // Can't be copied or moved because that would invalidate all the StackVector objects.
     StackOfVectors(const StackOfVectors&) = delete;
@@ -20,8 +25,10 @@ class StackOfVectors {
     void reserve(size_t size) { items_.reserve(size); }
 
     StackVector<T> makeStackVector() {
+#ifndef NDEBUG
         assert(!isLocked_);
         isLocked_ = true;
+#endif
         return StackVector<T>(*this);
     }
 
@@ -33,7 +40,9 @@ class StackOfVectors {
     using ContainerT = std::vector<T>;
 
     ContainerT items_;
+#ifndef NDEBUG
     bool isLocked_;
+#endif
 };
 
 template <typename T>
@@ -147,9 +156,11 @@ class StackVector {
     }
 
     void lock() {
+#ifndef NDEBUG
         assert(!isLocked_);
         isLocked_ = true;
         parent_.isLocked_ = false;
+#endif
     }
 
     void reserve(size_t size) {
@@ -167,20 +178,6 @@ class StackVector {
     iterator end() { return Iterator(*this, size()); }
     const_iterator end() const { return ConstIterator(*this, size()); }
     const_iterator cend() const { return end(); }
-
-    //reverse_iterator rbegin() {
-    //    return parent_.items_.rbegin() + (parent_.items_.size() - endIdx_);
-    //}
-    //const_reverse_iterator rbegin() const {
-    //    return parent_.items_.rbegin() + (parent_.items_.size() - endIdx_);
-    //}
-    //const_reverse_iterator crbegin() const {
-    //    return parent_.items_.crbegin() + (parent_.items_.size() - endIdx_);
-    //}
-
-    //reverse_iterator rend() { return parent_.items_.rend() - startIdx_; }
-    //const_reverse_iterator rend() const { return parent_.items_.rend() - startIdx_; }
-    //const_reverse_iterator crend() const { return parent_.items_.crend() - startIdx_; }
 
     T& operator[](int idx) {
         assert(idx < size());
@@ -217,12 +214,22 @@ class StackVector {
     friend class StackOfVectors<T>;
 
     StackVector(StackOfVectors<T>& parent)
-        : parent_(parent), startIdx_(parent.size()), endIdx_(parent.size()), isLocked_(false) {}
+        : parent_(parent),
+          startIdx_((int)parent.size()),
+          endIdx_((int)parent.size())
+#ifndef NDEBUG
+          ,
+          isLocked_(false)
+#endif
+    {
+    }
 
     StackOfVectors<T>& parent_;
 
     int startIdx_;
     int endIdx_;
 
+#ifndef NDEBUG
     bool isLocked_;
+#endif
 };
