@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GameState.h" />
+    <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp" />

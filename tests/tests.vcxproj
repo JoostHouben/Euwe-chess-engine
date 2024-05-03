@@ -36,6 +36,7 @@
     <ClCompile Include="GameStateHelpersTests.cpp" />
     <ClCompile Include="FenParsingTests.cpp" />
     <ClCompile Include="MoveGenerationTests.cpp" />
+    <ClCompile Include="StackOfVectorsTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\chess-engine-lib\chess-engine-lib.vcxproj">

@@ -203,7 +203,7 @@ inline std::string getStartingPositionFen() {
 }
 
 class GameState {
-   public:
+  public:
     enum class CastlingRights : uint8_t {
         None = 0,
         KingSide = 1 << 0,
@@ -266,7 +266,7 @@ class GameState {
 
     std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
-   private:
+  private:
     PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
 
     std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares) const;
