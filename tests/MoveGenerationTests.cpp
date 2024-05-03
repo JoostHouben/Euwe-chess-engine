@@ -41,7 +41,7 @@ void compareStatistics(const MoveStatistics& actual, const ExpectedMoveStatistic
     }
 }
 
-void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics) {
+void updateStatistics(const StackVector<Move>& moves, MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
     for (const auto& move : moves) {
         statistics.numCaptures += isCapture(move.flags);
@@ -51,8 +51,9 @@ void updateStatistics(const std::vector<Move>& moves, MoveStatistics& statistics
     }
 }
 
-void countMoveStatisticsAtPly(GameState& gameState, int ply, MoveStatistics& statistics) {
-    const std::vector<Move> moves = gameState.generateMoves();
+void countMoveStatisticsAtPly(
+        GameState& gameState, int ply, MoveStatistics& statistics, StackOfVectors<Move>& stack) {
+    const StackVector<Move> moves = gameState.generateMoves(stack);
     if (ply == 0) {
         updateStatistics(moves, statistics);
         return;
@@ -60,19 +61,20 @@ void countMoveStatisticsAtPly(GameState& gameState, int ply, MoveStatistics& sta
     for (const auto& move : moves) {
         GameState copyState(gameState);
         (void)copyState.makeMove(move);
-        countMoveStatisticsAtPly(copyState, ply - 1, statistics);
+        countMoveStatisticsAtPly(copyState, ply - 1, statistics, stack);
     }
 }
 
-void countMoveStatisticsAtPlyWithUnmake(GameState& gameState, int ply, MoveStatistics& statistics) {
-    const std::vector<Move> moves = gameState.generateMoves();
+void countMoveStatisticsAtPlyWithUnmake(
+        GameState& gameState, int ply, MoveStatistics& statistics, StackOfVectors<Move>& stack) {
+    const StackVector<Move> moves = gameState.generateMoves(stack);
     if (ply == 0) {
         updateStatistics(moves, statistics);
         return;
     };
     for (const auto& move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
-        countMoveStatisticsAtPlyWithUnmake(gameState, ply - 1, statistics);
+        countMoveStatisticsAtPlyWithUnmake(gameState, ply - 1, statistics, stack);
         gameState.unmakeMove(move, unmakeInfo);
     }
 }
@@ -89,7 +91,9 @@ TEST_P(ValidateMoveStats, TestMoveStats) {
     const TestStatsConfig config = GetParam();
     MoveStatistics statistics{};
     GameState gameState = GameState::fromFen(config.fen);
-    countMoveStatisticsAtPly(gameState, config.depth, statistics);
+    StackOfVectors<Move> stack;
+    stack.reserve(300);
+    countMoveStatisticsAtPly(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
 }
 
@@ -99,7 +103,9 @@ TEST_P(ValidateMoveStatsWithUnmake, TestMoveStats) {
     const TestStatsConfig config = GetParam();
     MoveStatistics statistics{};
     GameState gameState = GameState::fromFen(config.fen);
-    countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics);
+    StackOfVectors<Move> stack;
+    stack.reserve(300);
+    countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
 }
 
@@ -264,9 +270,9 @@ auto testCasesFast = ::testing::Values(
         TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 2'079}},
         TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 89'890}});
 
-// Total in release mode: ~28s
+// Total in release mode: ~20s
 auto testCasesSlow = ::testing::Values(
-        // Release mode: ~15ms
+        // Release mode: ~10ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
                 .depth = 3,
@@ -276,7 +282,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 0,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Release mode: ~300ms
+        // Release mode: ~200ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
                 .depth = 4,
@@ -286,7 +292,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 258,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Release mode: ~7.5s
+        // Release mode: ~4.5s
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
                 .depth = 5,
@@ -296,7 +302,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 5248,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Release mode: 150ms
+        // Release mode: ~150ms
         TestStatsConfig{
                 .fen = kKiwipeteFen,
                 .depth = 3,
@@ -306,7 +312,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 1'929,
                          .numCastle = 128'013,
                          .numPromotions = 15'172}},
-        // Release mode: ~7.5s
+        // Release mode: ~6.0s
         TestStatsConfig{
                 .fen = kKiwipeteFen,
                 .depth = 4,
@@ -316,7 +322,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 73'365,
                          .numCastle = 4'993'637,
                          .numPromotions = 8'392}},
-        // Release mode: ~50ms
+        // Release mode: ~30ms
         TestStatsConfig{
                 .fen = kPosition3Fen,
                 .depth = 4,
@@ -326,7 +332,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 1'165,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Release mode: ~800ms
+        // Release mode: ~450ms
         TestStatsConfig{
                 .fen = kPosition3Fen,
                 .depth = 5,
@@ -346,7 +352,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 0,
                          .numCastle = 7'795,
                          .numPromotions = 60'032}},
-        // Release mode: ~700ms
+        // Release mode: ~500ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
                 .depth = 4,
@@ -356,14 +362,14 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 6'512,
                          .numCastle = 0,
                          .numPromotions = 329'464}},
-        // Release mode: ~100ms
+        // Release mode: ~70ms
         TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 2'103'487}},
-        // Release mode: ~3.5s
+        // Release mode: ~3.0s
         TestStatsConfig{
                 .fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 89'941'194}},
         // Release mode: ~150ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~6.5s
+        // Release mode: ~5.0s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 164'075'551}});
 

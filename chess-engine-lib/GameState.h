@@ -1,10 +1,11 @@
 #pragma once
 
+#include "StackOfVectors.h"
+
 #include <array>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include <cstdint>
 
@@ -241,7 +242,7 @@ class GameState {
 
     bool isInCheck() const;
 
-    std::vector<Move> generateMoves() const;
+    StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
 
     UnmakeMoveInfo makeMove(const Move& move);
     UnmakeMoveInfo makeNullMove();
@@ -269,7 +270,8 @@ class GameState {
   private:
     PieceInfo& getPieceInfo(PieceIndex pieceIndex) { return pieces_[(int)pieceIndex]; }
 
-    std::vector<Move> generateMovesInCheck(BitBoard enemyControlledSquares) const;
+    StackVector<Move> generateMovesInCheck(
+            StackOfVectors<Move>& stack, BitBoard enemyControlledSquares) const;
 
     std::array<BitBoard, kNumPiecesPerSide - 1> calculatePiecePinOrKingAttackBitBoards(
             Side kingSide) const;

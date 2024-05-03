@@ -543,14 +543,14 @@ bool GameState::isInCheck() const {
     return isInCheck(getEnemyControlledSquares());
 }
 
-std::vector<Move> GameState::generateMoves() const {
+StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
     const BitBoard enemyControlledSquares = getEnemyControlledSquares();
 
     if (isInCheck(enemyControlledSquares)) {
-        return generateMovesInCheck(enemyControlledSquares);
+        return generateMovesInCheck(stack, enemyControlledSquares);
     }
 
-    std::vector<Move> moves;
+    StackVector<Move> moves = stack.makeStackVector();
     auto addMove = [&](const Move& move) {
         if (isEnPassant(move.flags)) {
             const BoardPosition moveFrom = getPieceInfo(move.pieceToMove).position;
@@ -619,11 +619,13 @@ std::vector<Move> GameState::generateMoves() const {
             enemyControlledSquares,
             addMove);
 
+    moves.lock();
     return moves;
 }
 
-std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquares) const {
-    std::vector<Move> moves;
+StackVector<Move> GameState::generateMovesInCheck(
+        StackOfVectors<Move>& stack, BitBoard enemyControlledSquares) const {
+    StackVector<Move> moves = stack.makeStackVector();
 
     const PieceIndex kingIndex = getKingIndex(sideToMove_);
     const BoardPosition kingPosition = getPieceInfo(kingIndex).position;
@@ -671,8 +673,8 @@ std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquare
     }
 
     if (isDoubleCheck) {
-
         // Only the king can move in a double check
+        moves.lock();
         return moves;
     }
 
@@ -767,6 +769,7 @@ std::vector<Move> GameState::generateMovesInCheck(BitBoard enemyControlledSquare
         }
     }
 
+    moves.lock();
     return moves;
 }
 
