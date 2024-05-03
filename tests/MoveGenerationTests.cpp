@@ -57,6 +57,9 @@ void countMoveStatisticsAtPly(
         GameState& gameState, int ply, MoveStatistics& statistics, StackOfVectors<Move>& stack) {
     const StackVector<Move> moves = gameState.generateMoves(stack);
     if (ply == 0) {
+        return;
+    }
+    if (ply == 1) {
         updateStatistics(moves, statistics);
         return;
     };
@@ -71,6 +74,9 @@ void countMoveStatisticsAtPlyWithUnmake(
         GameState& gameState, int ply, MoveStatistics& statistics, StackOfVectors<Move>& stack) {
     const StackVector<Move> moves = gameState.generateMoves(stack);
     if (ply == 0) {
+        return;
+    }
+    if (ply == 1) {
         updateStatistics(moves, statistics);
         return;
     };
@@ -145,7 +151,7 @@ auto testCasesFast = ::testing::Values(
         // root
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 0,
+                .depth = 1,
                 .expectedStats =
                         {.numMoves = 20,
                          .numCaptures = 0,
@@ -154,7 +160,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 1,
+                .depth = 2,
                 .expectedStats =
                         {.numMoves = 400,
                          .numCaptures = 0,
@@ -163,7 +169,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 2,
+                .depth = 3,
                 .expectedStats =
                         {.numMoves = 8'902,
                          .numCaptures = 34,
@@ -173,7 +179,7 @@ auto testCasesFast = ::testing::Values(
         // kiwipete
         TestStatsConfig{
                 .fen = kKiwipeteFen,
-                .depth = 0,
+                .depth = 1,
                 .expectedStats =
                         {.numMoves = 48,
                          .numCaptures = 8,
@@ -182,7 +188,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kKiwipeteFen,
-                .depth = 1,
+                .depth = 2,
                 .expectedStats =
                         {.numMoves = 2'039,
                          .numCaptures = 351,
@@ -191,7 +197,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kKiwipeteFen,
-                .depth = 2,
+                .depth = 3,
                 .expectedStats =
                         {.numMoves = 97'862,
                          .numCaptures = 17'102,
@@ -201,7 +207,7 @@ auto testCasesFast = ::testing::Values(
         // position3
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 0,
+                .depth = 1,
                 .expectedStats =
                         {.numMoves = 14,
                          .numCaptures = 1,
@@ -210,7 +216,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 1,
+                .depth = 2,
                 .expectedStats =
                         {.numMoves = 191,
                          .numCaptures = 14,
@@ -219,7 +225,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 2,
+                .depth = 3,
                 .expectedStats =
                         {.numMoves = 2'812,
                          .numCaptures = 209,
@@ -228,7 +234,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 3,
+                .depth = 4,
                 .expectedStats =
                         {.numMoves = 43'238,
                          .numCaptures = 3'348,
@@ -238,7 +244,7 @@ auto testCasesFast = ::testing::Values(
         // position4
         TestStatsConfig{
                 .fen = kPosition4Fen,
-                .depth = 0,
+                .depth = 1,
                 .expectedStats =
                         {.numMoves = 6,
                          .numCaptures = 0,
@@ -247,7 +253,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 0}},
         TestStatsConfig{
                 .fen = kPosition4Fen,
-                .depth = 1,
+                .depth = 2,
                 .expectedStats =
                         {.numMoves = 264,
                          .numCaptures = 87,
@@ -256,7 +262,7 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 48}},
         TestStatsConfig{
                 .fen = kPosition4Fen,
-                .depth = 2,
+                .depth = 3,
                 .expectedStats =
                         {.numMoves = 9'467,
                          .numCaptures = 1'021,
@@ -264,20 +270,20 @@ auto testCasesFast = ::testing::Values(
                          .numCastle = 0,
                          .numPromotions = 120}},
         // position5
-        TestStatsConfig{.fen = kPosition5Fen, .depth = 0, .expectedStats = {.numMoves = 44}},
-        TestStatsConfig{.fen = kPosition5Fen, .depth = 1, .expectedStats = {.numMoves = 1'486}},
-        TestStatsConfig{.fen = kPosition5Fen, .depth = 2, .expectedStats = {.numMoves = 62'379}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 1, .expectedStats = {.numMoves = 44}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 2, .expectedStats = {.numMoves = 1'486}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 62'379}},
         // position6
-        TestStatsConfig{.fen = kPosition6Fen, .depth = 0, .expectedStats = {.numMoves = 46}},
-        TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 2'079}},
-        TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 89'890}});
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 46}},
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 2'079}},
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 89'890}});
 
 // Total in release mode: ~11s
 auto testCasesSlow = ::testing::Values(
         // Release mode: ~5ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 3,
+                .depth = 4,
                 .expectedStats =
                         {.numMoves = 197'281,
                          .numCaptures = 1'576,
@@ -287,7 +293,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~100ms
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 4,
+                .depth = 5,
                 .expectedStats =
                         {.numMoves = 4'865'609,
                          .numCaptures = 8'2719,
@@ -297,7 +303,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~3s
         TestStatsConfig{
                 .fen = getStartingPositionFen(),
-                .depth = 5,
+                .depth = 6,
                 .expectedStats =
                         {.numMoves = 119'060'324,
                          .numCaptures = 2'812'008,
@@ -307,7 +313,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~80ms
         TestStatsConfig{
                 .fen = kKiwipeteFen,
-                .depth = 3,
+                .depth = 4,
                 .expectedStats =
                         {.numMoves = 4'085'603,
                          .numCaptures = 757'163,
@@ -317,7 +323,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~3.0s
         TestStatsConfig{
                 .fen = kKiwipeteFen,
-                .depth = 4,
+                .depth = 5,
                 .expectedStats =
                         {.numMoves = 193'690'690,
                          .numCaptures = 35'043'416,
@@ -327,7 +333,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~20ms
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 4,
+                .depth = 5,
                 .expectedStats =
                         {.numMoves = 674'624,
                          .numCaptures = 52'051,
@@ -337,7 +343,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~300ms
         TestStatsConfig{
                 .fen = kPosition3Fen,
-                .depth = 5,
+                .depth = 6,
                 .expectedStats =
                         {.numMoves = 11'030'083,
                          .numCaptures = 940'350,
@@ -347,7 +353,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~10ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
-                .depth = 3,
+                .depth = 4,
                 .expectedStats =
                         {.numMoves = 422'333,
                          .numCaptures = 131'393,
@@ -357,7 +363,7 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~300ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
-                .depth = 4,
+                .depth = 5,
                 .expectedStats =
                         {.numMoves = 15'833'292,
                          .numCaptures = 2'046'173,
@@ -365,15 +371,15 @@ auto testCasesSlow = ::testing::Values(
                          .numCastle = 0,
                          .numPromotions = 329'464}},
         // Release mode: ~50ms
-        TestStatsConfig{.fen = kPosition5Fen, .depth = 3, .expectedStats = {.numMoves = 2'103'487}},
+        TestStatsConfig{.fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 2'103'487}},
         // Release mode: ~1.5s
         TestStatsConfig{
-                .fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 89'941'194}},
+                .fen = kPosition5Fen, .depth = 5, .expectedStats = {.numMoves = 89'941'194}},
         // Release mode: ~80ms
-        TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 3'894'594}},
+        TestStatsConfig{.fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 3'894'594}},
         // Release mode: ~3s
         TestStatsConfig{
-                .fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 164'075'551}});
+                .fen = kPosition6Fen, .depth = 5, .expectedStats = {.numMoves = 164'075'551}});
 
 INSTANTIATE_TEST_CASE_P(MoveGeneration, ValidateMoveStats, testCasesFast, validateMoveStatsName);
 
