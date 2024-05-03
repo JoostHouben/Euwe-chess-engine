@@ -378,11 +378,12 @@ std::string GameState::toFen(int moveCounter) const {
 std::string GameState::toVisualString() const {
     std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieces_);
 
-    std::string boardTopBottom = "  ---------------------------------\n";
-    std::string rowSeparator = "  |-------------------------------|\n";
+    const std::string boardTop = "  .-------------------------------.\n";
+    const std::string boardSep = "  |---+---+---+---+---+---+---+---|\n";
+    const std::string boardBot = "  '-------------------------------'\n";
 
     std::ostringstream ss;
-    ss << boardTopBottom;
+    ss << boardTop;
 
     for (int rank = 7; rank >= 0; --rank) {
         ss << rank + 1 << " |";
@@ -398,22 +399,22 @@ std::string GameState::toVisualString() const {
         }
         ss << "\n";
         if (rank > 0) {
-            ss << rowSeparator;
+            ss << boardSep;
         }
     }
-    ss << boardTopBottom;
+    ss << boardBot;
     ss << "    a   b   c   d   e   f   g   h\n";
 
     return ss.str();
 }
 
 std::string bitBoardToVisualString(BitBoard bitboard) {
-
-    std::string boardTopBottom = "  ---------------------------------\n";
-    std::string rowSeparator = "  |-------------------------------|\n";
+    const std::string boardTop = "  .-------------------------------.\n";
+    const std::string boardSep = "  |---+---+---+---+---+---+---+---|\n";
+    const std::string boardBot = "  '-------------------------------'\n";
 
     std::ostringstream ss;
-    ss << boardTopBottom;
+    ss << boardTop;
 
     for (int rank = 7; rank >= 0; --rank) {
         ss << rank + 1 << " |";
@@ -429,10 +430,10 @@ std::string bitBoardToVisualString(BitBoard bitboard) {
         }
         ss << "\n";
         if (rank > 0) {
-            ss << rowSeparator;
+            ss << boardSep;
         }
     }
-    ss << boardTopBottom;
+    ss << boardBot;
     ss << "    a   b   c   d   e   f   g   h\n";
 
     return ss.str();
