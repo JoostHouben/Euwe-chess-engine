@@ -272,7 +272,7 @@ auto testCasesFast = ::testing::Values(
         TestStatsConfig{.fen = kPosition6Fen, .depth = 1, .expectedStats = {.numMoves = 2'079}},
         TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 89'890}});
 
-// Total in release mode: ~12s
+// Total in release mode: ~11s
 auto testCasesSlow = ::testing::Values(
         // Release mode: ~5ms
         TestStatsConfig{
@@ -371,7 +371,7 @@ auto testCasesSlow = ::testing::Values(
                 .fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 89'941'194}},
         // Release mode: ~80ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~3.5s
+        // Release mode: ~3s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 164'075'551}});
 

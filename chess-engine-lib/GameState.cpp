@@ -583,26 +583,6 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
     }
 
     StackVector<Move> moves = stack.makeStackVector();
-    auto addPawnMove = [&](const Move& move) {
-        if (isEnPassant(move.flags)) {
-            const BoardPosition moveFrom = getPieceInfo(move.pieceToMove).position;
-            const auto [fromFile, fromRank] = fileRankFromPosition(moveFrom);
-            const auto [toFile, toRank] = fileRankFromPosition(move.to);
-            const BoardPosition captureTargetSquare = positionFromFileRank(toFile, fromRank);
-            if (isSet(enemyControlledSquares, captureTargetSquare) ||
-                isSet(enemyControlledSquares, moveFrom)) {
-                // Need to check for a discovered check due to capturing the en passant target pawn
-                // TODO: can we do this by checking for rooks & queens + a king on the same rank?
-                GameState copyState(*this);
-                (void)copyState.makeMove(move);
-                (void)copyState.makeNullMove();
-                if (copyState.isInCheck()) {
-                    return;
-                }
-            }
-        }
-        moves.push_back(move);
-    };
     auto addMove = [&](const Move& move) {
         moves.push_back(move);
     };
@@ -630,6 +610,9 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
         std::unreachable();
     };
 
+    const BoardPosition enPassantTarget =
+            enPassantWillPutUsInCheck() ? BoardPosition::Invalid : enPassantTarget_;
+
     // Generate moves for pawns and for promoted pawns
     const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
     const int nonPawnStartIdx = ownStartIdx + kNumNonPawns;
@@ -647,10 +630,10 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             generateSinglePawnMoves(
                     pieceInfo.position,
                     (PieceIndex)pieceIdx,
-                    enPassantTarget_,
+                    enPassantTarget,
                     sideToMove_,
                     occupation_,
-                    addPawnMove,
+                    addMove,
                     /*getControlledSquares =*/false,
                     piecePinBitBoard);
         } else {
@@ -729,13 +712,15 @@ StackVector<Move> GameState::generateMovesInCheck(
         }
     };
 
-    generateNormalKingMoves(
-            kingPosition,
+    BitBoard kingControlledSquares = pieces_[(int)kingIndex].controlledSquares;
+    // King can't walk into check
+    kingControlledSquares = subtract(kingControlledSquares, enemyControlledSquares);
+    generateSinglePieceMovesFromControl(
             kingIndex,
+            kingControlledSquares,
             occupation_,
             addMoveIfEscapesCheck,
-            /*getControlledSquares =*/false,
-            enemyControlledSquares);
+            /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */);
 
     bool isDoubleCheck = false;
     PieceIndex checkingPieceIndex = PieceIndex::Invalid;
@@ -1243,6 +1228,98 @@ BitBoard GameState::calculatePinOrKingAttackBitBoard(
     }
 
     return pinOrKingAttackBitBoard;
+}
+
+bool GameState::enPassantWillPutUsInCheck() const {
+    if (enPassantTarget_ == BoardPosition::Invalid) {
+        return false;
+    }
+    const auto [enPassantTargetFile, enPassantTargetRank] = fileRankFromPosition(enPassantTarget_);
+    const int enPassantOriginRank =
+            sideToMove_ == Side::White ? enPassantTargetRank - 1 : enPassantTargetRank + 1;
+
+    const BoardPosition kingPosition = getPieceInfo(getKingIndex(sideToMove_)).position;
+    const auto [kingFile, kingRank] = fileRankFromPosition(kingPosition);
+    if (kingRank != enPassantOriginRank) {
+        return false;
+    }
+
+    const bool kingIsLeft = kingFile < enPassantTargetFile;
+
+    int numOwnPawns = 0;
+    int closestEnemyRookOrQueenDistance = kFiles;
+    int closestOtherDistance = kFiles;
+    bool foundKingBlockingPiece = false;
+
+    // TODO: could use the occupancy bitboards to short-circuit this in some cases
+
+    for (int pieceIdx = 0; pieceIdx < kNumTotalPieces; ++pieceIdx) {
+        const PieceInfo& pieceInfo = pieces_[pieceIdx];
+        if (pieceInfo.captured) {
+            continue;
+        }
+
+        const auto [file, rank] = fileRankFromPosition(pieceInfo.position);
+        if (rank != enPassantOriginRank) {
+            continue;
+        }
+        if (file == kingFile || file == enPassantTargetFile) {
+            // Skip king and the double-moved pawn
+            continue;
+        }
+
+        const Side side = getSide(pieceInfo.coloredPiece);
+        const Piece piece = getPiece(pieceInfo.coloredPiece);
+
+        if (side == sideToMove_ && piece == Piece::Pawn &&
+            std::abs(file - enPassantTargetFile) == 1) {
+            // Found an own pawn neighboring the double-moved pawn
+            ++numOwnPawns;
+            if (numOwnPawns > 1) {
+                // If there's more than one, this can't create a discovered check on the king
+                break;
+            }
+            continue;
+        }
+
+        const bool isLeft = file < enPassantTargetFile;
+        if (isLeft == kingIsLeft) {
+            if (std::abs(file - enPassantTargetFile) < std::abs(kingFile - enPassantTargetFile)) {
+                // Found a piece between the king and the double-moved pawn (that isn't an immediately neighboring own pawn)
+                // This piece blocks any would-be discovered check
+                foundKingBlockingPiece = true;
+                break;
+            } else {
+                // This piece is on the other side of the king, so not relevant.
+                continue;
+            }
+        }
+
+        assert(isLeft != kingIsLeft);
+        const int distance = std::abs(file - enPassantTargetFile);
+
+        if (side != sideToMove_ && (piece == Piece::Rook || piece == Piece::Queen)) {
+            // An enemy rook or queen on the other side of the king can potentially create a discovered check.
+            // Record the closest one.
+            if (distance < closestEnemyRookOrQueenDistance) {
+                closestEnemyRookOrQueenDistance = distance;
+            }
+            continue;
+        }
+
+        // Piece on the other side of the king that isn't an enemy rook or queen
+        if (distance < closestOtherDistance) {
+            closestOtherDistance = distance;
+        }
+    }
+
+    if (numOwnPawns < 2 && closestEnemyRookOrQueenDistance < closestOtherDistance &&
+        !foundKingBlockingPiece) {
+        // Capturing en passant would put the king in check
+        return true;
+    }
+
+    return false;
 }
 
 void GameState::recalculateControlledSquaresForAffectedSquares(

@@ -12,8 +12,8 @@
 enum class Side : std::uint8_t { White, Black, None };
 inline constexpr int kNumSides = 2;
 
-inline constexpr int kRows = 8;
-inline constexpr int kColumns = 8;
+inline constexpr int kRanks = 8;
+inline constexpr int kFiles = 8;
 
 inline constexpr int kNumPawns = 8;
 inline constexpr int kNumNonPawns = 8;
@@ -314,6 +314,8 @@ class GameState {
     calculatePiecePinOrKingAttackBitBoards(Side kingSide) const;
     [[nodiscard]] BitBoard calculatePinOrKingAttackBitBoard(
             const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinOrKingAttackBitBoards) const;
+
+    [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
     void recalculateControlledSquaresForAffectedSquares(
             const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
