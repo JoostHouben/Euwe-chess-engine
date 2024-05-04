@@ -310,7 +310,7 @@ BitBoard computeKingControlledSquares(const BoardPosition origin) {
     return controlledSquares;
 }
 
-BitBoard calculateSinglePieceControl(
+BitBoard computePieceControlledSquares(
         const GameState::PieceInfo& pieceInfo, const BitBoard anyPiece) {
     switch (getPiece(pieceInfo.coloredPiece)) {
         case Piece::Pawn: {
@@ -1291,7 +1291,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
 }
 
 void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
-    pieceInfo.controlledSquares = calculateSinglePieceControl(
+    pieceInfo.controlledSquares = computePieceControlledSquares(
             pieceInfo, any(occupation_.ownPiece, occupation_.enemyPiece));
 }
 
