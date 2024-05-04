@@ -22,7 +22,7 @@ class StackOfVectors {
 
     // Can't be copied or moved because that would invalidate all the StackVector objects.
     StackOfVectors(const StackOfVectors&) = delete;
-    StackOfVectors(StackOfVectors&&) = delete;
+    StackOfVectors(StackOfVectors&&)      = delete;
 
     void reserve(size_t size) { items_.reserve(size); }
 
@@ -126,8 +126,8 @@ class StackVector {
         int idx_;
     };
 
-    using value_type = T;
-    using iterator = Iterator;
+    using value_type     = T;
+    using iterator       = Iterator;
     using const_iterator = ConstIterator;
 
     StackVector(const StackVector&) = delete;
@@ -135,7 +135,7 @@ class StackVector {
         : parent_(other.parent_), startIdx_(other.startIdx_), endIdx_(other.endIdx_) {
         other.endIdx_ = other.startIdx_;
 #ifndef NDEBUG
-        isLocked_ = other.isLocked_;
+        isLocked_       = other.isLocked_;
         other.isLocked_ = true;
 #endif
     }
@@ -184,7 +184,7 @@ class StackVector {
     void lock() {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
-        isLocked_ = true;
+        isLocked_         = true;
         parent_.isLocked_ = false;
 #endif
     }

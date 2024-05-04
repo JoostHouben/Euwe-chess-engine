@@ -15,14 +15,14 @@
 enum class Side : std::uint8_t { White, Black, None };
 inline constexpr int kNumSides = 2;
 
-inline constexpr int kRanks = 8;
-inline constexpr int kFiles = 8;
+inline constexpr int kRanks   = 8;
+inline constexpr int kFiles   = 8;
 inline constexpr int kSquares = kRanks * kFiles;
 
-inline constexpr int kNumPawns = 8;
-inline constexpr int kNumNonPawns = 8;
+inline constexpr int kNumPawns         = 8;
+inline constexpr int kNumNonPawns      = 8;
 inline constexpr int kNumPiecesPerSide = kNumPawns + kNumNonPawns;
-inline constexpr int kNumTotalPieces = kNumPiecesPerSide * kNumSides;
+inline constexpr int kNumTotalPieces   = kNumPiecesPerSide * kNumSides;
 
 [[nodiscard]] constexpr Side nextSide(Side side) {
     switch (side) {
@@ -113,9 +113,9 @@ enum class BoardPosition : std::uint8_t { Invalid = 1 << 6 };
 enum class MoveFlags : std::uint8_t {
     None = 0,
     // Lowest 3 bits: Piece if promoting
-    IsCapture = 1 << 3,
+    IsCapture   = 1 << 3,
     IsEnPassant = 1 << 4,
-    IsCastle = 1 << 5,
+    IsCastle    = 1 << 5,
 };
 
 [[nodiscard]] constexpr Piece getPromotionPiece(MoveFlags flags) {
@@ -148,7 +148,7 @@ enum class PieceIndex : int {
     Invalid = -1,
 
     WhitePieces = 0,
-    WhitePawn0 = WhitePieces,
+    WhitePawn0  = WhitePieces,
     WhitePawn1,
     WhitePawn2,
     WhitePawn3,
@@ -192,15 +192,15 @@ enum class PieceIndex : int {
 
 struct Move {
     PieceIndex pieceToMove = PieceIndex::Invalid;
-    BoardPosition to = BoardPosition::Invalid;
-    MoveFlags flags = MoveFlags::None;
+    BoardPosition to       = BoardPosition::Invalid;
+    MoveFlags flags        = MoveFlags::None;
 
     bool operator==(const Move& other) const = default;
 };
 
 enum class BitBoard : std::uint64_t {
     Empty = 0,
-    Full = ~0ULL,
+    Full  = ~0ULL,
 };
 
 [[nodiscard]] std::string bitBoardToVisualString(BitBoard bitboard);
@@ -234,7 +234,7 @@ template <typename... BitBoardTs>
 }
 
 struct PieceOccupationBitBoards {
-    BitBoard ownPiece = BitBoard::Empty;
+    BitBoard ownPiece   = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;
 };
 
@@ -245,20 +245,20 @@ struct PieceOccupationBitBoards {
 class GameState {
   public:
     enum class CastlingRights : uint8_t {
-        None = 0,
-        KingSide = 1 << 0,
-        QueenSide = 1 << 1,
-        WhiteKingSide = 1 << 0,
+        None           = 0,
+        KingSide       = 1 << 0,
+        QueenSide      = 1 << 1,
+        WhiteKingSide  = 1 << 0,
         WhiteQueenSide = 1 << 1,
-        BlackKingSide = 1 << 2,
+        BlackKingSide  = 1 << 2,
         BlackQueenSide = 1 << 3,
     };
 
     struct PieceInfo {
         // TODO: store coloredPiece implicitly using the index?
         ColoredPiece coloredPiece = ColoredPiece::None;
-        bool captured = true;
-        BoardPosition position = BoardPosition::Invalid;
+        bool captured             = true;
+        BoardPosition position    = BoardPosition::Invalid;
         // 5 unused bytes... :(
 
         // Controlled squares are squares that the piece attacks or defends (including empty squares)
@@ -266,11 +266,11 @@ class GameState {
     };
 
     struct UnmakeMoveInfo {
-        BoardPosition from = BoardPosition::Invalid;
-        BoardPosition enPassantTarget = BoardPosition::Invalid;
-        CastlingRights castlingRights = CastlingRights::None;
+        BoardPosition from                 = BoardPosition::Invalid;
+        BoardPosition enPassantTarget      = BoardPosition::Invalid;
+        CastlingRights castlingRights      = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
-        PieceIndex capturedPieceIndex = PieceIndex::Invalid;
+        PieceIndex capturedPieceIndex      = PieceIndex::Invalid;
     };
 
     [[nodiscard]] static GameState fromFen(const std::string& fenString);

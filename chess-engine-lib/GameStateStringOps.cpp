@@ -102,15 +102,15 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
         std::string::const_iterator& strIt) {
     std::array<GameState::PieceInfo, kNumTotalPieces> pieces;
 
-    int whitePawnIdx = (int)PieceIndex::WhitePawn0;
+    int whitePawnIdx   = (int)PieceIndex::WhitePawn0;
     int whiteKnightIdx = (int)PieceIndex::WhiteKnight0;
     int whiteBishopIdx = (int)PieceIndex::WhiteBishop0;
-    int whiteRookIdx = (int)PieceIndex::WhiteRook0;
+    int whiteRookIdx   = (int)PieceIndex::WhiteRook0;
 
-    int blackPawnIdx = (int)PieceIndex::BlackPawn0;
+    int blackPawnIdx   = (int)PieceIndex::BlackPawn0;
     int blackKnightIdx = (int)PieceIndex::BlackKnight0;
     int blackBishopIdx = (int)PieceIndex::BlackBishop0;
-    int blackRookIdx = (int)PieceIndex::BlackRook0;
+    int blackRookIdx   = (int)PieceIndex::BlackRook0;
 
     for (int rank = 7; rank >= 0; --rank) {
         for (int file = 0; file < 8; ++strIt) {
@@ -118,7 +118,7 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
                 file += (*strIt - '0');
                 continue;
             }
-            ColoredPiece piece = coloredPieceFromFenChar(*strIt);
+            ColoredPiece piece     = coloredPieceFromFenChar(*strIt);
             BoardPosition position = positionFromFileRank(file, rank);
 
             int index;
@@ -171,8 +171,8 @@ std::array<GameState::PieceInfo, kNumTotalPieces> parseBoardConfigurationFromFen
             }
 
             pieces[index].coloredPiece = piece;
-            pieces[index].position = position;
-            pieces[index].captured = false;
+            pieces[index].position     = position;
+            pieces[index].captured     = false;
 
             file += 1;
         }
@@ -203,7 +203,7 @@ void parseCastlingRightsFromFen(
     }
 
     for (; *strIt != ' '; ++strIt) {
-        Side side = sideFromFenChar(*strIt);
+        Side side   = sideFromFenChar(*strIt);
         Piece piece = pieceFromFenChar(*strIt);
 
         int bit;
