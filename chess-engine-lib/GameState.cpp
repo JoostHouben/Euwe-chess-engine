@@ -14,10 +14,11 @@ constexpr std::array kSigns = {+1, -1};
 static constexpr std::array kPromotionPieces = {
         Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
 
-constexpr std::uint64_t notLeftFileMask   = ~0x0101010101010101ULL;
-constexpr std::uint64_t notRightFileMask  = ~0x8080808080808080ULL;
+constexpr std::uint64_t notWestFileMask   = ~0x0101010101010101ULL;
+constexpr std::uint64_t notEastFileMask   = ~0x8080808080808080ULL;
 constexpr std::uint64_t notBottomRankMask = ~0xffULL;
 constexpr std::uint64_t notTopRankMask    = ~0xff00000000000000ULL;
+constexpr std::uint64_t allMask           = ~0ULL;
 
 BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side side) {
     auto forwardShift = [=](const BitBoard bitBoard) {
@@ -25,10 +26,10 @@ BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side si
                                    : (BitBoard)((std::uint64_t)bitBoard >> 8);
     };
     auto leftShift = [=](const BitBoard bitBoard) {
-        return (BitBoard)(((std::uint64_t)bitBoard & notLeftFileMask) >> 1);
+        return (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) >> 1);
     };
     auto rightShift = [=](const BitBoard bitBoard) {
-        return (BitBoard)(((std::uint64_t)bitBoard & notRightFileMask) << 1);
+        return (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) << 1);
     };
 
     const BitBoard leftCaptures  = leftShift(forwardShift(pawnBitBoard));
@@ -68,10 +69,10 @@ PawnTargetSquaresPerOrigin generatePawnTargetSquares(
                                    : (BitBoard)((std::uint64_t)bitBoard >> 8);
     };
     auto leftShift = [=](const BitBoard bitBoard) {
-        return (BitBoard)(((std::uint64_t)bitBoard & notLeftFileMask) >> 1);
+        return (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) >> 1);
     };
     auto rightShift = [=](const BitBoard bitBoard) {
-        return (BitBoard)(((std::uint64_t)bitBoard & notRightFileMask) << 1);
+        return (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) << 1);
     };
 
     const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
@@ -203,84 +204,75 @@ BitBoard computeKnightControlledSquares(const BoardPosition origin) {
     return controlledSquares;
 }
 
+template <int N>
+constexpr std::uint64_t shift(const std::uint64_t x) {
+    if constexpr (N > 0) {
+        return x << N;
+    } else {
+        return x >> -N;
+    }
+}
+
+template <int N>
+constexpr std::uint64_t fillRayNoMask(std::uint64_t seed, const std::uint64_t blockerMask) {
+    std::uint64_t result = seed;
+
+    for (int i = 0; i < 6; ++i) {
+        seed = shift<N>(seed) & blockerMask;
+        result |= seed;
+    }
+    result |= shift<N>(seed) & blockerMask;
+
+    return shift<N>(result);
+}
+
+template <int N, std::uint64_t directionMask>
+constexpr std::uint64_t fillRayWithMask(std::uint64_t seed, std::uint64_t blockerMask) {
+    blockerMask &= directionMask;
+
+    std::uint64_t result = seed;
+
+    for (int i = 0; i < 6; ++i) {
+        seed = shift<N>(seed) & blockerMask;
+        result |= seed;
+    }
+    result |= shift<N>(seed) & blockerMask;
+
+    return shift<N>(result) & directionMask;
+}
+
 BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
     const std::uint64_t originBitBoard    = 1ULL << (int)origin;
-    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece & ~originBitBoard);
+    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece);
 
-    // North-East
-    constexpr std::uint64_t notNorthEastMask = notTopRankMask & notRightFileMask;
-    std::uint64_t northEastControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        northEastControlledSquares |=
-                ((northEastControlledSquares & notOtherPieceMask & notNorthEastMask) << 9);
-    }
+    const std::uint64_t northEastControlledSquares =
+            fillRayWithMask<9, notWestFileMask>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t southEastControlledSquares =
+            fillRayWithMask<-7, notWestFileMask>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t southWestControlledSquares =
+            fillRayWithMask<-9, notEastFileMask>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t northWestControlledSquares =
+            fillRayWithMask<7, notEastFileMask>(originBitBoard, notOtherPieceMask);
 
-    // South-East
-    constexpr std::uint64_t notSouthEastMask = notBottomRankMask & notRightFileMask;
-    std::uint64_t southEastControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        southEastControlledSquares |=
-                ((southEastControlledSquares & notOtherPieceMask & notSouthEastMask) >> 7);
-    }
-
-    // South-West
-    constexpr std::uint64_t notSouthWestMask = notBottomRankMask & notLeftFileMask;
-    std::uint64_t southWestControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        southWestControlledSquares |=
-                ((southWestControlledSquares & notOtherPieceMask & notSouthWestMask) >> 9);
-    }
-
-    // North-West
-    constexpr std::uint64_t notNorthWestMask = notTopRankMask & notLeftFileMask;
-    std::uint64_t northWestControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        northWestControlledSquares |=
-                ((northWestControlledSquares & notOtherPieceMask & notNorthWestMask) << 7);
-    }
-
-    return (BitBoard)((northEastControlledSquares | southEastControlledSquares |
-                       southWestControlledSquares | northWestControlledSquares) &
-                      ~originBitBoard);
+    return (BitBoard)(northEastControlledSquares | southEastControlledSquares |
+                      southWestControlledSquares | northWestControlledSquares);
 }
 
 BitBoard computeRookControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
     const std::uint64_t originBitBoard    = 1ULL << (int)origin;
-    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece & ~originBitBoard);
+    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece);
 
-    // North
-    constexpr std::uint64_t notNorthMask = notTopRankMask;
-    std::uint64_t northControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        northControlledSquares |=
-                ((northControlledSquares & notOtherPieceMask & notNorthMask) << 8);
-    }
+    const std::uint64_t northControlledSquares =
+            fillRayNoMask<8>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t eastControlledSquares =
+            fillRayWithMask<1, notWestFileMask>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t southControlledSquares =
+            fillRayNoMask<-8>(originBitBoard, notOtherPieceMask);
+    const std::uint64_t westControlledSquares =
+            fillRayWithMask<-1, notEastFileMask>(originBitBoard, notOtherPieceMask);
 
-    // East
-    constexpr std::uint64_t notEastMask = notRightFileMask;
-    std::uint64_t eastControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        eastControlledSquares |= ((eastControlledSquares & notOtherPieceMask & notEastMask) << 1);
-    }
-
-    // South
-    constexpr std::uint64_t notSouthMask = notBottomRankMask;
-    std::uint64_t southControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        southControlledSquares |=
-                ((southControlledSquares & notOtherPieceMask & notSouthMask) >> 8);
-    }
-
-    // West
-    constexpr std::uint64_t notWestMask = notLeftFileMask;
-    std::uint64_t westControlledSquares = originBitBoard;
-    for (int i = 0; i < 7; ++i) {
-        westControlledSquares |= ((westControlledSquares & notOtherPieceMask & notWestMask) >> 1);
-    }
-
-    return (BitBoard)((northControlledSquares | eastControlledSquares | southControlledSquares |
-                       westControlledSquares) &
-                      ~originBitBoard);
+    return (BitBoard)(northControlledSquares | eastControlledSquares | southControlledSquares |
+                      westControlledSquares);
 }
 
 BitBoard computeQueenControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
