@@ -465,14 +465,6 @@ bool getFileRankIncrement(
     return true;
 }
 
-bool isValidDeltaFileRankForPiece(const int deltaFile, const int deltaRank, Piece piece) {
-    if (std::abs(deltaFile) == std::abs(deltaRank)) {
-        return piece == Piece::Bishop || piece == Piece::Queen;
-    } else {
-        return piece == Piece::Rook || piece == Piece::Queen;
-    }
-}
-
 }  // namespace
 
 GameState GameState::startingPosition() {
@@ -1048,10 +1040,6 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
                 deltaFile,
                 deltaRank);
         if (!incrementOk) {
-            continue;
-        }
-
-        if (!isValidDeltaFileRankForPiece(deltaFile, deltaRank, pinningPiece)) {
             continue;
         }
 
