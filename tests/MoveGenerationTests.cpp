@@ -277,7 +277,7 @@ auto testCasesFast = ::testing::Values(
         TestStatsConfig{.fen = kPosition6Fen, .depth = 2, .expectedStats = {.numMoves = 2'079}},
         TestStatsConfig{.fen = kPosition6Fen, .depth = 3, .expectedStats = {.numMoves = 89'890}});
 
-// Total in release mode: ~11s
+// Total in release mode: ~9.5s
 auto testCasesSlow = ::testing::Values(
         // Release mode: ~5ms
         TestStatsConfig{
@@ -309,7 +309,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 5248,
                          .numCastle = 0,
                          .numPromotions = 0}},
-        // Release mode: ~70ms
+        // Release mode: ~60ms
         TestStatsConfig{
                 .fen = kKiwipeteFen,
                 .depth = 4,
@@ -319,7 +319,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 1'929,
                          .numCastle = 128'013,
                          .numPromotions = 15'172}},
-        // Release mode: ~3.0s
+        // Release mode: ~2.5s
         TestStatsConfig{
                 .fen = kKiwipeteFen,
                 .depth = 5,
@@ -349,7 +349,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 33'325,
                          .numCastle = 0,
                          .numPromotions = 7'552}},
-        // Release mode: ~10ms
+        // Release mode: ~5ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
                 .depth = 4,
@@ -359,7 +359,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant = 0,
                          .numCastle = 7'795,
                          .numPromotions = 60'032}},
-        // Release mode: ~300ms
+        // Release mode: ~250ms
         TestStatsConfig{
                 .fen = kPosition4Fen,
                 .depth = 5,
@@ -374,9 +374,9 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~1.5s
         TestStatsConfig{
                 .fen = kPosition5Fen, .depth = 5, .expectedStats = {.numMoves = 89'941'194}},
-        // Release mode: ~70ms
+        // Release mode: ~60ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~3s
+        // Release mode: ~2.5s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 5, .expectedStats = {.numMoves = 164'075'551}});
 
