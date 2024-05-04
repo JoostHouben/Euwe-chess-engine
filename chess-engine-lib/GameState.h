@@ -17,6 +17,7 @@ inline constexpr int kNumSides = 2;
 
 inline constexpr int kRanks = 8;
 inline constexpr int kFiles = 8;
+inline constexpr int kSquares = kRanks * kFiles;
 
 inline constexpr int kNumPawns = 8;
 inline constexpr int kNumNonPawns = 8;
@@ -86,8 +87,16 @@ enum class BoardPosition : std::uint8_t { Invalid = 1 << 6 };
     return static_cast<BoardPosition>(rank * 8 + file);
 }
 
+[[nodiscard]] constexpr int fileFromPosition(BoardPosition position) {
+    return (int)position % 8;
+}
+
+[[nodiscard]] constexpr int rankFromPosition(BoardPosition position) {
+    return (int)position / 8;
+}
+
 [[nodiscard]] constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
-    return {(int)position % 8, (int)position / 8};
+    return {fileFromPosition(position), rankFromPosition(position)};
 }
 
 [[nodiscard]] constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
@@ -348,6 +357,7 @@ class GameState {
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
+    // TODO: it might be faster to use a bitboard for storing pawn positions
     std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
 
     PieceOccupationBitBoards occupation_ = {};
