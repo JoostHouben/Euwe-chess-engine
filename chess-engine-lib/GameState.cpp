@@ -33,7 +33,7 @@ PawnTargetSquaresPerOrigin generatePawnTargetSquares(
         const BoardPosition enPassantTarget,
         const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinBitBoards,
         const BitBoard pinBitBoard,
-        const BitBoard blockBitBoard = BitBoard::Full) {
+        const BitBoard checkResolutionBitBoard = BitBoard::Full) {
     PawnTargetSquaresPerOrigin pawnTargetSquaresPerOrigin{};
 
     const std::uint64_t startingRankMask =
@@ -67,10 +67,10 @@ PawnTargetSquaresPerOrigin generatePawnTargetSquares(
     BitBoard leftCaptures = intersection(leftShift(forwardShift(pawnBitBoard)), captureTargets);
     BitBoard rightCaptures = intersection(rightShift(forwardShift(pawnBitBoard)), captureTargets);
 
-    singlePushes = intersection(singlePushes, blockBitBoard);
-    doublePushes = intersection(doublePushes, blockBitBoard);
-    leftCaptures = intersection(leftCaptures, blockBitBoard);
-    rightCaptures = intersection(rightCaptures, blockBitBoard);
+    singlePushes = intersection(singlePushes, checkResolutionBitBoard);
+    doublePushes = intersection(doublePushes, checkResolutionBitBoard);
+    leftCaptures = intersection(leftCaptures, checkResolutionBitBoard);
+    rightCaptures = intersection(rightCaptures, checkResolutionBitBoard);
 
     const int forwardBits = side == Side::White ? 8 : -8;
     constexpr int leftBits = -1;
@@ -872,34 +872,15 @@ StackVector<Move> GameState::generateMovesInCheck(
         return moves;
     }
 
-    BitBoard blockBitBoard = BitBoard::Empty;
+    BitBoard blockOrCaptureBitBoard = BitBoard::Empty;
     if (isPinningPiece(getPiece(checkingPieceInfo.coloredPiece))) {
         const int pinIdx = (int)checkingPieceIndex - enemyPieceStartIdx;
         const BitBoard checkingPieceKingAttackBitBoard = piecePinOrKingAttackBitBoards[pinIdx];
-        blockBitBoard =
+        blockOrCaptureBitBoard =
                 intersection(checkingPieceKingAttackBitBoard, checkingPieceInfo.controlledSquares);
     }
-    const BitBoard pinBitBoard = subtract(pinOrKingAttackBitBoard, blockBitBoard);
-
-    auto genMoveForNonPawn = [&](int pieceIdx, const PieceInfo& pieceInfo) {
-        // Capture checking piece
-        if (isSet(pieceInfo.controlledSquares, checkingPieceInfo.position)) {
-            moves.emplace_back(
-                    (PieceIndex)pieceIdx, checkingPieceInfo.position, MoveFlags::IsCapture);
-        }
-
-        // Block checking piece
-        BitBoard blockingMovesBitboard = intersection(blockBitBoard, pieceInfo.controlledSquares);
-        while (true) {
-            const BoardPosition blockingPosition =
-                    (BoardPosition)std::countr_zero((std::uint64_t)blockingMovesBitboard);
-            if (blockingPosition == BoardPosition::Invalid) {
-                break;
-            }
-            clear(blockingMovesBitboard, blockingPosition);
-            moves.emplace_back((PieceIndex)pieceIdx, blockingPosition);
-        }
-    };
+    set(blockOrCaptureBitBoard, checkingPieceInfo.position);
+    const BitBoard pinBitBoard = subtract(pinOrKingAttackBitBoard, blockOrCaptureBitBoard);
 
     bool canTakeCheckingPieceEnPassant = false;
     if (enPassantTarget_ != BoardPosition::Invalid) {
@@ -910,57 +891,63 @@ StackVector<Move> GameState::generateMovesInCheck(
                 positionFromFileRank(enPassantFile, enPassantPieceRank);
         canTakeCheckingPieceEnPassant = enPassantPiecePosition == checkingPieceInfo.position;
     }
+    const BoardPosition enPassantTarget =
+            canTakeCheckingPieceEnPassant ? enPassantTarget_ : BoardPosition::Invalid;
+    BitBoard pawnBlockOrCaptureBitBoard = blockOrCaptureBitBoard;
+    if (canTakeCheckingPieceEnPassant) {
+        set(pawnBlockOrCaptureBitBoard, enPassantTarget);
+    }
 
-    // Generate pawn (and promoted piece) moves that either capture the checking piece or block
-    auto addMoveIfCapturesOrBlocks = [&](const Move& move) {
-        if (canTakeCheckingPieceEnPassant && move.to == enPassantTarget_) {
-            moves.push_back(move);
-        } else if (move.to == checkingPieceInfo.position || isSet(blockBitBoard, move.to)) {
-            moves.push_back(move);
-        }
-    };
+    // Generate pawn moves that either capture the checking piece or block
     const int pieceStartIdx =
             sideToMove_ == Side::White ? (int)PieceIndex::WhitePawn0 : (int)PieceIndex::BlackPawn0;
     const int nonPawnStartIdx = pieceStartIdx + kNumPawns;
-    for (int pieceIdx = pieceStartIdx; pieceIdx < nonPawnStartIdx; ++pieceIdx) {
-        const PieceInfo& pieceInfo = pieces_[pieceIdx];
-        if (pieceInfo.captured) {
+    BitBoard pawnBitBoard = BitBoard::Empty;
+    for (int pawnIdx = pieceStartIdx; pawnIdx < nonPawnStartIdx; ++pawnIdx) {
+        const PieceInfo& pawnInfo = pieces_[pawnIdx];
+        if (pawnInfo.captured || getPiece(pawnInfo.coloredPiece) != Piece::Pawn) {
             continue;
         }
-        if (isSet(pinBitBoard, pieceInfo.position)) {
-            // Piece is pinned; can't capture pinning piece or remain in pin because already in check, so no moves.
+        if (isSet(pinBitBoard, pawnInfo.position)) {
+            // Piece is pinned; can't capture pinning piece or remain in pin because that wouldn't
+            // resolve the check, so no moves.
             continue;
         }
-
-        if (getPiece(pieceInfo.coloredPiece) == Piece::Pawn) {
-            generateSinglePawnMoves(
-                    pieceInfo.position,
-                    (PieceIndex)pieceIdx,
-                    enPassantTarget_,
-                    sideToMove_,
-                    occupation_,
-                    addMoveIfCapturesOrBlocks,
-                    /*getControlledSquares =*/false);
-        } else {
-            genMoveForNonPawn(pieceIdx, pieceInfo);
-        }
+        set(pawnBitBoard, pawnInfo.position);
     }
+#pragma warning(suppress : 4269)
+    const std::array<BitBoard, kNumPiecesPerSide - 1> unusedPiecePinBitBoards;  // NOLINT
+    PawnTargetSquaresPerOrigin pawnTargetSquaresPerOrigin = generatePawnTargetSquares(
+            pawnBitBoard,
+            sideToMove_,
+            occupation_,
+            enPassantTarget,
+            unusedPiecePinBitBoards,
+            BitBoard::Empty,
+            pawnBlockOrCaptureBitBoard);
+    generateMovesFromPawnTargetSquares(
+            pawnTargetSquaresPerOrigin, pieces_, sideToMove_, enPassantTarget, moves);
 
     // Generate non-pawn moves that either capture the checking piece or block
-    const int ownNonPawnStartIdx = sideToMove_ == Side::White ? (int)PieceIndex::WhiteNonPawns
-                                                              : (int)PieceIndex::BlackNonPawns;
-    const int ownNonPawnEndIdx = ownNonPawnStartIdx + kNumNonPawns - 1;  // skip king
-    for (int pieceIdx = ownNonPawnStartIdx; pieceIdx < ownNonPawnEndIdx; ++pieceIdx) {
+    const int pieceEndIdx = pieceStartIdx + kNumPiecesPerSide - 1;  // skip king
+    for (int pieceIdx = pieceStartIdx; pieceIdx < pieceEndIdx; ++pieceIdx) {
         const PieceInfo& pieceInfo = pieces_[pieceIdx];
-        if (pieceInfo.captured) {
+        if (pieceInfo.captured || getPiece(pieceInfo.coloredPiece) == Piece::Pawn) {
             continue;
         }
         if (isSet(pinBitBoard, pieceInfo.position)) {
-            // Piece is pinned; can't capture pinning piece or remain in pin because already in check, so no moves.
+            // Piece is pinned; can't capture pinning piece or remain in pin because that wouldn't
+            // resolve the check, so no moves.
             continue;
         }
 
-        genMoveForNonPawn(pieceIdx, pieceInfo);
+        // Treat blockOrCapture as a pin. This will cause only moves that block or capture to be generated.
+        generateSinglePieceMovesFromControl(
+                (PieceIndex)pieceIdx,
+                pieceInfo.controlledSquares,
+                occupation_,
+                addMove,
+                /*piecePinBitBoard =*/blockOrCaptureBitBoard);
     }
 
     moves.lock();
