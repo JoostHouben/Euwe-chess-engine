@@ -431,17 +431,38 @@ void generateSinglePieceMovesFromControl(
     }
 }
 
-bool getDeltaFileRank(
-        const BoardPosition from, const BoardPosition to, int& deltaFile, int& deltaRank) {
+constexpr int signum(const int x) {
+    return (x > 0) - (x < 0);
+}
+
+bool getFileRankIncrement(
+        const Piece piece,
+        const BoardPosition from,
+        const BoardPosition to,
+        int& fileIncrement,
+        int& rankIncrement) {
     const auto [fromFile, fromRank] = fileRankFromPosition(from);
     const auto [toFile, toRank]     = fileRankFromPosition(to);
-    const int numSteps = std::max(std::abs(toFile - fromFile), std::abs(toRank - fromRank));
-    deltaFile          = (toFile - fromFile) / numSteps;
-    int fileRemainder  = (toFile - fromFile) % numSteps;
-    deltaRank          = (toRank - fromRank) / numSteps;
-    int rankRemainder  = (toRank - fromRank) % numSteps;
+    const int deltaFile             = toFile - fromFile;
+    const int deltaRank             = toRank - fromRank;
 
-    return fileRemainder == 0 && rankRemainder == 0;
+    const bool isRookMove   = deltaFile == 0 || deltaRank == 0;
+    const bool isBishopMove = std::abs(deltaFile) == std::abs(deltaRank);
+
+    if (!isRookMove && !isBishopMove) {
+        return false;
+    }
+    if (isRookMove && piece != Piece::Rook && piece != Piece::Queen) {
+        return false;
+    }
+    if (isBishopMove && piece != Piece::Bishop && piece != Piece::Queen) {
+        return false;
+    }
+
+    fileIncrement = signum(deltaFile);
+    rankIncrement = signum(deltaRank);
+
+    return true;
 }
 
 bool isValidDeltaFileRankForPiece(const int deltaFile, const int deltaRank, Piece piece) {
@@ -1020,9 +1041,13 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
 
         int deltaFile;
         int deltaRank;
-        const bool deltaFileRankOk = getDeltaFileRank(
-                pinningPieceInfo.position, kingPieceInfo.position, deltaFile, deltaRank);
-        if (!deltaFileRankOk) {
+        const bool incrementOk = getFileRankIncrement(
+                getPiece(pinningPieceInfo.coloredPiece),
+                pinningPieceInfo.position,
+                kingPieceInfo.position,
+                deltaFile,
+                deltaRank);
+        if (!incrementOk) {
             continue;
         }
 
@@ -1220,8 +1245,12 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
 
             int deltaFile;
             int deltaRank;
-            const bool deltaFileRankOk =
-                    getDeltaFileRank(pieceInfo.position, affectedSquare, deltaFile, deltaRank);
+            const bool deltaFileRankOk = getFileRankIncrement(
+                    getPiece(pieceInfo.coloredPiece),
+                    pieceInfo.position,
+                    affectedSquare,
+                    deltaFile,
+                    deltaRank);
             MY_ASSERT(deltaFileRankOk);
 
             const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
