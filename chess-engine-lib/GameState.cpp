@@ -5,8 +5,6 @@
 #include <array>
 #include <bit>
 
-#include <iostream>
-
 #define IMPLIES(a, b) (!(a) || (b))
 
 namespace {
