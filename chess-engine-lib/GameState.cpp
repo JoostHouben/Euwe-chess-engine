@@ -950,13 +950,14 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     // Update rook
     MY_ASSERT(getPiece(rookPieceInfo.coloredPiece) == Piece::Rook);
     MY_ASSERT(getSide(rookPieceInfo.coloredPiece) == sideToMove_);
-    rookPieceInfo.position = rookToPosition;
-    recalculateControlledSquares(rookPieceInfo);
+    rookPieceInfo.position          = rookToPosition;
+    rookPieceInfo.controlledSquares = BitBoard::Empty;
 
     // Possible optimization here: only rookToPosition needs to be considered.
     std::array<BoardPosition, 4> affectedSquares = {
             kingFromPosition, kingToPosition, rookFromPosition, rookToPosition};
     recalculateControlledSquaresForAffectedSquares(affectedSquares, 4);
+    recalculateControlledSquares(rookPieceInfo);
 
     if (!reverse) {
         setCanCastleKingSide(sideToMove_, false);
@@ -1004,8 +1005,8 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
             updateRookCastlingRights(moveFrom, sideToMove_);
         }
     }
-    movedPieceInfo.position = move.to;
-    recalculateControlledSquares(movedPieceInfo);
+    movedPieceInfo.position          = move.to;
+    movedPieceInfo.controlledSquares = BitBoard::Empty;
 
     if (isCapture(move.flags)) {
         const int enemyStartIdx = kNumPiecesPerSide * (int)nextSide(sideToMove_);
@@ -1043,6 +1044,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
         --numAffectedSquares;
     }
     recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
+    recalculateControlledSquares(movedPieceInfo);
 
     if (isCaptureOrPawnMove) {
         plySinceCaptureOrPawn_ = 0;
@@ -1064,24 +1066,15 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
         set(occupancy_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
     }
 
-    const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
-    for (int pieceIdx = ownStartIdx;; ++pieceIdx) {
-        PieceInfo& pieceInfo = pieces_[pieceIdx];
-        if (pieceInfo.captured || pieceInfo.position != move.to) {
-            continue;
-        }
-        MY_ASSERT(getSide(pieceInfo.coloredPiece) == sideToMove_);
+    PieceInfo& movedPieceInfo = getPieceInfo(move.pieceToMove);
+    MY_ASSERT(getSide(movedPieceInfo.coloredPiece) == sideToMove_);
 
-        pieceInfo.position = unmakeMoveInfo.from;
-        if (isPromotion(move.flags)) {
-            MY_ASSERT(getPiece(pieceInfo.coloredPiece) == getPromotionPiece(move.flags));
-            pieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
-        }
-
-        recalculateControlledSquares(pieceInfo);
-
-        break;
+    movedPieceInfo.position = unmakeMoveInfo.from;
+    if (isPromotion(move.flags)) {
+        MY_ASSERT(getPiece(movedPieceInfo.coloredPiece) == getPromotionPiece(move.flags));
+        movedPieceInfo.coloredPiece = getColoredPiece(Piece::Pawn, sideToMove_);
     }
+    movedPieceInfo.controlledSquares = BitBoard::Empty;
 
     std::array<BoardPosition, 4> affectedSquares{};
     int numAffectedSquares                = 0;
@@ -1102,6 +1095,7 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     }
 
     recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
+    recalculateControlledSquares(movedPieceInfo);
 }
 
 void GameState::handlePawnMove(
