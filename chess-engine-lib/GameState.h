@@ -315,7 +315,6 @@ class GameState {
 
     void makeCastleMove(const Move& move, bool reverse = false);
     [[nodiscard]] PieceIndex makeSinglePieceMove(const Move& move);
-    //[[nodiscard]] PieceIndex makePawnMove(const Move& move);
     void handlePawnMove(const Move& move);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
@@ -346,9 +345,24 @@ Move moveFromAlgebraic(std::string_view algebraic,
 
 std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
 
+// Similar to algebraic notation, except:
+//  - Uses origin square instead of piece type.
+//  - Uses 'y' for en passant captures.
+//  - No marker for check or checkmate.
+// Examples: a1a2, a7xa8=Q, b4ya3
 [[nodiscard]] constexpr std::string moveToStringSimple(const Move& move) {
-    const Piece promotionPiece = getPromotionPiece(move.flags);
-    std::string promotionString =
-            promotionPiece == Piece::None ? "" : pieceToString(promotionPiece);
-    return algebraicFromPosition(move.from) + algebraicFromPosition(move.to) + promotionString;
+    if (isCastle(move.flags)) {
+        const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
+        const bool isQueenSide              = kingToFile == 2;  // c
+        return isQueenSide ? "O-O-O" : "O-O";
+    }
+
+    const std::string captureString = isEnPassant(move.flags) ? "y"
+                                      : isCapture(move.flags) ? "x"
+                                                              : "";
+    const Piece promotionPiece      = getPromotionPiece(move.flags);
+    const std::string promotionString =
+            promotionPiece == Piece::None ? "" : "=" + pieceToString(promotionPiece);
+    return algebraicFromPosition(move.from) + captureString + algebraicFromPosition(move.to) +
+           promotionString;
 }
