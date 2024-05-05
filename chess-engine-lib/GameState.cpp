@@ -953,10 +953,16 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     rookPieceInfo.position          = rookToPosition;
     rookPieceInfo.controlledSquares = BitBoard::Empty;
 
-    // Possible optimization here: only rookToPosition needs to be considered.
-    std::array<BoardPosition, 4> affectedSquares = {
-            kingFromPosition, kingToPosition, rookFromPosition, rookToPosition};
-    recalculateControlledSquaresForAffectedSquares(affectedSquares, 4);
+    // Micro optimization: only control along the back rank can change, and only on the non-castle side.
+    // So for recalculating control we only need to consider the square closest to that side of the board.
+    // That is the king's origin position (before swapping for reverse).
+    std::array<BoardPosition, 3> affectedSquares;
+    if (!reverse) {
+        affectedSquares[0] = kingFromPosition;
+    } else {
+        affectedSquares[0] = kingToPosition;
+    }
+    recalculateControlledSquaresForAffectedSquares(affectedSquares, 1);
     recalculateControlledSquares(rookPieceInfo);
 
     if (!reverse) {
@@ -1033,7 +1039,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
         clear(occupancy_.enemyPiece, captureTargetSquare);
     }
 
-    std::array<BoardPosition, 4> affectedSquares{};
+    std::array<BoardPosition, 3> affectedSquares{};
     int numAffectedSquares                = 0;
     affectedSquares[numAffectedSquares++] = moveFrom;
     affectedSquares[numAffectedSquares++] = move.to;
@@ -1076,7 +1082,7 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     }
     movedPieceInfo.controlledSquares = BitBoard::Empty;
 
-    std::array<BoardPosition, 4> affectedSquares{};
+    std::array<BoardPosition, 3> affectedSquares{};
     int numAffectedSquares                = 0;
     affectedSquares[numAffectedSquares++] = unmakeMoveInfo.from;
     affectedSquares[numAffectedSquares++] = move.to;
@@ -1332,7 +1338,7 @@ bool GameState::enPassantWillPutUsInCheck() const {
 // TODO: can we speed this up using magic bitboards?
 // And perhaps calculate controlled squares ad-hoc instead of incrementally.
 void GameState::recalculateControlledSquaresForAffectedSquares(
-        const std::array<BoardPosition, 4>& affectedSquares, const int numAffectedSquares) {
+        const std::array<BoardPosition, 3>& affectedSquares, const int numAffectedSquares) {
     BitBoard affectedSquaresBitBoard = BitBoard::Empty;
     for (int i = 0; i < numAffectedSquares; ++i) {
         set(affectedSquaresBitBoard, affectedSquares[i]);

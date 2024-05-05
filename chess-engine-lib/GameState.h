@@ -330,7 +330,7 @@ class GameState {
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
     void recalculateControlledSquaresForAffectedSquares(
-            const std::array<BoardPosition, 4>& affectedSquares, int numAffectedSquares);
+            const std::array<BoardPosition, 3>& affectedSquares, int numAffectedSquares);
     void recalculateControlledSquares(PieceInfo& pieceInfo) const;
     [[nodiscard]] BitBoard getEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
