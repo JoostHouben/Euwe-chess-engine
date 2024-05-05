@@ -9,7 +9,7 @@
 namespace FenParsingTests {
 
 TEST(FenParsing, TestStartingPosition) {
-    GameState startingPosition = GameState::startingPosition();
+    const GameState startingPosition = GameState::startingPosition();
 
     std::set<std::pair<ColoredPiece, std::string>> expectedPiecesAlgebraic{
             {getColoredPiece(Piece::Rook, Side::White), "a1"},
@@ -21,24 +21,6 @@ TEST(FenParsing, TestStartingPosition) {
             {getColoredPiece(Piece::Knight, Side::White), "g1"},
             {getColoredPiece(Piece::Rook, Side::White), "h1"},
 
-            {getColoredPiece(Piece::Pawn, Side::White), "a2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "b2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "c2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "d2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "e2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "f2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "g2"},
-            {getColoredPiece(Piece::Pawn, Side::White), "h2"},
-
-            {getColoredPiece(Piece::Pawn, Side::Black), "a7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "b7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "c7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "d7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "e7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "f7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "g7"},
-            {getColoredPiece(Piece::Pawn, Side::Black), "h7"},
-
             {getColoredPiece(Piece::Rook, Side::Black), "a8"},
             {getColoredPiece(Piece::Knight, Side::Black), "b8"},
             {getColoredPiece(Piece::Bishop, Side::Black), "c8"},
@@ -49,6 +31,9 @@ TEST(FenParsing, TestStartingPosition) {
             {getColoredPiece(Piece::Rook, Side::Black), "h8"},
     };
 
+    const BitBoard expectedWhitePawnBitBoard = (BitBoard)(0xffULL << kFiles);
+    const BitBoard expectedBlackPawnBitBoard = (BitBoard)(0xffULL << (6 * kFiles));
+
     using PiecePosition = std::pair<ColoredPiece, BoardPosition>;
 
     std::set<PiecePosition> expectedPieces;
@@ -58,10 +43,15 @@ TEST(FenParsing, TestStartingPosition) {
 
     std::set<PiecePosition> actualPieces;
     for (const auto& pieceInfo : startingPosition.getPieces()) {
+        if (pieceInfo.captured) {
+            continue;
+        }
         actualPieces.insert({pieceInfo.coloredPiece, pieceInfo.position});
     }
 
     EXPECT_EQ(expectedPieces, actualPieces);
+    EXPECT_EQ(expectedWhitePawnBitBoard, startingPosition.getPawnBitBoard(Side::White));
+    EXPECT_EQ(expectedBlackPawnBitBoard, startingPosition.getPawnBitBoard(Side::Black));
 
     EXPECT_EQ(startingPosition.getSideToMove(), Side::White);
 

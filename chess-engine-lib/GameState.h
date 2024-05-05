@@ -148,42 +148,15 @@ enum class PieceIndex : int {
     Invalid = -1,
 
     WhitePieces = 0,
-    WhitePawn0  = WhitePieces,
-    WhitePawn1,
-    WhitePawn2,
-    WhitePawn3,
-    WhitePawn4,
-    WhitePawn5,
-    WhitePawn6,
-    WhitePawn7,
-    WhiteNonPawns,
-    WhiteKnight0 = WhiteNonPawns,
-    WhiteKnight1,
-    WhiteBishop0,
-    WhiteBishop1,
-    WhiteRook0,
-    WhiteRook1,
-    WhiteQueen,
-    WhiteKing,
+    WhiteKing   = WhitePieces,
+    WhiteNonKing,
 
-    BlackPieces,
-    BlackPawn0 = BlackPieces,
-    BlackPawn1,
-    BlackPawn2,
-    BlackPawn3,
-    BlackPawn4,
-    BlackPawn5,
-    BlackPawn6,
-    BlackPawn7,
-    BlackNonPawns,
-    BlackKnight0 = BlackNonPawns,
-    BlackKnight1,
-    BlackBishop0,
-    BlackBishop1,
-    BlackRook0,
-    BlackRook1,
-    BlackQueen,
-    BlackKing,
+    BlackPieces = 16,
+    BlackKing   = BlackPieces,
+    BlackNonKing,
+
+    WhitePawn = 32,
+    BlackPawn
 };
 
 [[nodiscard]] constexpr PieceIndex getKingIndex(Side side) {
@@ -192,6 +165,7 @@ enum class PieceIndex : int {
 
 struct Move {
     PieceIndex pieceToMove = PieceIndex::Invalid;
+    BoardPosition from     = BoardPosition::Invalid;
     BoardPosition to       = BoardPosition::Invalid;
     MoveFlags flags        = MoveFlags::None;
 
@@ -255,18 +229,17 @@ class GameState {
     };
 
     struct PieceInfo {
-        // TODO: store coloredPiece implicitly using the index?
         ColoredPiece coloredPiece = ColoredPiece::None;
         bool captured             = true;
         BoardPosition position    = BoardPosition::Invalid;
         // 5 unused bytes... :(
 
-        // Controlled squares are squares that the piece attacks or defends (including empty squares)
+        // Controlled squares are squares that the piece attacks or defends (including empty squares).
+        // But does not include the square the piece is on.
         BitBoard controlledSquares = BitBoard::Empty;
     };
 
     struct UnmakeMoveInfo {
-        BoardPosition from                 = BoardPosition::Invalid;
         BoardPosition enPassantTarget      = BoardPosition::Invalid;
         CastlingRights castlingRights      = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
@@ -294,6 +267,7 @@ class GameState {
     [[nodiscard]] const std::array<PieceInfo, kNumTotalPieces>& getPieces() const {
         return pieces_;
     }
+    [[nodiscard]] BitBoard getPawnBitBoard(Side side) const { return pawnBitBoards_[(int)side]; }
 
     [[nodiscard]] Side getSideToMove() const { return sideToMove_; }
 
@@ -341,7 +315,8 @@ class GameState {
 
     void makeCastleMove(const Move& move, bool reverse = false);
     [[nodiscard]] PieceIndex makeSinglePieceMove(const Move& move);
-    void handlePawnMove(const Move& move, BoardPosition moveFrom, ColoredPiece& pieceToMove);
+    //[[nodiscard]] PieceIndex makePawnMove(const Move& move);
+    void handlePawnMove(const Move& move);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
@@ -357,8 +332,11 @@ class GameState {
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
-    // TODO: it might be faster to use a bitboard for storing pawn positions
+    std::array<std::uint8_t, kNumSides> numNonPawns_ = {};
+    // TODO: store all pieces using bitboards?
     std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
+
+    std::array<BitBoard, kNumSides> pawnBitBoards_ = {};
 
     PieceOccupancyBitBoards occupancy_ = {};
 };
@@ -367,3 +345,10 @@ Move moveFromAlgebraic(std::string_view algebraic,
                        const GameState& gameState);  // TODO
 
 std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
+
+[[nodiscard]] constexpr std::string moveToStringSimple(const Move& move) {
+    const Piece promotionPiece = getPromotionPiece(move.flags);
+    std::string promotionString =
+            promotionPiece == Piece::None ? "" : pieceToString(promotionPiece);
+    return algebraicFromPosition(move.from) + algebraicFromPosition(move.to) + promotionString;
+}
