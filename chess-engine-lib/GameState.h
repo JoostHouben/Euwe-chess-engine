@@ -233,7 +233,7 @@ template <typename... BitBoardTs>
     return (BitBoard)((std::uint64_t)lhs & ~(std::uint64_t)rhs);
 }
 
-struct PieceOccupationBitBoards {
+struct PieceOccupancyBitBoards {
     BitBoard ownPiece   = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;
 };
@@ -360,7 +360,7 @@ class GameState {
     // TODO: it might be faster to use a bitboard for storing pawn positions
     std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
 
-    PieceOccupationBitBoards occupation_ = {};
+    PieceOccupancyBitBoards occupancy_ = {};
 };
 
 Move moveFromAlgebraic(std::string_view algebraic,

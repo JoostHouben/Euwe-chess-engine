@@ -300,20 +300,20 @@ void enPassantTargetToFen(BoardPosition enPassantTarget, std::ostream& out) {
     }
 }
 
-PieceOccupationBitBoards getPieceOccupationBitBoards(
+PieceOccupancyBitBoards getPieceOccupancyBitBoards(
         const std::array<GameState::PieceInfo, kNumTotalPieces>& pieces, const Side ownSide) {
-    PieceOccupationBitBoards occupation;
+    PieceOccupancyBitBoards occupancy;
     for (const auto& pieceInfo : pieces) {
         if (pieceInfo.captured) {
             continue;
         }
         if (getSide(pieceInfo.coloredPiece) == ownSide) {
-            set(occupation.ownPiece, pieceInfo.position);
+            set(occupancy.ownPiece, pieceInfo.position);
         } else {
-            set(occupation.enemyPiece, pieceInfo.position);
+            set(occupancy.enemyPiece, pieceInfo.position);
         }
     }
-    return occupation;
+    return occupancy;
 }
 
 }  // namespace
@@ -347,7 +347,7 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     MY_ASSERT(strIt < fenString.end());
 
-    gameState.occupation_ = getPieceOccupationBitBoards(gameState.pieces_, gameState.sideToMove_);
+    gameState.occupancy_ = getPieceOccupancyBitBoards(gameState.pieces_, gameState.sideToMove_);
     for (auto& pieceInfo : gameState.pieces_) {
         if (pieceInfo.captured) {
             continue;

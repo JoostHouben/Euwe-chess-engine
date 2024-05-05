@@ -53,7 +53,7 @@ struct PawnTargetSquaresPerOrigin {
 PawnTargetSquaresPerOrigin generatePawnTargetSquares(
         const BitBoard pawnBitBoard,
         const Side side,
-        const PieceOccupationBitBoards& occupation,
+        const PieceOccupancyBitBoards& occupancy,
         const BoardPosition enPassantTarget,
         const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinBitBoards,
         const BitBoard pinBitBoard,
@@ -73,8 +73,8 @@ PawnTargetSquaresPerOrigin generatePawnTargetSquares(
         return (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) << 1);
     };
 
-    const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
-    BitBoard captureTargets = occupation.enemyPiece;
+    const BitBoard anyPiece = any(occupancy.ownPiece, occupancy.enemyPiece);
+    BitBoard captureTargets = occupancy.enemyPiece;
     if (enPassantTarget != BoardPosition::Invalid) {
         set(captureTargets, enPassantTarget);
     }
@@ -470,7 +470,7 @@ void generateCastlingMoves(
         const Side sideToMove,
         const bool canCastleKingSide,
         const bool canCastleQueenSide,
-        const PieceOccupationBitBoards& occupation,
+        const PieceOccupancyBitBoards& occupancy,
         const BitBoard enemyControlledSquares,
         StackVector<Move>& moves) {
     MY_ASSERT(sideToMove == Side::White || sideToMove == Side::Black);
@@ -479,7 +479,7 @@ void generateCastlingMoves(
             sideToMove == Side::White ? positionFromAlgebraic("e1") : positionFromAlgebraic("e8");
     const PieceIndex kingIndex = getKingIndex(sideToMove);
 
-    const BitBoard anyPiece = any(occupation.ownPiece, occupation.enemyPiece);
+    const BitBoard anyPiece = any(occupancy.ownPiece, occupancy.enemyPiece);
 
     const bool inCheck = isSet(enemyControlledSquares, kingPosition);
     if (inCheck) {
@@ -537,17 +537,17 @@ void generateCastlingMoves(
 void generateSinglePieceMovesFromControl(
         const PieceIndex pieceToMove,
         BitBoard controlledSquares,
-        const PieceOccupationBitBoards& occupation,
+        const PieceOccupancyBitBoards& occupancy,
         const BitBoard piecePinBitBoard,
         StackVector<Move>& moves) {
     // Can't move to our own pieces
-    controlledSquares = subtract(controlledSquares, occupation.ownPiece);
+    controlledSquares = subtract(controlledSquares, occupancy.ownPiece);
 
     // Pinned pieces can only move along the pin direction
     controlledSquares = intersection(controlledSquares, piecePinBitBoard);
 
-    BitBoard captures    = intersection(controlledSquares, occupation.enemyPiece);
-    BitBoard nonCaptures = subtract(controlledSquares, occupation.enemyPiece);
+    BitBoard captures    = intersection(controlledSquares, occupancy.enemyPiece);
+    BitBoard nonCaptures = subtract(controlledSquares, occupancy.enemyPiece);
 
     while (captures != BitBoard::Empty) {
         const BoardPosition capturePosition =
@@ -652,7 +652,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
         set(pawnBitBoard, pawnInfo.position);
     }
     const PawnTargetSquaresPerOrigin pawnTargetSquaresPerOrigin = generatePawnTargetSquares(
-            pawnBitBoard, sideToMove_, occupation_, enPassantTarget, pinBitBoards, pinBitBoard);
+            pawnBitBoard, sideToMove_, occupancy_, enPassantTarget, pinBitBoards, pinBitBoard);
     generateMovesFromPawnTargetSquares(
             pawnTargetSquaresPerOrigin, pieces_, sideToMove_, enPassantTarget, moves);
 
@@ -668,7 +668,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
         generateSinglePieceMovesFromControl(
                 (PieceIndex)pieceIdx,
                 pieceInfo.controlledSquares,
-                occupation_,
+                occupancy_,
                 piecePinBitBoard,
                 moves);
     }
@@ -683,7 +683,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
     generateSinglePieceMovesFromControl(
             kingIndex,
             kingControlledSquares,
-            occupation_,
+            occupancy_,
             /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */,
             moves);
 
@@ -692,7 +692,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             sideToMove_,
             canCastleKingSide(sideToMove_),
             canCastleQueenSide(sideToMove_),
-            occupation_,
+            occupancy_,
             enemyControlledSquares,
             moves);
 
@@ -750,7 +750,7 @@ StackVector<Move> GameState::generateMovesInCheck(
     generateSinglePieceMovesFromControl(
             kingIndex,
             kingControlledSquares,
-            occupation_,
+            occupancy_,
             /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */,
             moves);
 
@@ -808,7 +808,7 @@ StackVector<Move> GameState::generateMovesInCheck(
     PawnTargetSquaresPerOrigin pawnTargetSquaresPerOrigin = generatePawnTargetSquares(
             pawnBitBoard,
             sideToMove_,
-            occupation_,
+            occupancy_,
             enPassantTarget,
             unusedPiecePinBitBoards,
             BitBoard::Empty,
@@ -833,7 +833,7 @@ StackVector<Move> GameState::generateMovesInCheck(
         generateSinglePieceMovesFromControl(
                 (PieceIndex)pieceIdx,
                 pieceInfo.controlledSquares,
-                occupation_,
+                occupancy_,
                 /*piecePinBitBoard =*/blockOrCaptureBitBoard,
                 moves);
     }
@@ -867,7 +867,7 @@ GameState::UnmakeMoveInfo GameState::makeNullMove() {
     sideToMove_      = nextSide(sideToMove_);
     enPassantTarget_ = BoardPosition::Invalid;
     // Do not increment plySinceCaptureOrPawn_
-    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+    std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     return unmakeInfo;
 }
@@ -877,7 +877,7 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     enPassantTarget_       = unmakeMoveInfo.enPassantTarget;
     castlingRights_        = unmakeMoveInfo.castlingRights;
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
-    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+    std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
@@ -891,7 +891,7 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
     enPassantTarget_       = unmakeMoveInfo.enPassantTarget;
     castlingRights_        = unmakeMoveInfo.castlingRights;
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
-    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+    std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {
@@ -917,11 +917,11 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
         std::swap(kingFromPosition, kingToPosition);
     }
 
-    clear(occupation_.ownPiece, kingFromPosition);
-    set(occupation_.ownPiece, kingToPosition);
+    clear(occupancy_.ownPiece, kingFromPosition);
+    set(occupancy_.ownPiece, kingToPosition);
 
-    clear(occupation_.ownPiece, rookFromPosition);
-    set(occupation_.ownPiece, rookToPosition);
+    clear(occupancy_.ownPiece, rookFromPosition);
+    set(occupancy_.ownPiece, rookToPosition);
 
     const PieceIndex kingIdx = getKingIndex(sideToMove_);
     PieceInfo& kingPieceInfo = getPieceInfo(kingIdx);
@@ -965,7 +965,7 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
         sideToMove_      = nextSide(sideToMove_);
         enPassantTarget_ = BoardPosition::Invalid;
         ++plySinceCaptureOrPawn_;
-        std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+        std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
     }
 }
 
@@ -989,8 +989,8 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
 
     bool isCaptureOrPawnMove = isCapture(move.flags);
 
-    clear(occupation_.ownPiece, moveFrom);
-    set(occupation_.ownPiece, move.to);
+    clear(occupancy_.ownPiece, moveFrom);
+    set(occupancy_.ownPiece, move.to);
 
     MY_ASSERT(getSide(movedPieceInfo.coloredPiece) == sideToMove_);
     {
@@ -1029,7 +1029,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
             updateRookCastlingRights(captureTargetSquare, getSide(capturedPieceInfo.coloredPiece));
         }
         capturedPieceInfo.captured = true;
-        clear(occupation_.enemyPiece, captureTargetSquare);
+        clear(occupancy_.enemyPiece, captureTargetSquare);
     }
 
     std::array<BoardPosition, 4> affectedSquares{};
@@ -1051,17 +1051,17 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
     }
 
     sideToMove_ = nextSide(sideToMove_);
-    std::swap(occupation_.ownPiece, occupation_.enemyPiece);
+    std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     return capturedPieceIndex;
 }
 
 void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo) {
-    set(occupation_.ownPiece, unmakeMoveInfo.from);
-    clear(occupation_.ownPiece, move.to);
+    set(occupancy_.ownPiece, unmakeMoveInfo.from);
+    clear(occupancy_.ownPiece, move.to);
     if (isCapture(move.flags)) {
         MY_ASSERT(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
-        set(occupation_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
+        set(occupancy_.enemyPiece, getPieceInfo(unmakeMoveInfo.capturedPieceIndex).position);
     }
 
     const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_;
@@ -1144,9 +1144,9 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
     std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards{};
     const PieceInfo& kingPieceInfo = getPieceInfo(getKingIndex(kingSide));
     const BitBoard kingSideOccupancy =
-            sideToMove_ == kingSide ? occupation_.ownPiece : occupation_.enemyPiece;
+            sideToMove_ == kingSide ? occupancy_.ownPiece : occupancy_.enemyPiece;
     const BitBoard pinningSideOccupancy =
-            sideToMove_ == kingSide ? occupation_.enemyPiece : occupation_.ownPiece;
+            sideToMove_ == kingSide ? occupancy_.enemyPiece : occupancy_.ownPiece;
 
     const int enemyPieceStartIdx =
             kingSide == Side::Black ? (int)PieceIndex::WhitePieces : (int)PieceIndex::BlackPieces;
@@ -1344,7 +1344,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
         set(affectedSquaresBitBoard, affectedSquares[i]);
     }
 
-    const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
+    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     for (auto& pieceInfo : pieces_) {
         if (pieceInfo.captured) {
@@ -1395,7 +1395,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
 
 void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
     pieceInfo.controlledSquares = computePieceControlledSquares(
-            pieceInfo, any(occupation_.ownPiece, occupation_.enemyPiece));
+            pieceInfo, any(occupancy_.ownPiece, occupancy_.enemyPiece));
 }
 
 BitBoard GameState::getEnemyControlledSquares() const {
