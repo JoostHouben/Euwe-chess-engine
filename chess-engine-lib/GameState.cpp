@@ -751,11 +751,13 @@ StackVector<Move> GameState::generateMovesInCheck(
     if (checkingPieceIndex != PieceIndex::Invalid) {
         kingAttackBitBoard =
                 piecePinOrKingAttackBitBoards[(int)checkingPieceIndex - enemyPieceStartIdx];
+        clear(kingAttackBitBoard, getPieceInfo(checkingPieceIndex).position);
         if (secondCheckingPieceIndex != PieceIndex::Invalid) {
             kingAttackBitBoard =
                     any(kingAttackBitBoard,
                         piecePinOrKingAttackBitBoards
                                 [(int)secondCheckingPieceIndex - enemyPieceStartIdx]);
+            clear(kingAttackBitBoard, getPieceInfo(secondCheckingPieceIndex).position);
         }
     }
 
@@ -1217,10 +1219,7 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
 
     std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards{};
     const PieceInfo& kingPieceInfo = getPieceInfo(getKingIndex(kingSide));
-    const BitBoard kingSideOccupancy =
-            sideToMove_ == kingSide ? occupancy_.ownPiece : occupancy_.enemyPiece;
-    const BitBoard pinningSideOccupancy =
-            sideToMove_ == kingSide ? occupancy_.enemyPiece : occupancy_.ownPiece;
+    const BitBoard anyPiece        = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     const int enemyPieceStartIdx = (int)nextSide(kingSide) * kNumPiecesPerSide + 1;  // skip king
     const int enemyPieceEndIdx   = enemyPieceStartIdx + numNonPawns_[(int)nextSide(kingSide)] - 1;
@@ -1248,10 +1247,10 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
         }
 
         auto [file, rank]        = fileRankFromPosition(pinningPieceInfo.position);
-        int numKingSidePieces    = 0;
-        bool pinningSidePieces   = false;
+        int numPieces            = 0;
         bool reachedKing         = false;
         BitBoard pinningBitBoard = BitBoard::Empty;
+        set(pinningBitBoard, pinningPieceInfo.position);
         while (true) {
             file += deltaFile;
             rank += deltaRank;
@@ -1262,43 +1261,20 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
 
             const BoardPosition position = positionFromFileRank(file, rank);
 
-            if (reachedKing) {
-                // This is the x-ray square behind the king. Mark it and stop.
-                set(pinningBitBoard, position);
-                break;
-            }
+            set(pinningBitBoard, position);
 
             if (position == kingPieceInfo.position) {
                 reachedKing = true;
-                if (numKingSidePieces > 0) {
-                    // We've seen a king side piece, so this is a pin. Stop.
-                    break;
-                }
-                // Otherwise, this is a king attack. Continue to mark the 'x-ray' square behind the king.
-                continue;
             }
 
-            if (isSet(pinningSideOccupancy, position)) {
-                // We haven't reached the king yet, this piece blocks the pin.
-                pinningSidePieces = true;
-                break;
-            }
-
-            if (isSet(kingSideOccupancy, position)) {
-                ++numKingSidePieces;
-                if (numKingSidePieces > 1) {
-                    // If there's more than one king side piece, this can't be a pin, so stop.
+            if (isSet(anyPiece, position)) {
+                ++numPieces;
+                if (numPieces == 2) {
                     break;
                 }
             }
-
-            set(pinningBitBoard, position);
         }
-        if (reachedKing && numKingSidePieces <= 1 && !pinningSidePieces) {
-            if (numKingSidePieces != 0) {
-                // This is a pin; mark the pinning piece square to allow captures of it.
-                set(pinningBitBoard, pinningPieceInfo.position);
-            }
+        if (reachedKing) {
             piecePinOrKingAttackBitBoards[pinIdx] = pinningBitBoard;
         }
     }
