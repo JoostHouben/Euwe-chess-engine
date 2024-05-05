@@ -140,9 +140,8 @@ void generatePawnMoves(
     generateMoves(rightCaptures, forwardBits + rightBits, MoveFlags::IsCapture);
 }
 
-// TODO: this can be pre-calculated easily
-BitBoard computeKnightControlledSquares(const BoardPosition origin) {
-    static constexpr std::array kFileRankDsts = {std::pair{1, 2}, std::pair{2, 1}};
+constexpr BitBoard computeKnightControlledSquares(const BoardPosition origin) {
+    constexpr std::array kFileRankDsts = {std::pair{1, 2}, std::pair{2, 1}};
 
     const auto [file, rank]    = fileRankFromPosition(origin);
     BitBoard controlledSquares = BitBoard::Empty;
@@ -162,6 +161,17 @@ BitBoard computeKnightControlledSquares(const BoardPosition origin) {
     }
     return controlledSquares;
 }
+
+constexpr std::array<BitBoard, kSquares> getKnightControlledSquaresArray() {
+    std::array<BitBoard, kSquares> knightControlledSquares = {};
+    for (int square = 0; square < kSquares; ++square) {
+        knightControlledSquares[square] = computeKnightControlledSquares((BoardPosition)square);
+    }
+    return knightControlledSquares;
+}
+
+constexpr std::array<BitBoard, kSquares> kKnightControlledSquares =
+        getKnightControlledSquaresArray();
 
 template <int N>
 constexpr std::uint64_t shift(const std::uint64_t x) {
@@ -382,8 +392,7 @@ BitBoard computeQueenControlledSquares(const BoardPosition origin, const BitBoar
     return any(bishopControlledSquares, rookControlledSquares);
 }
 
-// TODO: this can be pre-calculated easily
-BitBoard computeKingControlledSquares(const BoardPosition origin) {
+constexpr BitBoard computeKingControlledSquares(const BoardPosition origin) {
     const auto [file, rank] = fileRankFromPosition(origin);
 
     BitBoard controlledSquares = BitBoard::Empty;
@@ -403,6 +412,16 @@ BitBoard computeKingControlledSquares(const BoardPosition origin) {
     return controlledSquares;
 }
 
+constexpr std::array<BitBoard, kSquares> getKingControlledSquaresArray() {
+    std::array<BitBoard, kSquares> kingControlledSquares = {};
+    for (int square = 0; square < kSquares; ++square) {
+        kingControlledSquares[square] = computeKingControlledSquares((BoardPosition)square);
+    }
+    return kingControlledSquares;
+}
+
+constexpr std::array<BitBoard, kSquares> kKingControlledSquares = getKingControlledSquaresArray();
+
 BitBoard computePieceControlledSquares(
         const GameState::PieceInfo& pieceInfo, const BitBoard anyPiece) {
     switch (getPiece(pieceInfo.coloredPiece)) {
@@ -413,7 +432,7 @@ BitBoard computePieceControlledSquares(
             return computePawnControlledSquares(pawnBitBoard, side);
         }
         case Piece::Knight:
-            return computeKnightControlledSquares(pieceInfo.position);
+            return kKnightControlledSquares[(int)pieceInfo.position];
         case Piece::Bishop:
             return computeBishopControlledSquares(pieceInfo.position, anyPiece);
         case Piece::Rook:
@@ -421,7 +440,7 @@ BitBoard computePieceControlledSquares(
         case Piece::Queen:
             return computeQueenControlledSquares(pieceInfo.position, anyPiece);
         case Piece::King:
-            return computeKingControlledSquares(pieceInfo.position);
+            return kKingControlledSquares[(int)pieceInfo.position];
         default:
             UNREACHABLE;
     }
