@@ -14,11 +14,9 @@ constexpr std::array kSigns = {+1, -1};
 static constexpr std::array kPromotionPieces = {
         Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
 
-constexpr std::uint64_t notWestFileMask   = ~0x0101010101010101ULL;
-constexpr std::uint64_t notEastFileMask   = ~0x8080808080808080ULL;
-constexpr std::uint64_t notBottomRankMask = ~0xffULL;
-constexpr std::uint64_t notTopRankMask    = ~0xff00000000000000ULL;
-constexpr std::uint64_t allMask           = ~0ULL;
+constexpr std::uint64_t notWestFileMask = ~0x0101010101010101ULL;
+constexpr std::uint64_t notEastFileMask = ~0x8080808080808080ULL;
+constexpr std::uint64_t allMask         = ~0ULL;
 
 BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side side) {
     auto forwardShift = [=](const BitBoard bitBoard) {
@@ -239,6 +237,148 @@ constexpr std::uint64_t fillRayWithMask(std::uint64_t seed, std::uint64_t blocke
     result |= shift<N>(seed) & blockerMask;
 
     return shift<N>(result) & directionMask;
+}
+
+template <int N, std::uint64_t directionMask>
+constexpr std::array<std::uint64_t, kSquares> getFullRays() {
+    std::array<std::uint64_t, kSquares> rays = {};
+
+    for (int file = 0; file < kFiles; ++file) {
+        for (int rank = 0; rank < kRanks; ++rank) {
+            const BoardPosition position = positionFromFileRank(file, rank);
+            rays[(int)position] = fillRayWithMask<N, directionMask>(1ULL << (int)position, allMask);
+        }
+    }
+
+    return rays;
+}
+
+static constexpr int kNorth = 8;
+static constexpr int kEast  = 1;
+static constexpr int kSouth = -8;
+static constexpr int kWest  = -1;
+
+static constexpr int kNorthEast = kNorth + kEast;
+static constexpr int kSouthEast = kSouth + kEast;
+static constexpr int kSouthWest = kSouth + kWest;
+static constexpr int kNorthWest = kNorth + kWest;
+
+constexpr std::array<std::uint64_t, kSquares> fullNRays = getFullRays<kNorth, allMask>();
+constexpr std::array<std::uint64_t, kSquares> fullERays = getFullRays<kEast, notWestFileMask>();
+constexpr std::array<std::uint64_t, kSquares> fullSRays = getFullRays<kSouth, allMask>();
+constexpr std::array<std::uint64_t, kSquares> fullWRays = getFullRays<kWest, notEastFileMask>();
+
+constexpr std::array<std::uint64_t, kSquares> fullNERays =
+        getFullRays<kNorthEast, notWestFileMask>();
+constexpr std::array<std::uint64_t, kSquares> fullSERays =
+        getFullRays<kSouthEast, notWestFileMask>();
+constexpr std::array<std::uint64_t, kSquares> fullSWRays =
+        getFullRays<kSouthWest, notEastFileMask>();
+constexpr std::array<std::uint64_t, kSquares> fullNWRays =
+        getFullRays<kNorthWest, notEastFileMask>();
+
+constexpr std::uint64_t getFullRay(
+        const BoardPosition position, const int fileIncrement, const int rankIncrement) {
+    switch (fileIncrement) {
+        // West
+        case -1: {
+            switch (rankIncrement) {
+                case -1:
+                    return fullSWRays[(int)position];
+                case 0:
+                    return fullWRays[(int)position];
+                case 1:
+                    return fullNWRays[(int)position];
+                default:
+                    UNREACHABLE;
+            }
+        }
+        // North/South
+        case 0: {
+            switch (rankIncrement) {
+                case -1:
+                    return fullSRays[(int)position];
+                case 1:
+                    return fullNRays[(int)position];
+                default:
+                    // Stationary: not allowed
+                    UNREACHABLE;
+            }
+        }
+        // East
+        case 1: {
+            switch (rankIncrement) {
+                case -1:
+                    return fullSERays[(int)position];
+                case 0:
+                    return fullERays[(int)position];
+                case 1:
+                    return fullNERays[(int)position];
+                default:
+                    UNREACHABLE;
+            }
+        }
+        default:
+            UNREACHABLE;
+    }
+}
+
+constexpr std::uint64_t getFillRay(
+        const BoardPosition origin,
+        const BitBoard anyPiece,
+        const int fileIncrement,
+        const int rankIncrement) {
+    const std::uint64_t originBitBoard    = 1ULL << (int)origin;
+    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece);
+
+    switch (fileIncrement) {
+        // West
+        case -1: {
+            switch (rankIncrement) {
+                case -1:
+                    return fillRayWithMask<kSouthWest, notEastFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                case 0:
+                    return fillRayWithMask<kWest, notEastFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                case 1:
+                    return fillRayWithMask<kNorthWest, notEastFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                default:
+                    UNREACHABLE;
+            }
+        }
+        // North/South
+        case 0: {
+            switch (rankIncrement) {
+                case -1:
+                    return fillRayNoMask<kSouth>(originBitBoard, notOtherPieceMask);
+                case 1:
+                    return fillRayNoMask<kNorth>(originBitBoard, notOtherPieceMask);
+                default:
+                    // Stationary: not allowed
+                    UNREACHABLE;
+            }
+        }
+        // East
+        case 1: {
+            switch (rankIncrement) {
+                case -1:
+                    return fillRayWithMask<kSouthEast, notWestFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                case 0:
+                    return fillRayWithMask<kEast, notWestFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                case 1:
+                    return fillRayWithMask<kNorthEast, notWestFileMask>(
+                            originBitBoard, notOtherPieceMask);
+                default:
+                    UNREACHABLE;
+            }
+        }
+        default:
+            UNREACHABLE;
+    }
 }
 
 BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
@@ -1204,6 +1344,8 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
         set(affectedSquaresBitBoard, affectedSquares[i]);
     }
 
+    const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
+
     for (auto& pieceInfo : pieces_) {
         if (pieceInfo.captured) {
             continue;
@@ -1211,7 +1353,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
 
         const Piece piece = getPiece(pieceInfo.coloredPiece);
         const bool controlledSquaresAffected =
-                piece != Piece::Pawn && piece != Piece::King && piece != Piece::Knight &&
+                isPinningPiece(piece) &&
                 (bool)intersection(affectedSquaresBitBoard, pieceInfo.controlledSquares);
         if (!controlledSquaresAffected) {
             continue;
@@ -1223,60 +1365,29 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
                 continue;
             }
 
-            int deltaFile;
-            int deltaRank;
+            int fileIncrement;
+            int rankIncrement;
             const bool deltaFileRankOk = getFileRankIncrement(
                     getPiece(pieceInfo.coloredPiece),
                     pieceInfo.position,
                     affectedSquare,
-                    deltaFile,
-                    deltaRank);
+                    fileIncrement,
+                    rankIncrement);
             MY_ASSERT(deltaFileRankOk);
-
-            const BitBoard anyPiece = any(occupation_.ownPiece, occupation_.enemyPiece);
 
             const bool isOccupied = isSet(anyPiece, affectedSquare);
 
-            auto [affectedFile, affectedRank] = fileRankFromPosition(affectedSquare);
-
             if (isOccupied) {
-                int file = affectedFile + deltaFile;
-                int rank = affectedRank + deltaRank;
-                // Affected square is now occupied, but wasn't before.
-                // Clear controlled squares starting from the square after the affected square.
-                // We stop when we reach a square that was already marked not controlled.
-                while (true) {
-                    if (file < 0 || file > 7 || rank < 0 || rank > 7) {
-                        break;
-                    }
-                    if (!isSet(pieceInfo.controlledSquares, positionFromFileRank(file, rank))) {
-                        break;
-                    }
-                    clear(pieceInfo.controlledSquares, positionFromFileRank(file, rank));
-
-                    file += deltaFile;
-                    rank += deltaRank;
-                }
+                // Clear what's behind the affected square from the controlledSquares
+                const std::uint64_t fullRayBehind =
+                        getFullRay(affectedSquare, fileIncrement, rankIncrement);
+                pieceInfo.controlledSquares =
+                        subtract(pieceInfo.controlledSquares, (BitBoard)fullRayBehind);
             } else {
-                int file = affectedFile;
-                int rank = affectedRank;
-                // Affected square is now unoccupied, but wasn't before.
-                // Set controlled squares starting from the affected square.
-                // We stop after reaching a square that is occupied.
-                while (true) {
-                    set(pieceInfo.controlledSquares, positionFromFileRank(file, rank));
-
-                    if (isSet(anyPiece, positionFromFileRank(file, rank))) {
-                        break;
-                    }
-
-                    file += deltaFile;
-                    rank += deltaRank;
-
-                    if (file < 0 || file > 7 || rank < 0 || rank > 7) {
-                        break;
-                    }
-                }
+                // Recalculate the ray from the piece in the direction of the affected square
+                const std::uint64_t ray =
+                        getFillRay(pieceInfo.position, anyPiece, fileIncrement, rankIncrement);
+                pieceInfo.controlledSquares = any(pieceInfo.controlledSquares, (BitBoard)ray);
             }
         }
     }
