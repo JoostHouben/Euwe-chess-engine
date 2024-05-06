@@ -213,14 +213,17 @@ constexpr std::uint64_t fillRayWithMask(std::uint64_t seed, std::uint64_t blocke
     return shift<N>(result) & directionMask;
 }
 
+// NB: includes the origin square
 template <int N, std::uint64_t directionMask>
 constexpr std::array<std::uint64_t, kSquares> getFullRays() {
     std::array<std::uint64_t, kSquares> rays = {};
 
     for (int file = 0; file < kFiles; ++file) {
         for (int rank = 0; rank < kRanks; ++rank) {
-            const BoardPosition position = positionFromFileRank(file, rank);
-            rays[(int)position] = fillRayWithMask<N, directionMask>(1ULL << (int)position, allMask);
+            const BoardPosition position    = positionFromFileRank(file, rank);
+            const std::uint64_t positionBit = 1ULL << (int)position;
+            rays[(int)position] = fillRayWithMask<N, directionMask>(positionBit, allMask);
+            rays[(int)position] |= positionBit;
         }
     }
 
@@ -237,64 +240,35 @@ static constexpr int kSouthEast = kSouth + kEast;
 static constexpr int kSouthWest = kSouth + kWest;
 static constexpr int kNorthWest = kNorth + kWest;
 
-constexpr std::array<std::uint64_t, kSquares> fullNRays = getFullRays<kNorth, allMask>();
-constexpr std::array<std::uint64_t, kSquares> fullERays = getFullRays<kEast, notWestFileMask>();
-constexpr std::array<std::uint64_t, kSquares> fullSRays = getFullRays<kSouth, allMask>();
-constexpr std::array<std::uint64_t, kSquares> fullWRays = getFullRays<kWest, notEastFileMask>();
-
-constexpr std::array<std::uint64_t, kSquares> fullNERays =
-        getFullRays<kNorthEast, notWestFileMask>();
-constexpr std::array<std::uint64_t, kSquares> fullSERays =
-        getFullRays<kSouthEast, notWestFileMask>();
-constexpr std::array<std::uint64_t, kSquares> fullSWRays =
-        getFullRays<kSouthWest, notEastFileMask>();
-constexpr std::array<std::uint64_t, kSquares> fullNWRays =
-        getFullRays<kNorthWest, notEastFileMask>();
+constexpr std::array<std::array<std::array<std::uint64_t, kSquares>, 3>, 3> kFullRays = {
+        // file -1 (west)
+        std::array<std::array<std::uint64_t, kSquares>, 3>{
+                // rank -1 (south west)
+                std::array<std::uint64_t, kSquares>{getFullRays<kSouthWest, notEastFileMask>()},
+                // rank 0 (west)
+                std::array<std::uint64_t, kSquares>{getFullRays<kWest, notEastFileMask>()},
+                // rank 1 (north west)
+                std::array<std::uint64_t, kSquares>{getFullRays<kNorthWest, notEastFileMask>()}},
+        // file 0
+        std::array<std::array<std::uint64_t, kSquares>, 3>{
+                // rank -1 (south)
+                std::array<std::uint64_t, kSquares>{getFullRays<kSouth, allMask>()},
+                // rank 0 (stationary)
+                std::array<std::uint64_t, kSquares>{},
+                // rank 1 (north)
+                std::array<std::uint64_t, kSquares>{getFullRays<kNorth, allMask>()}},
+        // file 1 (east)
+        std::array<std::array<std::uint64_t, kSquares>, 3>{
+                // rank -1 (south east)
+                std::array<std::uint64_t, kSquares>{getFullRays<kSouthEast, notWestFileMask>()},
+                // rank 0 (east)
+                std::array<std::uint64_t, kSquares>{getFullRays<kEast, notWestFileMask>()},
+                // rank 1 (north east)
+                std::array<std::uint64_t, kSquares>{getFullRays<kNorthEast, notWestFileMask>()}}};
 
 constexpr std::uint64_t getFullRay(
         const BoardPosition position, const int fileIncrement, const int rankIncrement) {
-    switch (fileIncrement) {
-        // West
-        case -1: {
-            switch (rankIncrement) {
-                case -1:
-                    return fullSWRays[(int)position];
-                case 0:
-                    return fullWRays[(int)position];
-                case 1:
-                    return fullNWRays[(int)position];
-                default:
-                    UNREACHABLE;
-            }
-        }
-        // North/South
-        case 0: {
-            switch (rankIncrement) {
-                case -1:
-                    return fullSRays[(int)position];
-                case 1:
-                    return fullNRays[(int)position];
-                default:
-                    // Stationary: not allowed
-                    UNREACHABLE;
-            }
-        }
-        // East
-        case 1: {
-            switch (rankIncrement) {
-                case -1:
-                    return fullSERays[(int)position];
-                case 0:
-                    return fullERays[(int)position];
-                case 1:
-                    return fullNERays[(int)position];
-                default:
-                    UNREACHABLE;
-            }
-        }
-        default:
-            UNREACHABLE;
-    }
+    return kFullRays[fileIncrement + 1][rankIncrement + 1][(int)position];
 }
 
 constexpr std::uint64_t computeFillRay(
@@ -373,6 +347,8 @@ BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoa
 }
 
 BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
+    clear(anyPiece, origin);
+
     const std::uint64_t northEastOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 1, 1);
     const std::uint64_t southEastOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 1, -1);
     const std::uint64_t southWestOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, -1, -1);
@@ -400,7 +376,9 @@ BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece)
     const std::uint64_t northWestXRay =
             fillRayWithMask<7, notEastFileMask>(originBitBoard, notBlockingPieceMask);
 
-    return (BitBoard)(northEastXRay | southEastXRay | southWestXRay | northWestXRay);
+    const std::uint64_t originBit = 1ULL << (int)origin;
+
+    return (BitBoard)(northEastXRay | southEastXRay | southWestXRay | northWestXRay | originBit);
 }
 
 BitBoard computeRookControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
@@ -421,6 +399,8 @@ BitBoard computeRookControlledSquares(const BoardPosition origin, const BitBoard
 }
 
 BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
+    clear(anyPiece, origin);
+
     const std::uint64_t northOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 0, 1);
     const std::uint64_t eastOccupancy  = (std::uint64_t)anyPiece & getFullRay(origin, 1, 0);
     const std::uint64_t southOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 0, -1);
@@ -446,7 +426,9 @@ BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
     const std::uint64_t westXRay =
             fillRayWithMask<-1, notEastFileMask>(originBitBoard, notBlockingPieceMask);
 
-    return (BitBoard)(northXRay | eastXRay | southXRay | westXRay);
+    const std::uint64_t originBit = 1ULL << (int)origin;
+
+    return (BitBoard)(northXRay | eastXRay | southXRay | westXRay | originBit);
 }
 
 BitBoard computeQueenControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
@@ -624,16 +606,16 @@ constexpr int kNumBishopAttackEntries =
 struct PackedRookAttacks {
     std::array<std::uint16_t, kNumRookAttackEntries> attacks;
     std::array<std::uint16_t*, kSquares> entries;
+    std::array<std::uint64_t, kSquares> depositMasks;
 };
-std::array<std::uint64_t, kSquares> gRookLookupExtractMasks;
-std::array<std::uint64_t, kSquares> gRookAttackDepositMasks;
+std::array<std::uint64_t, kSquares> gRookLookupExtractMasks;  // NB: shared for x-rays and attacks
 
 struct PackedBishopAttacks {
     std::array<std::uint16_t, kNumBishopAttackEntries> attacks;
     std::array<std::uint16_t*, kSquares> entries;
+    std::array<std::uint64_t, kSquares> depositMasks;
 };
-std::array<std::uint64_t, kSquares> gBishopLookupExtractMasks;
-std::array<std::uint64_t, kSquares> gBishopAttackDepositMasks;
+std::array<std::uint64_t, kSquares> gBishopLookupExtractMasks;  // NB: shared for x-rays and attacks
 
 PackedRookAttacks gPackedRookAttacks;
 PackedRookAttacks gPackedRookXRays;
@@ -648,14 +630,15 @@ int calculatePackedRookAttacks() {
         const BoardPosition position = (BoardPosition)square;
         const auto [file, rank]      = fileRankFromPosition(position);
 
-        const std::uint64_t north = fullNRays[square];
-        const std::uint64_t east  = fullERays[square];
-        const std::uint64_t south = fullSRays[square];
-        const std::uint64_t west  = fullWRays[square];
+        const std::uint64_t north = getFullRay(position, 0, 1);
+        const std::uint64_t east  = getFullRay(position, 1, 0);
+        const std::uint64_t south = getFullRay(position, 0, -1);
+        const std::uint64_t west  = getFullRay(position, -1, 0);
 
-        const std::uint64_t fullSight = north | east | south | west;
+        const std::uint64_t squareBit = 1ULL << square;
+        const std::uint64_t fullSight = (north | east | south | west) & ~squareBit;
 
-        gRookAttackDepositMasks[square] = fullSight;
+        gPackedRookAttacks.depositMasks[square] = fullSight;
 
         std::uint64_t lookUpMask = fullSight;
         if (file > 0) {
@@ -702,16 +685,17 @@ int calculatePackedRookXRays() {
         const BoardPosition position = (BoardPosition)square;
         const auto [file, rank]      = fileRankFromPosition(position);
 
-        const std::uint64_t north = fullNRays[square];
-        const std::uint64_t east  = fullERays[square];
-        const std::uint64_t south = fullSRays[square];
-        const std::uint64_t west  = fullWRays[square];
+        const std::uint64_t north = getFullRay(position, 0, 1);
+        const std::uint64_t east  = getFullRay(position, 1, 0);
+        const std::uint64_t south = getFullRay(position, 0, -1);
+        const std::uint64_t west  = getFullRay(position, -1, 0);
 
-        const std::uint64_t fullSight = north | east | south | west;
+        const std::uint64_t squareBit = 1ULL << square;
+        const std::uint64_t fullSight = (north | east | south | west);
 
-        gRookAttackDepositMasks[square] = fullSight;
+        gPackedRookXRays.depositMasks[square] = fullSight;
 
-        std::uint64_t lookUpMask = fullSight;
+        std::uint64_t lookUpMask = fullSight & ~squareBit;
         if (file > 0) {
             lookUpMask &= notWestFileMask;
         }
@@ -756,14 +740,16 @@ int calculatePackedBishopAttacks() {
         const BoardPosition position = (BoardPosition)square;
         const auto [file, rank]      = fileRankFromPosition(position);
 
-        const std::uint64_t northEast = fullNERays[square];
-        const std::uint64_t southEast = fullSERays[square];
-        const std::uint64_t southWest = fullSWRays[square];
-        const std::uint64_t northWest = fullNWRays[square];
+        const std::uint64_t northEast = getFullRay(position, 1, 1);
+        const std::uint64_t southEast = getFullRay(position, 1, -1);
+        const std::uint64_t southWest = getFullRay(position, -1, -1);
+        const std::uint64_t northWest = getFullRay(position, -1, 1);
 
-        const std::uint64_t fullSight = northEast | southEast | southWest | northWest;
+        const std::uint64_t squareBit = 1ULL << square;
+        const std::uint64_t fullSight =
+                (northEast | southEast | southWest | northWest) & ~squareBit;
 
-        gBishopAttackDepositMasks[square] = fullSight;
+        gPackedBishopAttacks.depositMasks[square] = fullSight;
 
         std::uint64_t lookUpMask = fullSight;
         if (file > 0) {
@@ -810,16 +796,17 @@ int calculatePackedBishopXRays() {
         const BoardPosition position = (BoardPosition)square;
         const auto [file, rank]      = fileRankFromPosition(position);
 
-        const std::uint64_t northEast = fullNERays[square];
-        const std::uint64_t southEast = fullSERays[square];
-        const std::uint64_t southWest = fullSWRays[square];
-        const std::uint64_t northWest = fullNWRays[square];
+        const std::uint64_t northEast = getFullRay(position, 1, 1);
+        const std::uint64_t southEast = getFullRay(position, 1, -1);
+        const std::uint64_t southWest = getFullRay(position, -1, -1);
+        const std::uint64_t northWest = getFullRay(position, -1, 1);
 
-        const std::uint64_t fullSight = northEast | southEast | southWest | northWest;
+        const std::uint64_t squareBit = 1ULL << square;
+        const std::uint64_t fullSight = (northEast | southEast | southWest | northWest);
 
-        gBishopAttackDepositMasks[square] = fullSight;
+        gPackedBishopXRays.depositMasks[square] = fullSight;
 
-        std::uint64_t lookUpMask = fullSight;
+        std::uint64_t lookUpMask = fullSight & ~squareBit;
         if (file > 0) {
             lookUpMask &= notWestFileMask;
         }
@@ -867,14 +854,16 @@ BitBoard getRookAttack(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
     const std::uint16_t packedRookAttacks = gPackedRookAttacks.entries[(int)position][lookUpIndex];
-    return (BitBoard)pdep((std::uint64_t)packedRookAttacks, gRookAttackDepositMasks[(int)position]);
+    return (BitBoard)pdep(
+            (std::uint64_t)packedRookAttacks, gPackedRookAttacks.depositMasks[(int)position]);
 }
 
 BitBoard getRookXRay(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
     const std::uint16_t packedRookAttacks = gPackedRookXRays.entries[(int)position][lookUpIndex];
-    return (BitBoard)pdep((std::uint64_t)packedRookAttacks, gRookAttackDepositMasks[(int)position]);
+    return (BitBoard)pdep(
+            (std::uint64_t)packedRookAttacks, gPackedRookXRays.depositMasks[(int)position]);
 }
 
 BitBoard getBishopAttack(const BoardPosition position, const BitBoard occupancy) {
@@ -883,7 +872,7 @@ BitBoard getBishopAttack(const BoardPosition position, const BitBoard occupancy)
     const std::uint16_t packedBishopAttacks =
             gPackedBishopAttacks.entries[(int)position][lookUpIndex];
     return (BitBoard)pdep(
-            (std::uint64_t)packedBishopAttacks, gBishopAttackDepositMasks[(int)position]);
+            (std::uint64_t)packedBishopAttacks, gPackedBishopAttacks.depositMasks[(int)position]);
 }
 
 BitBoard getBishopXRay(const BoardPosition position, const BitBoard occupancy) {
@@ -892,7 +881,7 @@ BitBoard getBishopXRay(const BoardPosition position, const BitBoard occupancy) {
     const std::uint16_t packedBishopAttacks =
             gPackedBishopXRays.entries[(int)position][lookUpIndex];
     return (BitBoard)pdep(
-            (std::uint64_t)packedBishopAttacks, gBishopAttackDepositMasks[(int)position]);
+            (std::uint64_t)packedBishopAttacks, gPackedBishopXRays.depositMasks[(int)position]);
 }
 
 BitBoard computePieceControlledSquares(
@@ -1589,34 +1578,33 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
     const int enemyPieceEndIdx   = enemyPieceStartIdx + numNonPawns_[(int)nextSide(kingSide)] - 1;
     for (int pieceIdx = enemyPieceStartIdx; pieceIdx < enemyPieceEndIdx; ++pieceIdx) {
         const PieceInfo& pinningPieceInfo = pieces_[pieceIdx];
+        const Piece piece                 = getPiece(pinningPieceInfo.coloredPiece);
         const int pinIdx                  = pieceIdx - enemyPieceStartIdx;
 
         MY_ASSERT(piecePinOrKingAttackBitBoards[pinIdx] == BitBoard::Empty);
 
-        if (pinningPieceInfo.captured) {
+        if (pinningPieceInfo.captured || !isPinningPiece(piece)) {
+            continue;
+        }
+
+        int fileIncrement;
+        int rankIncrement;
+        const bool incrementOk = getFileRankIncrement(
+                piece,
+                pinningPieceInfo.position,
+                kingPieceInfo.position,
+                fileIncrement,
+                rankIncrement);
+        if (!incrementOk) {
             continue;
         }
 
         BitBoard pinningBitBoard = computePieceXRays(pinningPieceInfo, anyPiece);
+        const BitBoard fullRay =
+                (BitBoard)getFullRay(pinningPieceInfo.position, fileIncrement, rankIncrement);
+        pinningBitBoard = intersection(pinningBitBoard, fullRay);
+
         if (isSet(pinningBitBoard, kingPieceInfo.position)) {
-
-            int fileIncrement;
-            int rankIncrement;
-            const bool incrementOk = getFileRankIncrement(
-                    getPiece(pinningPieceInfo.coloredPiece),
-                    pinningPieceInfo.position,
-                    kingPieceInfo.position,
-                    fileIncrement,
-                    rankIncrement);
-            MY_ASSERT(incrementOk);
-
-            const BitBoard fullRay =
-                    (BitBoard)getFullRay(pinningPieceInfo.position, fileIncrement, rankIncrement);
-
-            pinningBitBoard = intersection(pinningBitBoard, fullRay);
-
-            set(pinningBitBoard, pinningPieceInfo.position);
-
             piecePinOrKingAttackBitBoards[pinIdx] = pinningBitBoard;
         }
     }
@@ -1646,36 +1634,6 @@ bool GameState::enPassantWillPutUsInCheck() const {
     if (kingRank != enPassantOriginRank) {
         return false;
     }
-
-    //{
-    //    GameState copyState(*this);
-    //    const BoardPosition leftPosition =
-    //            positionFromFileRank(enPassantTargetFile - 1, enPassantOriginRank);
-    //    const BoardPosition rightPosition =
-    //            positionFromFileRank(enPassantTargetFile + 1, enPassantOriginRank);
-    //    const bool hasLeftPawn = enPassantTargetFile > 0 &&
-    //                             isSet(copyState.pawnBitBoards_[(int)sideToMove_], leftPosition);
-    //    const bool hasRightPawn = enPassantTargetFile < 7 &&
-    //                              isSet(copyState.pawnBitBoards_[(int)sideToMove_], rightPosition);
-
-    //    Move move;
-    //    if (hasLeftPawn && hasRightPawn) {
-    //        return false;
-    //    } else if (hasLeftPawn) {
-    //        move = {(PieceIndex)((int)PieceIndex::WhitePawn + (int)sideToMove_),
-    //                leftPosition,
-    //                enPassantTarget_,
-    //                getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)};
-    //    } else {
-    //        move = {(PieceIndex)((int)PieceIndex::WhitePawn + (int)sideToMove_),
-    //                rightPosition,
-    //                enPassantTarget_,
-    //                getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)};
-    //    }
-    //    copyState.makeMove(move);
-    //    copyState.makeNullMove();
-    //    return copyState.isInCheck();
-    //}
 
     const bool kingIsLeft = kingFile < enPassantTargetFile;
 
