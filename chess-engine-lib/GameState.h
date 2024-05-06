@@ -232,11 +232,6 @@ class GameState {
         ColoredPiece coloredPiece = ColoredPiece::None;
         bool captured             = true;
         BoardPosition position    = BoardPosition::Invalid;
-        // 5 unused bytes... :(
-
-        // Controlled squares are squares that the piece attacks or defends (including empty squares).
-        // But does not include the square the piece is on.
-        BitBoard controlledSquares = BitBoard::Empty;
     };
 
     struct UnmakeMoveInfo {
@@ -303,9 +298,6 @@ class GameState {
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
-    void recalculateControlledSquaresForAffectedSquares(
-            const std::array<BoardPosition, 3>& affectedSquares, int numAffectedSquares);
-    void recalculateControlledSquares(PieceInfo& pieceInfo) const;
     [[nodiscard]] BitBoard getEnemyControlledSquares() const;
     bool isInCheck(BitBoard enemyControlledSquares) const;
 

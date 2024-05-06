@@ -341,12 +341,6 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(
             gameState.pieces_, gameState.pawnBitBoards_, gameState.sideToMove_);
-    for (auto& pieceInfo : gameState.pieces_) {
-        if (pieceInfo.captured) {
-            continue;
-        }
-        gameState.recalculateControlledSquares(pieceInfo);
-    }
 
     return gameState;
 }

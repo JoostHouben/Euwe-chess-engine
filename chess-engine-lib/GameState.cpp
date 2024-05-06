@@ -986,6 +986,8 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             pinBitBoard,
             moves);
 
+    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
+
     // Generate moves for promoted pawns and normal pieces (non-pawns excl. king)
     const int ownStartIdx = kNumPiecesPerSide * (int)sideToMove_ + 1;
     for (int pieceIdx = ownStartIdx; pieceIdx < ownStartIdx + numNonPawns_[(int)sideToMove_] - 1;
@@ -997,10 +999,12 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
 
         const BitBoard piecePinBitBoard = getPiecePinBitBoard(pieceInfo.position);
 
+        const BitBoard controlledSquares = computePieceControlledSquares(pieceInfo, anyPiece);
+
         generateSinglePieceMovesFromControl(
                 (PieceIndex)pieceIdx,
                 pieceInfo.position,
-                pieceInfo.controlledSquares,
+                controlledSquares,
                 occupancy_,
                 piecePinBitBoard,
                 moves);
@@ -1011,7 +1015,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
     // Normal king moves
     const PieceIndex kingIndex     = getKingIndex(sideToMove_);
     const PieceInfo& kingInfo      = getPieceInfo(kingIndex);
-    BitBoard kingControlledSquares = kingInfo.controlledSquares;
+    BitBoard kingControlledSquares = kKingControlledSquares[(int)kingInfo.position];
     // King can't walk into check
     kingControlledSquares = subtract(kingControlledSquares, enemyControlledSquares);
     generateSinglePieceMovesFromControl(
@@ -1045,8 +1049,12 @@ StackVector<Move> GameState::generateMovesInCheck(
     PieceIndex checkingPieceIndex       = PieceIndex::Invalid;
     PieceIndex secondCheckingPieceIndex = PieceIndex::Invalid;
 
+    BitBoard checkingPieceControlledSquares = BitBoard::Empty;
+
     BoardPosition checkingPawnPosition = BoardPosition::Invalid;
     bool inCheckByPawn                 = false;
+
+    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     // TODO: pass this in instead of recalculating
     const BitBoard enemyPawnControl = computePawnControlledSquares(
@@ -1083,14 +1091,20 @@ StackVector<Move> GameState::generateMovesInCheck(
         if (pieces_[enemyPieceIdx].captured) {
             continue;
         }
-        if (!isSet(pieces_[enemyPieceIdx].controlledSquares, kingPosition)) {
+
+        // TODO: we already calculated this as part of enemyControlledSquares; reuse it
+        const BitBoard controlledSquares =
+                computePieceControlledSquares(pieces_[enemyPieceIdx], anyPiece);
+        if (!isSet(controlledSquares, kingPosition)) {
             continue;
         }
+
         if (checkingPieceIndex != PieceIndex::Invalid) {
             secondCheckingPieceIndex = (PieceIndex)enemyPieceIdx;
             break;
         }
-        checkingPieceIndex = (PieceIndex)enemyPieceIdx;
+        checkingPieceIndex             = (PieceIndex)enemyPieceIdx;
+        checkingPieceControlledSquares = controlledSquares;
         if (inCheckByPawn) {
             break;
         }
@@ -1116,7 +1130,7 @@ StackVector<Move> GameState::generateMovesInCheck(
         }
     }
 
-    BitBoard kingControlledSquares = pieces_[(int)kingIndex].controlledSquares;
+    BitBoard kingControlledSquares = kKingControlledSquares[(int)kingPosition];
     // King can't walk into check
     kingControlledSquares = subtract(kingControlledSquares, enemyControlledSquares);
     kingControlledSquares = subtract(kingControlledSquares, kingAttackBitBoard);
@@ -1145,8 +1159,8 @@ StackVector<Move> GameState::generateMovesInCheck(
             const int pinIdx = (int)checkingPieceIndex - enemyPieceStartIdx;
             const BitBoard checkingPieceKingAttackBitBoard = piecePinOrKingAttackBitBoards[pinIdx];
 
-            blockOrCaptureBitBoard = intersection(
-                    checkingPieceKingAttackBitBoard, checkingPieceInfo.controlledSquares);
+            blockOrCaptureBitBoard =
+                    intersection(checkingPieceKingAttackBitBoard, checkingPieceControlledSquares);
         }
         set(blockOrCaptureBitBoard, checkingPieceInfo.position);
     }
@@ -1199,11 +1213,13 @@ StackVector<Move> GameState::generateMovesInCheck(
             continue;
         }
 
+        const BitBoard controlledSquares = computePieceControlledSquares(pieceInfo, anyPiece);
+
         // Treat blockOrCapture as a pin. This will cause only moves that block or capture to be generated.
         generateSinglePieceMovesFromControl(
                 (PieceIndex)pieceIdx,
                 pieceInfo.position,
-                pieceInfo.controlledSquares,
+                controlledSquares,
                 occupancy_,
                 /*piecePinBitBoard =*/blockOrCaptureBitBoard,
                 moves);
@@ -1317,25 +1333,11 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     MY_ASSERT(getPiece(kingPieceInfo.coloredPiece) == Piece::King);
     MY_ASSERT(getSide(kingPieceInfo.coloredPiece) == sideToMove_);
     kingPieceInfo.position = kingToPosition;
-    recalculateControlledSquares(kingPieceInfo);
 
     // Update rook
     MY_ASSERT(getPiece(rookPieceInfo.coloredPiece) == Piece::Rook);
     MY_ASSERT(getSide(rookPieceInfo.coloredPiece) == sideToMove_);
-    rookPieceInfo.position          = rookToPosition;
-    rookPieceInfo.controlledSquares = BitBoard::Empty;
-
-    // Micro optimization: only control along the back rank can change, and only on the non-castle side.
-    // So for recalculating control we only need to consider the square closest to that side of the board.
-    // That is the king's origin position (before swapping for reverse).
-    std::array<BoardPosition, 3> affectedSquares;
-    if (!reverse) {
-        affectedSquares[0] = kingFromPosition;
-    } else {
-        affectedSquares[0] = kingToPosition;
-    }
-    recalculateControlledSquaresForAffectedSquares(affectedSquares, 1);
-    recalculateControlledSquares(rookPieceInfo);
+    rookPieceInfo.position = rookToPosition;
 
     if (!reverse) {
         setCanCastleKingSide(sideToMove_, false);
@@ -1415,24 +1417,7 @@ PieceIndex GameState::makeSinglePieceMove(const Move& move) {
             updateRookCastlingRights(move.from, sideToMove_);
         }
 
-        movedPieceInfo.position          = move.to;
-        movedPieceInfo.controlledSquares = BitBoard::Empty;
-    }
-
-    std::array<BoardPosition, 3> affectedSquares{};
-    int numAffectedSquares                = 0;
-    affectedSquares[numAffectedSquares++] = move.from;
-    affectedSquares[numAffectedSquares++] = move.to;
-    if (isEnPassant(move.flags)) {
-        affectedSquares[numAffectedSquares++] = captureTargetSquare;
-    } else if (isCapture(move.flags)) {
-        // The occupancy of the square on which we captured didn't change.
-        --numAffectedSquares;
-    }
-    recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
-    if (!isPawnMove) {
-        PieceInfo& movedPieceInfo = getPieceInfo(move.pieceToMove);
-        recalculateControlledSquares(movedPieceInfo);
+        movedPieceInfo.position = move.to;
     }
 
     if (isCapture(move.flags) || isPawnMove) {
@@ -1472,14 +1457,8 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
         PieceInfo& movedPieceInfo = getPieceInfo(move.pieceToMove);
         MY_ASSERT(getSide(movedPieceInfo.coloredPiece) == sideToMove_);
 
-        movedPieceInfo.position          = move.from;
-        movedPieceInfo.controlledSquares = BitBoard::Empty;
+        movedPieceInfo.position = move.from;
     }
-
-    std::array<BoardPosition, 3> affectedSquares{};
-    int numAffectedSquares                = 0;
-    affectedSquares[numAffectedSquares++] = move.from;
-    affectedSquares[numAffectedSquares++] = move.to;
 
     if (isCapture(move.flags)) {
         MY_ASSERT(unmakeMoveInfo.capturedPieceIndex != PieceIndex::Invalid);
@@ -1498,27 +1477,12 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
 
             BitBoard& enemyPawnBitBoard = pawnBitBoards_[(int)nextSide(sideToMove_)];
             set(enemyPawnBitBoard, captureTarget);
-
-            if (isEnPassant(move.flags)) {
-                affectedSquares[numAffectedSquares++] = captureTarget;
-            } else {
-                // The capture square didn't change occupancy.
-                --numAffectedSquares;
-            }
         } else {
             PieceInfo& capturedPieceInfo = getPieceInfo(unmakeMoveInfo.capturedPieceIndex);
             capturedPieceInfo.captured   = false;
-
-            // The capture square didn't change occupancy.
-            --numAffectedSquares;
         }
 
         set(occupancy_.enemyPiece, captureTarget);
-    }
-
-    recalculateControlledSquaresForAffectedSquares(affectedSquares, numAffectedSquares);
-    if (!isPawnMove) {
-        recalculateControlledSquares(getPieceInfo(move.pieceToMove));
     }
 }
 
@@ -1532,12 +1496,10 @@ void GameState::handlePawnMove(const Move& move) {
         const int sidePromotionPieceIdx = numNonPawns_[(int)sideToMove_]++;
         const int promotionPieceIdx = sidePromotionPieceIdx + (int)sideToMove_ * kNumPiecesPerSide;
 
-        PieceInfo& promotionPieceInfo        = pieces_[promotionPieceIdx];
-        promotionPieceInfo.coloredPiece      = getColoredPiece(promotionPiece, sideToMove_);
-        promotionPieceInfo.captured          = false;
-        promotionPieceInfo.position          = move.to;
-        promotionPieceInfo.controlledSquares = computePieceControlledSquares(
-                promotionPieceInfo, any(occupancy_.ownPiece, occupancy_.enemyPiece));
+        PieceInfo& promotionPieceInfo   = pieces_[promotionPieceIdx];
+        promotionPieceInfo.coloredPiece = getColoredPiece(promotionPiece, sideToMove_);
+        promotionPieceInfo.captured     = false;
+        promotionPieceInfo.position     = move.to;
 
         clear(pawnBitBoard, move.to);
     }
@@ -1568,6 +1530,8 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
     }
 }
 
+// Idea: we could compute a single x-ray attack for a queen on the king's position, then the pinning / king
+// attack pieces are simply the enemy sliding pieces attacked by this queen.
 std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAttackBitBoards(
         const Side kingSide) const {
     std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards{};
@@ -1783,40 +1747,10 @@ bool GameState::enPassantWillPutUsInCheck() const {
     return false;
 }
 
-// TODO: should we calculate controlled squares ad-hoc instead of incrementally?
-void GameState::recalculateControlledSquaresForAffectedSquares(
-        const std::array<BoardPosition, 3>& affectedSquares, const int numAffectedSquares) {
-    BitBoard affectedSquaresBitBoard = BitBoard::Empty;
-    for (int i = 0; i < numAffectedSquares; ++i) {
-        set(affectedSquaresBitBoard, affectedSquares[i]);
-    }
-
-    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
-
-    for (auto& pieceInfo : pieces_) {
-        if (pieceInfo.captured) {
-            continue;
-        }
-
-        const Piece piece = getPiece(pieceInfo.coloredPiece);
-        const bool controlledSquaresAffected =
-                isPinningPiece(piece) &&
-                (bool)intersection(affectedSquaresBitBoard, pieceInfo.controlledSquares);
-        if (!controlledSquaresAffected) {
-            continue;
-        }
-
-        pieceInfo.controlledSquares = computePieceControlledSquares(pieceInfo, anyPiece);
-    }
-}
-
-void GameState::recalculateControlledSquares(PieceInfo& pieceInfo) const {
-    pieceInfo.controlledSquares = computePieceControlledSquares(
-            pieceInfo, any(occupancy_.ownPiece, occupancy_.enemyPiece));
-}
-
 BitBoard GameState::getEnemyControlledSquares() const {
     const Side enemySide = nextSide(sideToMove_);
+
+    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
     BitBoard controlledSquares =
             computePawnControlledSquares(pawnBitBoards_[(int)enemySide], enemySide);
@@ -1829,7 +1763,8 @@ BitBoard GameState::getEnemyControlledSquares() const {
             continue;
         }
 
-        controlledSquares = any(controlledSquares, pieceInfo.controlledSquares);
+        controlledSquares =
+                any(controlledSquares, computePieceControlledSquares(pieceInfo, anyPiece));
     }
 
     return controlledSquares;
