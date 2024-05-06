@@ -66,7 +66,23 @@ enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King 
     return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
 }
 
-enum class ColoredPiece : std::uint8_t { None };
+enum class ColoredPiece : std::uint8_t {
+    None,
+
+    WhitePawn   = (std::uint8_t)Piece::Pawn,
+    WhiteKnight = (std::uint8_t)Piece::Knight,
+    WhiteBishop = (std::uint8_t)Piece::Bishop,
+    WhiteRook   = (std::uint8_t)Piece::Rook,
+    WhiteQueen  = (std::uint8_t)Piece::Queen,
+    WhiteKing   = (std::uint8_t)Piece::King,
+
+    BlackPawn   = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Pawn,
+    BlackKnight = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Knight,
+    BlackBishop = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Bishop,
+    BlackRook   = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Rook,
+    BlackQueen  = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Queen,
+    BlackKing   = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::King,
+};
 
 [[nodiscard]] constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
     return static_cast<ColoredPiece>(((std::uint8_t)side << 3) | (std::uint8_t)piece);
