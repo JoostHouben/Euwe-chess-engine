@@ -284,12 +284,18 @@ class GameState {
     [[nodiscard]] std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
   private:
+    struct SideControl {
+        std::array<BitBoard, kNumPiecesPerSide> controlPerPiece;
+        BitBoard pawnControl;
+        BitBoard control;
+    };
+
     [[nodiscard]] PieceInfo& getPieceInfo(PieceIndex pieceIndex) {
         return pieces_[(int)pieceIndex];
     }
 
     [[nodiscard]] StackVector<Move> generateMovesInCheck(
-            StackOfVectors<Move>& stack, BitBoard enemyControlledSquares) const;
+            StackOfVectors<Move>& stack, const SideControl& enemyControl) const;
 
     [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide - 1>
     calculatePiecePinOrKingAttackBitBoards(Side kingSide) const;
@@ -298,8 +304,8 @@ class GameState {
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
-    [[nodiscard]] BitBoard getEnemyControlledSquares() const;
-    bool isInCheck(BitBoard enemyControlledSquares) const;
+    [[nodiscard]] SideControl getEnemyControl() const;
+    bool isInCheck(const SideControl& enemyControl) const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
     void setCanCastleQueenSide(Side side, bool canCastle);
