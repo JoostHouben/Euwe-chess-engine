@@ -1,5 +1,6 @@
 #include "GameState.h"
 
+#include "Intrinsics.h"
 #include "MyAssert.h"
 
 #include <array>
@@ -14,9 +15,11 @@ constexpr std::array kSigns = {+1, -1};
 static constexpr std::array kPromotionPieces = {
         Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
 
-constexpr std::uint64_t notWestFileMask = ~0x0101010101010101ULL;
-constexpr std::uint64_t notEastFileMask = ~0x8080808080808080ULL;
-constexpr std::uint64_t allMask         = ~0ULL;
+constexpr std::uint64_t notNorthRankMask = ~(0xffULL << (7 * 8));
+constexpr std::uint64_t notWestFileMask  = ~0x0101010101010101ULL;
+constexpr std::uint64_t notSouthRankMask = ~0xffULL;
+constexpr std::uint64_t notEastFileMask  = ~0x8080808080808080ULL;
+constexpr std::uint64_t allMask          = ~0ULL;
 
 BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side side) {
     auto forwardShift = [=](const BitBoard bitBoard) {
@@ -294,7 +297,7 @@ constexpr std::uint64_t getFullRay(
     }
 }
 
-constexpr std::uint64_t getFillRay(
+constexpr std::uint64_t computeFillRay(
         const BoardPosition origin,
         const BitBoard anyPiece,
         const int fileIncrement,
@@ -421,30 +424,6 @@ constexpr std::array<BitBoard, kSquares> getKingControlledSquaresArray() {
 }
 
 constexpr std::array<BitBoard, kSquares> kKingControlledSquares = getKingControlledSquaresArray();
-
-BitBoard computePieceControlledSquares(
-        const GameState::PieceInfo& pieceInfo, const BitBoard anyPiece) {
-    switch (getPiece(pieceInfo.coloredPiece)) {
-        case Piece::Pawn: {
-            BitBoard pawnBitBoard = BitBoard::Empty;
-            set(pawnBitBoard, pieceInfo.position);
-            const Side side = getSide(pieceInfo.coloredPiece);
-            return computePawnControlledSquares(pawnBitBoard, side);
-        }
-        case Piece::Knight:
-            return kKnightControlledSquares[(int)pieceInfo.position];
-        case Piece::Bishop:
-            return computeBishopControlledSquares(pieceInfo.position, anyPiece);
-        case Piece::Rook:
-            return computeRookControlledSquares(pieceInfo.position, anyPiece);
-        case Piece::Queen:
-            return computeQueenControlledSquares(pieceInfo.position, anyPiece);
-        case Piece::King:
-            return kKingControlledSquares[(int)pieceInfo.position];
-        default:
-            UNREACHABLE;
-    }
-}
 
 void generateCastlingMoves(
         const Side sideToMove,
@@ -576,6 +555,211 @@ bool getFileRankIncrement(
     rankIncrement = signum(deltaRank);
 
     return true;
+}
+
+constexpr int kNumRookAttackEntries = 6 * 6 * (1 << 10) + 4 * 6 * (1 << 11) + 4 * (1 << 12);
+constexpr int kNumBishopAttackEntries =
+        4 * (1 << 9) + 12 * (1 << 7) + 20 * (1 << 5) + 4 * 6 * (1 << 5) + 4 * (1 << 6);
+
+struct PackedRookAttacks {
+    std::array<std::uint16_t, kNumRookAttackEntries> attacks;
+    std::array<std::uint16_t*, kSquares> entries;
+};
+std::array<std::uint64_t, kSquares> gRookLookupExtractMasks;
+std::array<std::uint64_t, kSquares> gRookAttackDepositMasks;
+
+struct PackedBishopAttacks {
+    std::array<std::uint16_t, kNumBishopAttackEntries> attacks;
+    std::array<std::uint16_t*, kSquares> entries;
+};
+std::array<std::uint64_t, kSquares> gBishopLookupExtractMasks;
+std::array<std::uint64_t, kSquares> gBishopAttackDepositMasks;
+
+PackedRookAttacks gPackedRookAttacks;
+PackedRookAttacks gPackedRookXRays;
+
+PackedBishopAttacks gPackedBishopAttacks;
+PackedBishopAttacks gPackedBishopXRays;
+
+int calculatePackedRookAttacks() {
+    int entriesCalculated = 0;
+
+    for (int square = 0; square < kSquares; ++square) {
+        const BoardPosition position = (BoardPosition)square;
+        const auto [file, rank]      = fileRankFromPosition(position);
+
+        const std::uint64_t north = fullNRays[square];
+        const std::uint64_t east  = fullERays[square];
+        const std::uint64_t south = fullSRays[square];
+        const std::uint64_t west  = fullWRays[square];
+
+        const std::uint64_t fullSight = north | east | south | west;
+
+        gRookAttackDepositMasks[square] = fullSight;
+
+        std::uint64_t lookUpMask = fullSight;
+        if (file > 0) {
+            lookUpMask &= notWestFileMask;
+        }
+        if (file < 7) {
+            lookUpMask &= notEastFileMask;
+        }
+        if (rank > 0) {
+            lookUpMask &= notSouthRankMask;
+        }
+        if (rank < 7) {
+            lookUpMask &= notNorthRankMask;
+        }
+        gRookLookupExtractMasks[square] = lookUpMask;
+
+        MY_ASSERT(entriesCalculated < kNumRookAttackEntries);
+        gPackedRookAttacks.entries[square] = &gPackedRookAttacks.attacks[entriesCalculated];
+
+        const int numLookUpEntries = 1 << std::popcount(lookUpMask);
+        for (int lookUpIndex = 0; lookUpIndex < numLookUpEntries; ++lookUpIndex) {
+            const std::uint64_t lookUpBitBoard = pdep((std::uint64_t)lookUpIndex, lookUpMask);
+
+            const BitBoard occupancy   = (BitBoard)lookUpBitBoard;
+            const BitBoard rookAttacks = computeRookControlledSquares(position, occupancy);
+
+            std::uint16_t packedRookAttacks =
+                    (std::uint16_t)pext((std::uint64_t)rookAttacks, fullSight);
+
+            MY_ASSERT(entriesCalculated < kNumRookAttackEntries);
+            gPackedRookAttacks.attacks[entriesCalculated++] = packedRookAttacks;
+        }
+    }
+
+    MY_ASSERT(entriesCalculated == kNumRookAttackEntries);
+
+    return entriesCalculated;
+}
+
+int calculatePackedRookXRays() {
+    return 0;
+}
+
+int calculatePackedBishopAttacks() {
+    int entriesCalculated = 0;
+
+    for (int square = 0; square < kSquares; ++square) {
+        const BoardPosition position = (BoardPosition)square;
+        const auto [file, rank]      = fileRankFromPosition(position);
+
+        const std::uint64_t northEast = fullNERays[square];
+        const std::uint64_t southEast = fullSERays[square];
+        const std::uint64_t southWest = fullSWRays[square];
+        const std::uint64_t northWest = fullNWRays[square];
+
+        const std::uint64_t fullSight = northEast | southEast | southWest | northWest;
+
+        gBishopAttackDepositMasks[square] = fullSight;
+
+        std::uint64_t lookUpMask = fullSight;
+        if (file > 0) {
+            lookUpMask &= notWestFileMask;
+        }
+        if (file < 7) {
+            lookUpMask &= notEastFileMask;
+        }
+        if (rank > 0) {
+            lookUpMask &= notSouthRankMask;
+        }
+        if (rank < 7) {
+            lookUpMask &= notNorthRankMask;
+        }
+        gBishopLookupExtractMasks[square] = lookUpMask;
+
+        MY_ASSERT(entriesCalculated < kNumBishopAttackEntries);
+        gPackedBishopAttacks.entries[square] = &gPackedBishopAttacks.attacks[entriesCalculated];
+
+        const int numLookUpEntries = 1 << std::popcount(lookUpMask);
+        for (int lookUpIndex = 0; lookUpIndex < numLookUpEntries; ++lookUpIndex) {
+            const std::uint64_t lookUpBitBoard = pdep((std::uint64_t)lookUpIndex, lookUpMask);
+
+            const BitBoard occupancy     = (BitBoard)lookUpBitBoard;
+            const BitBoard bishopAttacks = computeBishopControlledSquares(position, occupancy);
+
+            std::uint16_t packedBishopAttacks =
+                    (std::uint16_t)pext((std::uint64_t)bishopAttacks, fullSight);
+
+            MY_ASSERT(entriesCalculated < kNumBishopAttackEntries);
+            gPackedBishopAttacks.attacks[entriesCalculated++] = packedBishopAttacks;
+        }
+    }
+
+    MY_ASSERT(entriesCalculated == kNumBishopAttackEntries);
+
+    return entriesCalculated;
+}
+
+int calculatePackedBishopXRays() {
+    return 0;
+}
+
+int dummyRookAttacks = calculatePackedRookAttacks();
+int dummyRookXRays   = calculatePackedRookXRays();
+
+int dummyBishopAttacks = calculatePackedBishopAttacks();
+int dummyBishopXRays   = calculatePackedBishopXRays();
+
+BitBoard getRookAttack(const BoardPosition position, const BitBoard occupancy) {
+    const std::uint64_t lookUpIndex =
+            pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
+    const std::uint16_t packedRookAttacks = gPackedRookAttacks.entries[(int)position][lookUpIndex];
+    return (BitBoard)pdep((std::uint64_t)packedRookAttacks, gRookAttackDepositMasks[(int)position]);
+}
+
+BitBoard getRookXRay(const BoardPosition position, const BitBoard occupancy) {
+    const std::uint64_t lookUpIndex =
+            pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
+    const std::uint16_t packedRookAttacks = gPackedRookXRays.entries[(int)position][lookUpIndex];
+    return (BitBoard)pdep((std::uint64_t)packedRookAttacks, gRookAttackDepositMasks[(int)position]);
+}
+
+BitBoard getBishopAttack(const BoardPosition position, const BitBoard occupancy) {
+    const std::uint64_t lookUpIndex =
+            pext((std::uint64_t)occupancy, gBishopLookupExtractMasks[(int)position]);
+    const std::uint16_t packedBishopAttacks =
+            gPackedBishopAttacks.entries[(int)position][lookUpIndex];
+    return (BitBoard)pdep(
+            (std::uint64_t)packedBishopAttacks, gBishopAttackDepositMasks[(int)position]);
+}
+
+BitBoard getBishopXRay(const BoardPosition position, const BitBoard occupancy) {
+    const std::uint64_t lookUpIndex =
+            pext((std::uint64_t)occupancy, gBishopLookupExtractMasks[(int)position]);
+    const std::uint16_t packedBishopAttacks =
+            gPackedBishopXRays.entries[(int)position][lookUpIndex];
+    return (BitBoard)pdep(
+            (std::uint64_t)packedBishopAttacks, gBishopAttackDepositMasks[(int)position]);
+}
+
+BitBoard computePieceControlledSquares(
+        const GameState::PieceInfo& pieceInfo, const BitBoard anyPiece) {
+    switch (getPiece(pieceInfo.coloredPiece)) {
+        case Piece::Pawn: {
+            BitBoard pawnBitBoard = BitBoard::Empty;
+            set(pawnBitBoard, pieceInfo.position);
+            const Side side = getSide(pieceInfo.coloredPiece);
+            return computePawnControlledSquares(pawnBitBoard, side);
+        }
+        case Piece::Knight:
+            return kKnightControlledSquares[(int)pieceInfo.position];
+        case Piece::Bishop:
+            return getBishopAttack(pieceInfo.position, anyPiece);
+        case Piece::Rook:
+            return getRookAttack(pieceInfo.position, anyPiece);
+        case Piece::Queen: {
+            const BitBoard bishopControlledSquares = getBishopAttack(pieceInfo.position, anyPiece);
+            const BitBoard rookControlledSquares   = getRookAttack(pieceInfo.position, anyPiece);
+            return any(bishopControlledSquares, rookControlledSquares);
+        }
+        case Piece::King:
+            return kKingControlledSquares[(int)pieceInfo.position];
+        default:
+            UNREACHABLE;
+    }
 }
 
 }  // namespace
@@ -1483,8 +1667,7 @@ bool GameState::enPassantWillPutUsInCheck() const {
     return false;
 }
 
-// TODO: can we speed this up using magic bitboards?
-// And perhaps calculate controlled squares ad-hoc instead of incrementally.
+// TODO: should we calculate controlled squares ad-hoc instead of incrementally?
 void GameState::recalculateControlledSquaresForAffectedSquares(
         const std::array<BoardPosition, 3>& affectedSquares, const int numAffectedSquares) {
     BitBoard affectedSquaresBitBoard = BitBoard::Empty;
@@ -1507,37 +1690,7 @@ void GameState::recalculateControlledSquaresForAffectedSquares(
             continue;
         }
 
-        for (int i = 0; i < numAffectedSquares; ++i) {
-            const BoardPosition affectedSquare = affectedSquares[i];
-            if (!isSet(pieceInfo.controlledSquares, affectedSquare)) {
-                continue;
-            }
-
-            int fileIncrement;
-            int rankIncrement;
-            const bool deltaFileRankOk = getFileRankIncrement(
-                    getPiece(pieceInfo.coloredPiece),
-                    pieceInfo.position,
-                    affectedSquare,
-                    fileIncrement,
-                    rankIncrement);
-            MY_ASSERT(deltaFileRankOk);
-
-            const bool isOccupied = isSet(anyPiece, affectedSquare);
-
-            if (isOccupied) {
-                // Clear what's behind the affected square from the controlledSquares
-                const std::uint64_t fullRayBehind =
-                        getFullRay(affectedSquare, fileIncrement, rankIncrement);
-                pieceInfo.controlledSquares =
-                        subtract(pieceInfo.controlledSquares, (BitBoard)fullRayBehind);
-            } else {
-                // Recalculate the ray from the piece in the direction of the affected square
-                const std::uint64_t ray =
-                        getFillRay(pieceInfo.position, anyPiece, fileIncrement, rankIncrement);
-                pieceInfo.controlledSquares = any(pieceInfo.controlledSquares, (BitBoard)ray);
-            }
-        }
+        pieceInfo.controlledSquares = computePieceControlledSquares(pieceInfo, anyPiece);
     }
 }
 

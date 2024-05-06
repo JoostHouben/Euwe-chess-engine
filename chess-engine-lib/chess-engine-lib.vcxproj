@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClangDiagnosticIgnore.h" />
+    <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="StackOfVectors.h" />

@@ -27,6 +27,9 @@
     <ClInclude Include="ClangDiagnosticIgnore.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Intrinsics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">
