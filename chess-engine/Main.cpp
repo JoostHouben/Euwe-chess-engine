@@ -36,6 +36,27 @@ std::size_t perft(const GameState& gameState, const int depth, StackOfVectors<Mo
     return nodes;
 }
 
+std::size_t perftUnmake(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+    if (depth == 0) {
+        return 1;
+    }
+
+    const StackVector<Move> moves = gameState.generateMoves(stack);
+
+    if (depth == 1) {
+        return moves.size();
+    }
+
+    std::size_t nodes = 0;
+    for (const auto& move : moves) {
+        auto unmakeInfo = gameState.makeMove(move);
+        nodes += perftUnmake(gameState, depth - 1, stack);
+        gameState.unmakeMove(move, unmakeInfo);
+    }
+
+    return nodes;
+}
+
 std::size_t perftSplit(
         const GameState& gameState,
         const int depth,
@@ -68,14 +89,19 @@ std::size_t perftSplit(
     return nodes;
 }
 
-void perftPrint(const GameState& gameState, const int maxDepth) {
+void perftPrint(GameState& gameState, const int maxDepth, bool useUnmake = false) {
     StackOfVectors<Move> stack;
     stack.reserve(300);
 
     for (int depth = 1; depth <= maxDepth; ++depth) {
-        const auto startTime    = std::chrono::high_resolution_clock::now();
-        const std::size_t nodes = perft(gameState, depth, stack);
-        const auto endTime      = std::chrono::high_resolution_clock::now();
+        const auto startTime = std::chrono::high_resolution_clock::now();
+        std::size_t nodes;
+        if (useUnmake) {
+            nodes = perftUnmake(gameState, depth, stack);
+        } else {
+            nodes = perft(gameState, depth, stack);
+        }
+        const auto endTime = std::chrono::high_resolution_clock::now();
 
         using DoubleSecondsT = std::chrono::duration<double, std::ratio<1>>;
 
@@ -128,5 +154,11 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
 int main() {
     std::locale::global(std::locale("en_US.UTF-8"));
 
-    perftPrint(GameState::startingPosition(), 7);
+    GameState gameState = GameState::startingPosition();
+
+    std::print("Copy + make:\n");
+    perftPrint(gameState, 7);
+
+    std::print("\nMake + unmake:\n");
+    perftPrint(gameState, 7, true);
 }
