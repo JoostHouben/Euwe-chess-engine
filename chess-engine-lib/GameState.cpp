@@ -41,7 +41,7 @@ void generatePawnMoves(
         const Side side,
         const PieceOccupancyBitBoards& occupancy,
         const BoardPosition enPassantTarget,
-        const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinBitBoards,
+        const std::array<BitBoard, kNumPiecesPerSide>& piecePinBitBoards,
         const BitBoard pinBitBoard,
         StackVector<Move>& moves,
         const BitBoard checkResolutionBitBoard = BitBoard::Full) {
@@ -940,9 +940,9 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
 
     StackVector<Move> moves = stack.makeStackVector();
 
-    const std::array<BitBoard, kNumPiecesPerSide - 1> pinBitBoards =
+    const std::array<BitBoard, kNumPiecesPerSide> pinBitBoards =
             calculatePiecePinOrKingAttackBitBoards(sideToMove_);
-    const BitBoard pinBitBoard = calculatePinOrKingAttackBitBoard(pinBitBoards);
+    const BitBoard& pinBitBoard = pinBitBoards.back();
 
     auto getPiecePinBitBoard = [&](BoardPosition position) {
         if (!isSet(pinBitBoard, position)) {
@@ -1130,7 +1130,7 @@ StackVector<Move> GameState::generateMovesInCheck(
     // pieces wouldn't be able to block or capture the checking piece anyway. (If it's a sliding
     // piece it can't move through the king; if it's a knight its move doesn't line up with the attacker.)
     const auto pinOrKingAttackBitBoards = calculatePiecePinOrKingAttackBitBoards(sideToMove_);
-    const BitBoard pinBitBoard = calculatePinOrKingAttackBitBoard(pinOrKingAttackBitBoards);
+    const BitBoard& pinBitBoard         = pinOrKingAttackBitBoards.back();
 
     bool canTakeCheckingPieceEnPassant = false;
     if (enPassantTarget_ != BoardPosition::Invalid) {
@@ -1153,7 +1153,7 @@ StackVector<Move> GameState::generateMovesInCheck(
 
     // Generate pawn moves that either capture the checking piece or block
 #pragma warning(suppress : 4269)
-    const std::array<BitBoard, kNumPiecesPerSide - 1> unusedPiecePinBitBoards;  // NOLINT
+    const std::array<BitBoard, kNumPiecesPerSide> unusedPiecePinBitBoards;  // NOLINT
     const BitBoard nonPinnedPawns =
             subtract(getPieceBitBoard(sideToMove_, Piece::Pawn), pinBitBoard);
     generatePawnMoves(
@@ -1430,13 +1430,14 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
 
 // Idea: we could compute a single x-ray attack for a queen on the king's position, then the pinning / king
 // attack pieces are simply the enemy sliding pieces attacked by this queen.
-std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAttackBitBoards(
+std::array<BitBoard, kNumPiecesPerSide> GameState::calculatePiecePinOrKingAttackBitBoards(
         const Side kingSide) const {
-    std::array<BitBoard, kNumPiecesPerSide - 1> piecePinOrKingAttackBitBoards{};
+    std::array<BitBoard, kNumPiecesPerSide> piecePinOrKingAttackBitBoards{};
     const BoardPosition kingPosition = getFirstSetPosition(getPieceBitBoard(kingSide, Piece::King));
     const BitBoard anyPiece          = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
-    int pinIdx = 0;
+    int pinIdx        = 0;
+    BitBoard& allPins = piecePinOrKingAttackBitBoards[kNumPiecesPerSide - 1];
     for (int pieceIdx = (int)Piece::Bishop; pieceIdx < (int)Piece::King; ++pieceIdx) {
         const Piece piece = (Piece)pieceIdx;
 
@@ -1463,21 +1464,11 @@ std::array<BitBoard, kNumPiecesPerSide - 1> GameState::calculatePiecePinOrKingAt
 
             if (isSet(pinningBitBoard, kingPosition)) {
                 piecePinOrKingAttackBitBoards[pinIdx++] = pinningBitBoard;
+                allPins                                 = any(allPins, pinningBitBoard);
             }
         }
     }
     return piecePinOrKingAttackBitBoards;
-}
-
-// TODO: optimize and simplify by pulling it into the above function
-BitBoard GameState::calculatePinOrKingAttackBitBoard(
-        const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinOrKingAttackBitBoards) const {
-    BitBoard pinOrKingAttackBitBoard = BitBoard::Empty;
-    for (BitBoard piecePinOrKingAttackBitBoard : piecePinOrKingAttackBitBoards) {
-        pinOrKingAttackBitBoard = any(pinOrKingAttackBitBoard, piecePinOrKingAttackBitBoard);
-    }
-
-    return pinOrKingAttackBitBoard;
 }
 
 bool GameState::enPassantWillPutUsInCheck() const {

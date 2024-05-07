@@ -303,10 +303,9 @@ class GameState {
             StackOfVectors<Move>& stack, const SideControl& enemyControl) const;
 
     // TODO: rename this something like xray bitboards?
-    [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide - 1>
-    calculatePiecePinOrKingAttackBitBoards(Side kingSide) const;
-    [[nodiscard]] BitBoard calculatePinOrKingAttackBitBoard(
-            const std::array<BitBoard, kNumPiecesPerSide - 1>& piecePinOrKingAttackBitBoards) const;
+    // The last entry in the array stores the union of the other entries
+    [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide> calculatePiecePinOrKingAttackBitBoards(
+            Side kingSide) const;
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
