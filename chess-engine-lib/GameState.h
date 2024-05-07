@@ -6,6 +6,7 @@
 #include "StackOfVectors.h"
 
 #include <array>
+#include <bit>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -13,16 +14,18 @@
 #include <cstdint>
 
 enum class Side : std::uint8_t { White, Black, None };
-inline constexpr int kNumSides = 2;
+constexpr int kNumSides = 2;
 
-inline constexpr int kRanks   = 8;
-inline constexpr int kFiles   = 8;
-inline constexpr int kSquares = kRanks * kFiles;
+constexpr int kRanks   = 8;
+constexpr int kFiles   = 8;
+constexpr int kSquares = kRanks * kFiles;
 
-inline constexpr int kNumPawns         = 8;
-inline constexpr int kNumNonPawns      = 8;
-inline constexpr int kNumPiecesPerSide = kNumPawns + kNumNonPawns;
-inline constexpr int kNumTotalPieces   = kNumPiecesPerSide * kNumSides;
+constexpr int kNumPawns         = 8;
+constexpr int kNumNonPawns      = 8;
+constexpr int kNumPiecesPerSide = kNumPawns + kNumNonPawns;
+constexpr int kNumTotalPieces   = kNumPiecesPerSide * kNumSides;
+
+constexpr int kNumPieceTypes = 6;
 
 [[nodiscard]] constexpr Side nextSide(Side side) {
     switch (side) {
@@ -36,12 +39,10 @@ inline constexpr int kNumTotalPieces   = kNumPiecesPerSide * kNumSides;
     UNREACHABLE;
 }
 
-enum class Piece : std::uint8_t { None, Pawn, Knight, Bishop, Rook, Queen, King };
+enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Invalid = 255 };
 
 [[nodiscard]] constexpr std::string pieceToString(Piece piece) {
     switch (piece) {
-        case Piece::None:
-            return "0";
         case Piece::Pawn:
             return "p";
         case Piece::Knight:
@@ -139,7 +140,7 @@ enum class MoveFlags : std::uint8_t {
 }
 
 [[nodiscard]] constexpr bool isPromotion(MoveFlags flags) {
-    return getPromotionPiece(flags) != Piece::None;
+    return getPromotionPiece(flags) != Piece::Pawn;
 }
 
 [[nodiscard]] constexpr bool isCapture(MoveFlags flags) {
@@ -160,30 +161,11 @@ template <typename... FlagTs>
     return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
 }
 
-enum class PieceIndex : int {
-    Invalid = -1,
-
-    WhitePieces = 0,
-    WhiteKing   = WhitePieces,
-    WhiteNonKing,
-
-    BlackPieces = 16,
-    BlackKing   = BlackPieces,
-    BlackNonKing,
-
-    WhitePawn = 32,
-    BlackPawn
-};
-
-[[nodiscard]] constexpr PieceIndex getKingIndex(Side side) {
-    return side == Side::Black ? PieceIndex::BlackKing : PieceIndex::WhiteKing;
-}
-
 struct Move {
-    PieceIndex pieceToMove = PieceIndex::Invalid;
-    BoardPosition from     = BoardPosition::Invalid;
-    BoardPosition to       = BoardPosition::Invalid;
-    MoveFlags flags        = MoveFlags::None;
+    Piece pieceToMove  = Piece::Invalid;
+    BoardPosition from = BoardPosition::Invalid;
+    BoardPosition to   = BoardPosition::Invalid;
+    MoveFlags flags    = MoveFlags::None;
 
     bool operator==(const Move& other) const = default;
 };
@@ -223,6 +205,10 @@ template <typename... BitBoardTs>
     return (BitBoard)((std::uint64_t)lhs & ~(std::uint64_t)rhs);
 }
 
+[[nodiscard]] constexpr BoardPosition getFirstSetPosition(BitBoard bitBoard) {
+    return (BoardPosition)std::countr_zero((std::uint64_t)bitBoard);
+}
+
 struct PieceOccupancyBitBoards {
     BitBoard ownPiece   = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;
@@ -244,17 +230,11 @@ class GameState {
         BlackQueenSide = 1 << 3,
     };
 
-    struct PieceInfo {
-        ColoredPiece coloredPiece = ColoredPiece::None;
-        bool captured             = true;
-        BoardPosition position    = BoardPosition::Invalid;
-    };
-
     struct UnmakeMoveInfo {
         BoardPosition enPassantTarget      = BoardPosition::Invalid;
         CastlingRights castlingRights      = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
-        PieceIndex capturedPieceIndex      = PieceIndex::Invalid;
+        Piece capturedPiece                = Piece::Invalid;
     };
 
     [[nodiscard]] static GameState fromFen(const std::string& fenString);
@@ -272,13 +252,12 @@ class GameState {
     void unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInfo);
     void unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo);
 
-    [[nodiscard]] const PieceInfo& getPieceInfo(PieceIndex pieceIndex) const {
-        return pieces_[(int)pieceIndex];
+    [[nodiscard]] BitBoard getPieceBitBoard(Side side, Piece piece) const {
+        return pieceBitBoards_[(int)side][(int)piece];
     }
-    [[nodiscard]] const std::array<PieceInfo, kNumTotalPieces>& getPieces() const {
-        return pieces_;
+    [[nodiscard]] BitBoard getPieceBitBoard(ColoredPiece coloredPiece) const {
+        return getPieceBitBoard(getSide(coloredPiece), getPiece(coloredPiece));
     }
-    [[nodiscard]] BitBoard getPawnBitBoard(Side side) const { return pawnBitBoards_[(int)side]; }
 
     [[nodiscard]] Side getSideToMove() const { return sideToMove_; }
 
@@ -300,19 +279,30 @@ class GameState {
     [[nodiscard]] std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
 
   private:
+    struct PieceIdentifier {
+        Piece piece;
+        BoardPosition position;
+    };
+
     struct SideControl {
-        std::array<BitBoard, kNumPiecesPerSide> controlPerPiece;
-        BitBoard pawnControl;
+        // TODO: use some soft of 'static vector' type instead of std::array?
+        int numControlBitBoards;
+        std::array<PieceIdentifier, kNumPiecesPerSide> pieceIds;
+        std::array<BitBoard, kNumPiecesPerSide> pieceControl;
         BitBoard control;
     };
 
-    [[nodiscard]] PieceInfo& getPieceInfo(PieceIndex pieceIndex) {
-        return pieces_[(int)pieceIndex];
+    [[nodiscard]] BitBoard& getPieceBitBoard(Side side, Piece piece) {
+        return pieceBitBoards_[(int)side][(int)piece];
+    }
+    [[nodiscard]] BitBoard& getPieceBitBoard(ColoredPiece coloredPiece) {
+        return getPieceBitBoard(getSide(coloredPiece), getPiece(coloredPiece));
     }
 
     [[nodiscard]] StackVector<Move> generateMovesInCheck(
             StackOfVectors<Move>& stack, const SideControl& enemyControl) const;
 
+    // TODO: rename this something like xray bitboards?
     [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide - 1>
     calculatePiecePinOrKingAttackBitBoards(Side kingSide) const;
     [[nodiscard]] BitBoard calculatePinOrKingAttackBitBoard(
@@ -328,7 +318,7 @@ class GameState {
     void setCanCastle(Side side, CastlingRights castlingSide, bool canCastle);
 
     void makeCastleMove(const Move& move, bool reverse = false);
-    [[nodiscard]] PieceIndex makeSinglePieceMove(const Move& move);
+    [[nodiscard]] Piece makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move);
     void handleNormalKingMove();
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
@@ -345,11 +335,8 @@ class GameState {
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
 
-    std::array<std::uint8_t, kNumSides> numNonPawns_ = {};
-    // TODO: store all pieces using bitboards?
-    std::array<PieceInfo, kNumTotalPieces> pieces_ = {};
-
-    std::array<BitBoard, kNumSides> pawnBitBoards_ = {};
+    // TODO: should we store the king as a position instead of a bitboard?
+    std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides> pieceBitBoards_ = {};
 
     PieceOccupancyBitBoards occupancy_ = {};
 };
@@ -371,12 +358,14 @@ std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
         return isQueenSide ? "O-O-O" : "O-O";
     }
 
+    // TODO: add piece
+
     const std::string captureString = isEnPassant(move.flags) ? "y"
                                       : isCapture(move.flags) ? "x"
                                                               : "";
     const Piece promotionPiece      = getPromotionPiece(move.flags);
     const std::string promotionString =
-            promotionPiece == Piece::None ? "" : "=" + pieceToString(promotionPiece);
+            promotionPiece == Piece::Pawn ? "" : "=" + pieceToString(promotionPiece);
     return algebraicFromPosition(move.from) + captureString + algebraicFromPosition(move.to) +
            promotionString;
 }

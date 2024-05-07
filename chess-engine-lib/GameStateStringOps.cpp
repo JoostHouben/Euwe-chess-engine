@@ -87,17 +87,10 @@ constexpr char toFenChar(ColoredPiece coloredPiece) {
     return c;
 }
 
-struct BoardConfigurationInfo {
-    std::array<std::uint8_t, kNumSides> numNonPawns          = {};
-    std::array<GameState::PieceInfo, kNumTotalPieces> pieces = {};
-    std::array<BitBoard, kNumSides> pawnBitBoards            = {};
-};
+using BoardConfigurationInfo = std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides>;
 
 BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterator& strIt) {
-    BoardConfigurationInfo boardConfiguration;
-
-    int whiteNonKingIdx = (int)PieceIndex::WhiteKing + 1;
-    int blackNonKingIdx = (int)PieceIndex::BlackKing + 1;
+    BoardConfigurationInfo boardConfiguration = {};
 
     for (int rank = 7; rank >= 0; --rank) {
         for (int file = 0; file < 8; ++strIt) {
@@ -110,30 +103,7 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterato
             const Side side                 = getSide(coloredPiece);
             const Piece piece               = getPiece(coloredPiece);
 
-            if (piece == Piece::Pawn) {
-                set(boardConfiguration.pawnBitBoards[(int)side], position);
-            } else {
-                int index;
-                if (side == Side::White) {
-                    if (piece == Piece::King) {
-                        index = (int)PieceIndex::WhiteKing;
-                    } else {
-                        index = whiteNonKingIdx++;
-                    }
-                } else {
-                    if (piece == Piece::King) {
-                        index = (int)PieceIndex::BlackKing;
-                    } else {
-                        index = blackNonKingIdx++;
-                    }
-                }
-
-                boardConfiguration.pieces[index].coloredPiece = coloredPiece;
-                boardConfiguration.pieces[index].position     = position;
-                boardConfiguration.pieces[index].captured     = false;
-
-                boardConfiguration.numNonPawns[(int)side]++;
-            }
+            set(boardConfiguration[(int)side][(int)piece], position);
 
             file += 1;
         }
@@ -205,20 +175,15 @@ std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strI
 std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
         const BoardConfigurationInfo& boardConfig) {
     std::map<BoardPosition, ColoredPiece> positionToPiece;
-    for (const auto& pieceInfo : boardConfig.pieces) {
-        if (pieceInfo.captured) {
-            continue;
-        }
-        positionToPiece.emplace(pieceInfo.position, pieceInfo.coloredPiece);
-    }
-
     for (int side = 0; side < kNumSides; ++side) {
-        BitBoard pawnBitBoard = boardConfig.pawnBitBoards[side];
-        while (pawnBitBoard != BitBoard::Empty) {
-            BoardPosition pawnPosition =
-                    (BoardPosition)std::countr_zero((std::uint64_t)pawnBitBoard);
-            clear(pawnBitBoard, pawnPosition);
-            positionToPiece.emplace(pawnPosition, getColoredPiece(Piece::Pawn, (Side)side));
+        for (int piece = 0; piece < kNumPieceTypes; ++piece) {
+            BitBoard pieceBitBoard = boardConfig[side][piece];
+            while (pieceBitBoard != BitBoard::Empty) {
+                BoardPosition position =
+                        (BoardPosition)std::countr_zero((std::uint64_t)pieceBitBoard);
+                clear(pieceBitBoard, position);
+                positionToPiece.emplace(position, getColoredPiece((Piece)piece, (Side)side));
+            }
         }
     }
 
@@ -284,23 +249,14 @@ void enPassantTargetToFen(BoardPosition enPassantTarget, std::ostream& out) {
 }
 
 PieceOccupancyBitBoards getPieceOccupancyBitBoards(
-        const std::array<GameState::PieceInfo, kNumTotalPieces>& pieces,
-        const std::array<BitBoard, kNumSides>& pawnBitBoards,
-        const Side ownSide) {
-    PieceOccupancyBitBoards occupancy;
-    for (const auto& pieceInfo : pieces) {
-        if (pieceInfo.captured) {
-            continue;
-        }
-        if (getSide(pieceInfo.coloredPiece) == ownSide) {
-            set(occupancy.ownPiece, pieceInfo.position);
-        } else {
-            set(occupancy.enemyPiece, pieceInfo.position);
-        }
-    }
+        BoardConfigurationInfo configuration, const Side ownSide) {
+    PieceOccupancyBitBoards occupancy{};
 
-    occupancy.ownPiece   = any(occupancy.ownPiece, pawnBitBoards[(int)ownSide]);
-    occupancy.enemyPiece = any(occupancy.enemyPiece, pawnBitBoards[(int)nextSide(ownSide)]);
+    for (int piece = 0; piece < kNumPieceTypes; ++piece) {
+        occupancy.ownPiece = any(occupancy.ownPiece, configuration[(int)ownSide][piece]);
+        occupancy.enemyPiece =
+                any(occupancy.enemyPiece, configuration[(int)nextSide(ownSide)][piece]);
+    }
 
     return occupancy;
 }
@@ -312,10 +268,7 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     auto strIt = fenString.begin();
 
-    BoardConfigurationInfo boardConfig = parseBoardConfigurationFromFen(strIt);
-    gameState.pieces_                  = boardConfig.pieces;
-    gameState.numNonPawns_             = boardConfig.numNonPawns;
-    gameState.pawnBitBoards_           = boardConfig.pawnBitBoards;
+    gameState.pieceBitBoards_ = parseBoardConfigurationFromFen(strIt);
     MY_ASSERT(*strIt == ' ');
     ++strIt;
 
@@ -339,8 +292,8 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     MY_ASSERT(strIt < fenString.end());
 
-    gameState.occupancy_ = getPieceOccupancyBitBoards(
-            gameState.pieces_, gameState.pawnBitBoards_, gameState.sideToMove_);
+    gameState.occupancy_ =
+            getPieceOccupancyBitBoards(gameState.pieceBitBoards_, gameState.sideToMove_);
 
     return gameState;
 }
@@ -348,12 +301,7 @@ GameState GameState::fromFen(const std::string& fenString) {
 std::string GameState::toFen(int moveCounter) const {
     std::ostringstream ss;
 
-    BoardConfigurationInfo boardConfig;
-    boardConfig.pieces        = pieces_;
-    boardConfig.numNonPawns   = numNonPawns_;
-    boardConfig.pawnBitBoards = pawnBitBoards_;
-
-    boardConfigurationToFen(boardConfig, ss);
+    boardConfigurationToFen(pieceBitBoards_, ss);
     ss << ' ';
     sideToMoveToFen(sideToMove_, ss);
     ss << ' ';
@@ -369,12 +317,7 @@ std::string GameState::toFen(int moveCounter) const {
 }
 
 std::string GameState::toVisualString() const {
-    BoardConfigurationInfo boardConfig;
-    boardConfig.pieces        = pieces_;
-    boardConfig.numNonPawns   = numNonPawns_;
-    boardConfig.pawnBitBoards = pawnBitBoards_;
-
-    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(boardConfig);
+    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieceBitBoards_);
 
     const std::string boardTop = "  .-------------------------------.\n";
     const std::string boardSep = "  |---+---+---+---+---+---+---+---|\n";

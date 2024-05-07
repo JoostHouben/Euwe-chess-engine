@@ -21,6 +21,24 @@ TEST(FenParsing, TestStartingPosition) {
             {getColoredPiece(Piece::Knight, Side::White), "g1"},
             {getColoredPiece(Piece::Rook, Side::White), "h1"},
 
+            {getColoredPiece(Piece::Pawn, Side::White), "a2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "b2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "c2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "d2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "e2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "f2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "g2"},
+            {getColoredPiece(Piece::Pawn, Side::White), "h2"},
+
+            {getColoredPiece(Piece::Pawn, Side::Black), "a7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "b7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "c7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "d7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "e7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "f7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "g7"},
+            {getColoredPiece(Piece::Pawn, Side::Black), "h7"},
+
             {getColoredPiece(Piece::Rook, Side::Black), "a8"},
             {getColoredPiece(Piece::Knight, Side::Black), "b8"},
             {getColoredPiece(Piece::Bishop, Side::Black), "c8"},
@@ -42,16 +60,20 @@ TEST(FenParsing, TestStartingPosition) {
     }
 
     std::set<PiecePosition> actualPieces;
-    for (const auto& pieceInfo : startingPosition.getPieces()) {
-        if (pieceInfo.captured) {
-            continue;
+    for (int pieceIdx = (int)Piece::Pawn; pieceIdx <= (int)Piece::King; ++pieceIdx) {
+        const Piece piece = (Piece)pieceIdx;
+        for (int sideIdx = (int)Side::White; sideIdx <= (int)Side::Black; ++sideIdx) {
+            BitBoard pieceBitBoard = startingPosition.getPieceBitBoard((Side)sideIdx, piece);
+
+            while (pieceBitBoard != BitBoard::Empty) {
+                const BoardPosition position = getFirstSetPosition(pieceBitBoard);
+                clear(pieceBitBoard, position);
+                actualPieces.insert({getColoredPiece(piece, (Side)sideIdx), position});
+            }
         }
-        actualPieces.insert({pieceInfo.coloredPiece, pieceInfo.position});
     }
 
     EXPECT_EQ(expectedPieces, actualPieces);
-    EXPECT_EQ(expectedWhitePawnBitBoard, startingPosition.getPawnBitBoard(Side::White));
-    EXPECT_EQ(expectedBlackPawnBitBoard, startingPosition.getPawnBitBoard(Side::Black));
 
     EXPECT_EQ(startingPosition.getSideToMove(), Side::White);
 
