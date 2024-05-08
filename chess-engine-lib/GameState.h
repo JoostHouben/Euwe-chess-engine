@@ -209,6 +209,12 @@ template <typename... BitBoardTs>
     return (BoardPosition)std::countr_zero((std::uint64_t)bitBoard);
 }
 
+[[nodiscard]] constexpr BoardPosition popFirstSetPosition(BitBoard& bitBoard) {
+    const BoardPosition position = getFirstSetPosition(bitBoard);
+    bitBoard = (BitBoard)((std::uint64_t)bitBoard & ((std::uint64_t)bitBoard - 1ull));
+    return position;
+}
+
 struct PieceOccupancyBitBoards {
     BitBoard ownPiece   = BitBoard::Empty;
     BitBoard enemyPiece = BitBoard::Empty;

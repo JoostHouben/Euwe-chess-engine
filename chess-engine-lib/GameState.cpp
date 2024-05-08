@@ -88,8 +88,7 @@ void generatePawnMoves(
                              const int originOffset,
                              MoveFlags baseFlags) [[msvc::forceinline]] {
         while (targetBitBoard != BitBoard::Empty) {
-            const BoardPosition targetPosition = getFirstSetPosition(targetBitBoard);
-            clear(targetBitBoard, targetPosition);
+            const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
 
             const int originIdx                = (int)targetPosition - originOffset;
             const BoardPosition originPosition = (BoardPosition)originIdx;
@@ -547,14 +546,12 @@ __forceinline void generateSinglePieceMovesFromControl(
     BitBoard nonCaptures = subtract(controlledSquares, occupancy.enemyPiece);
 
     while (captures != BitBoard::Empty) {
-        const BoardPosition capturePosition = getFirstSetPosition(captures);
+        const BoardPosition capturePosition = popFirstSetPosition(captures);
         moves.emplace_back(piece, piecePosition, capturePosition, MoveFlags::IsCapture);
-        clear(captures, capturePosition);
     }
     while (nonCaptures != BitBoard::Empty) {
-        const BoardPosition movePosition = getFirstSetPosition(nonCaptures);
+        const BoardPosition movePosition = popFirstSetPosition(nonCaptures);
         moves.emplace_back(piece, piecePosition, movePosition);
-        clear(nonCaptures, movePosition);
     }
 }
 
@@ -983,15 +980,13 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
         BitBoard pieceBitBoard = getPieceBitBoard(sideToMove_, piece);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            const BoardPosition piecePosition = getFirstSetPosition(pieceBitBoard);
+            const BoardPosition piecePosition = popFirstSetPosition(pieceBitBoard);
             const BitBoard piecePinBitBoard   = getPiecePinBitBoard(piecePosition);
             const BitBoard controlledSquares =
                     computePieceControlledSquares(piece, piecePosition, anyPiece);
 
             generateSinglePieceMovesFromControl(
                     piece, piecePosition, controlledSquares, occupancy_, piecePinBitBoard, moves);
-
-            clear(pieceBitBoard, piecePosition);
         }
     }
 
@@ -1172,8 +1167,7 @@ StackVector<Move> GameState::generateMovesInCheck(
         BitBoard pieceBitBoard = getPieceBitBoard(sideToMove_, piece);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            const BoardPosition piecePosition = getFirstSetPosition(pieceBitBoard);
-            clear(pieceBitBoard, piecePosition);
+            const BoardPosition piecePosition = popFirstSetPosition(pieceBitBoard);
 
             if (isSet(pinBitBoard, piecePosition)) {
                 // Piece is pinned; can't capture pinning piece or remain in pin because that wouldn't
@@ -1451,8 +1445,7 @@ std::array<BitBoard, kNumPiecesPerSide> GameState::calculatePiecePinOrKingAttack
     BitBoard& allPins = piecePinOrKingAttackBitBoards[kNumPiecesPerSide - 1];
 
     while (xRayingRooks != BitBoard::Empty) {
-        const BoardPosition pinningPiecePosition = getFirstSetPosition(xRayingRooks);
-        clear(xRayingRooks, pinningPiecePosition);
+        const BoardPosition pinningPiecePosition = popFirstSetPosition(xRayingRooks);
 
         int fileIncrement;
         int rankIncrement;
@@ -1472,8 +1465,7 @@ std::array<BitBoard, kNumPiecesPerSide> GameState::calculatePiecePinOrKingAttack
     }
 
     while (xRayingBishops != BitBoard::Empty) {
-        const BoardPosition pinningPiecePosition = getFirstSetPosition(xRayingBishops);
-        clear(xRayingBishops, pinningPiecePosition);
+        const BoardPosition pinningPiecePosition = popFirstSetPosition(xRayingBishops);
 
         int fileIncrement;
         int rankIncrement;
@@ -1652,8 +1644,7 @@ GameState::SideControl GameState::getEnemyControl() const {
         BitBoard pieceBitBoard = getPieceBitBoard(enemySide, piece);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            const BoardPosition piecePosition = getFirstSetPosition(pieceBitBoard);
-            clear(pieceBitBoard, piecePosition);
+            const BoardPosition piecePosition = popFirstSetPosition(pieceBitBoard);
 
             const BitBoard pieceControl =
                     computePieceControlledSquares(piece, piecePosition, anyPiece);

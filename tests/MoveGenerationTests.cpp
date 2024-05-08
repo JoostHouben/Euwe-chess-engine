@@ -336,7 +336,7 @@ auto testCasesFast = ::testing::Values(
                         .numCastle     = 0,
                         .numPromotions = 0}});
 
-// Total in release mode: ~5.5s
+// Total in release mode: ~5.2s
 auto testCasesSlow = ::testing::Values(
         // Release mode: ~3ms
         TestStatsConfig{
@@ -430,12 +430,12 @@ auto testCasesSlow = ::testing::Values(
                          .numPromotions = 329'464}},
         // Release mode: ~20ms
         TestStatsConfig{.fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 2'103'487}},
-        // Release mode: ~800ms
+        // Release mode: ~700ms
         TestStatsConfig{
                 .fen = kPosition5Fen, .depth = 5, .expectedStats = {.numMoves = 89'941'194}},
         // Release mode: ~40ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~1.5s
+        // Release mode: ~1.3s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 5, .expectedStats = {.numMoves = 164'075'551}});
 
