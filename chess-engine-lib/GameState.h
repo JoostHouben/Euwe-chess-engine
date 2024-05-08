@@ -55,6 +55,8 @@ enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Inval
             return "Q";
         case Piece::King:
             return "K";
+        case Piece::Invalid:
+            return "!";
     }
     UNREACHABLE;
 }
@@ -230,10 +232,10 @@ class GameState {
         None           = 0,
         KingSide       = 1 << 0,
         QueenSide      = 1 << 1,
-        WhiteKingSide  = 1 << 0,
-        WhiteQueenSide = 1 << 1,
-        BlackKingSide  = 1 << 2,
-        BlackQueenSide = 1 << 3,
+        WhiteKingSide  = KingSide,
+        WhiteQueenSide = QueenSide,
+        BlackKingSide  = KingSide << 2,
+        BlackQueenSide = QueenSide << 2,
     };
 
     struct UnmakeMoveInfo {
