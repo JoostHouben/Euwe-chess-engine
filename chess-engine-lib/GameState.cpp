@@ -1108,22 +1108,18 @@ StackVector<Move> GameState::generateMovesInCheck(
     } else if (checkingPieceId.piece == Piece::Pawn) {
         // Pawn control was calculated 'in bulk', so we don't have the checking pawn's position.
         // We need to calculate it now.
+        // We find the checking pawn by considering a pawn at the king's position and seeing which
+        // enemy pawns it attacks.
 
-        BitBoard enemyPawnBitBoard = getPieceBitBoard(nextSide(sideToMove_), Piece::Pawn);
-        MY_ASSERT(enemyPawnBitBoard != BitBoard::Empty);
-        do {
-            const BoardPosition pawnPosition = getFirstSetPosition(enemyPawnBitBoard);
-            const BitBoard lonePawnBitBoard  = (BitBoard)(1ull << (int)pawnPosition);
-            const BitBoard pawnControlledSquares =
-                    computePawnControlledSquares(lonePawnBitBoard, nextSide(sideToMove_));
+        BitBoard kingPawnBitBoard = BitBoard::Empty;
+        set(kingPawnBitBoard, kingPosition);
 
-            if (isSet(pawnControlledSquares, kingPosition)) {
-                checkingPieceId.position = pawnPosition;
-                break;
-            }
-            clear(enemyPawnBitBoard, pawnPosition);
-        } while (enemyPawnBitBoard != BitBoard::Empty);
-        MY_ASSERT(checkingPieceId.position != BoardPosition::Invalid);
+        const BitBoard kingPawnAttacks =
+                computePawnControlledSquares(kingPawnBitBoard, sideToMove_);
+        const BitBoard checkingPawnBitBoard =
+                intersection(kingPawnAttacks, getPieceBitBoard(nextSide(sideToMove_), Piece::Pawn));
+
+        checkingPieceId.position = getFirstSetPosition(checkingPawnBitBoard);
     }
     set(blockOrCaptureBitBoard, checkingPieceId.position);
 
