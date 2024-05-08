@@ -1,6 +1,7 @@
 #include "GameState.h"
 
 #include "Intrinsics.h"
+#include "Macros.h"
 #include "MyAssert.h"
 
 #define IMPLIES(a, b) (!(a) || (b))
@@ -18,12 +19,12 @@ constexpr std::uint64_t notSouthRankMask = ~0xffULL;
 constexpr std::uint64_t notEastFileMask  = ~0x8080808080808080ULL;
 constexpr std::uint64_t allMask          = ~0ULL;
 
-__forceinline BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side side) {
-    auto leftForwardShift = [=](const BitBoard bitBoard) [[msvc::forceinline]] {
+FORCE_INLINE BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, const Side side) {
+    auto leftForwardShift = [=](const BitBoard bitBoard) FORCE_INLINE {
         return side == Side::White ? (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) << 7)
                                    : (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) >> 9);
     };
-    auto rightForwardShift = [=](const BitBoard bitBoard) [[msvc::forceinline]] {
+    auto rightForwardShift = [=](const BitBoard bitBoard) FORCE_INLINE {
         return side == Side::White ? (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) << 9)
                                    : (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) >> 7);
     };
@@ -45,15 +46,15 @@ void generatePawnMoves(
         const BitBoard checkResolutionBitBoard = BitBoard::Full) {
     const std::uint64_t startingRankMask =
             side == Side::White ? (0xffULL << (1 * 8)) : (0xffULL << (6 * 8));
-    auto forwardShift = [=](const BitBoard bitBoard) [[msvc::forceinline]] {
+    auto forwardShift = [=](const BitBoard bitBoard) FORCE_INLINE {
         return side == Side::White ? (BitBoard)((std::uint64_t)bitBoard << 8)
                                    : (BitBoard)((std::uint64_t)bitBoard >> 8);
     };
-    auto leftForwardShift = [=](const BitBoard bitBoard) [[msvc::forceinline]] {
+    auto leftForwardShift = [=](const BitBoard bitBoard) FORCE_INLINE {
         return side == Side::White ? (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) << 7)
                                    : (BitBoard)(((std::uint64_t)bitBoard & notWestFileMask) >> 9);
     };
-    auto rightForwardShift = [=](const BitBoard bitBoard) [[msvc::forceinline]] {
+    auto rightForwardShift = [=](const BitBoard bitBoard) FORCE_INLINE {
         return side == Side::White ? (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) << 9)
                                    : (BitBoard)(((std::uint64_t)bitBoard & notEastFileMask) >> 7);
     };
@@ -84,52 +85,51 @@ void generatePawnMoves(
 
     const int promotionRank = side == Side::White ? 7 : 0;
 
-    auto generateMoves = [&](BitBoard targetBitBoard,
-                             const int originOffset,
-                             MoveFlags baseFlags) [[msvc::forceinline]] {
-        while (targetBitBoard != BitBoard::Empty) {
-            const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
+    auto generateMoves =
+            [&](BitBoard targetBitBoard, const int originOffset, MoveFlags baseFlags) FORCE_INLINE {
+                while (targetBitBoard != BitBoard::Empty) {
+                    const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
 
-            const int originIdx                = (int)targetPosition - originOffset;
-            const BoardPosition originPosition = (BoardPosition)originIdx;
+                    const int originIdx                = (int)targetPosition - originOffset;
+                    const BoardPosition originPosition = (BoardPosition)originIdx;
 
-            if (isSet(pinBitBoard, originPosition)) {
-                // Find pin bit board
-                BitBoard pawnPiecePinBitBoard = BitBoard::Empty;
-                for (const auto piecePinBitBoard : piecePinBitBoards) {
-                    if (isSet(piecePinBitBoard, originPosition)) {
-                        pawnPiecePinBitBoard = piecePinBitBoard;
-                        break;
+                    if (isSet(pinBitBoard, originPosition)) {
+                        // Find pin bit board
+                        BitBoard pawnPiecePinBitBoard = BitBoard::Empty;
+                        for (const auto piecePinBitBoard : piecePinBitBoards) {
+                            if (isSet(piecePinBitBoard, originPosition)) {
+                                pawnPiecePinBitBoard = piecePinBitBoard;
+                                break;
+                            }
+                        }
+                        MY_ASSERT(pawnPiecePinBitBoard != BitBoard::Empty);
+
+                        if (!isSet(pawnPiecePinBitBoard, targetPosition)) {
+                            // Pin is not along the move direction, so move is impossible
+                            continue;
+                        }
+                    }
+
+                    MoveFlags flags = baseFlags;
+                    if (targetPosition == enPassantTarget) {
+                        MY_ASSERT(flags == MoveFlags::IsCapture);
+                        flags = getFlags(flags, MoveFlags::IsEnPassant);
+                    }
+
+                    int toRank = rankFromPosition(targetPosition);
+                    if (toRank == promotionRank) {
+                        for (const auto promotionPiece : kPromotionPieces) {
+                            moves.emplace_back(
+                                    Piece::Pawn,
+                                    originPosition,
+                                    targetPosition,
+                                    getFlags(flags, promotionPiece));
+                        }
+                    } else {
+                        moves.emplace_back(Piece::Pawn, originPosition, targetPosition, flags);
                     }
                 }
-                MY_ASSERT(pawnPiecePinBitBoard != BitBoard::Empty);
-
-                if (!isSet(pawnPiecePinBitBoard, targetPosition)) {
-                    // Pin is not along the move direction, so move is impossible
-                    continue;
-                }
-            }
-
-            MoveFlags flags = baseFlags;
-            if (targetPosition == enPassantTarget) {
-                MY_ASSERT(flags == MoveFlags::IsCapture);
-                flags = getFlags(flags, MoveFlags::IsEnPassant);
-            }
-
-            int toRank = rankFromPosition(targetPosition);
-            if (toRank == promotionRank) {
-                for (const auto promotionPiece : kPromotionPieces) {
-                    moves.emplace_back(
-                            Piece::Pawn,
-                            originPosition,
-                            targetPosition,
-                            getFlags(flags, promotionPiece));
-                }
-            } else {
-                moves.emplace_back(Piece::Pawn, originPosition, targetPosition, flags);
-            }
-        }
-    };
+            };
 
     generateMoves(singlePushes, forwardBits, MoveFlags::None);
     generateMoves(doublePushes, 2 * forwardBits, MoveFlags::None);
@@ -261,7 +261,7 @@ constexpr std::array<std::array<std::array<std::uint64_t, kSquares>, 3>, 3> kFul
                 // rank 1 (north east)
                 std::array<std::uint64_t, kSquares>{getFullRays<kNorthEast, notWestFileMask>()}}};
 
-__forceinline constexpr std::uint64_t getFullRay(
+FORCE_INLINE constexpr std::uint64_t getFullRay(
         const BoardPosition position, const int fileIncrement, const int rankIncrement) {
     return kFullRays[fileIncrement + 1][rankIncrement + 1][(int)position];
 }
@@ -529,7 +529,7 @@ void generateCastlingMoves(
 }
 
 // Can not be used for generating pawn non-captures
-__forceinline void generateSinglePieceMovesFromControl(
+FORCE_INLINE void generateSinglePieceMovesFromControl(
         const Piece piece,
         const BoardPosition piecePosition,
         BitBoard controlledSquares,
@@ -555,11 +555,11 @@ __forceinline void generateSinglePieceMovesFromControl(
     }
 }
 
-__forceinline constexpr int signum(const int x) {
+FORCE_INLINE constexpr int signum(const int x) {
     return (x > 0) - (x < 0);
 }
 
-__forceinline bool getFileRankIncrement(
+FORCE_INLINE bool getFileRankIncrement(
         const Piece piece,
         const BoardPosition from,
         const BoardPosition to,
@@ -840,7 +840,7 @@ int dummyRookXRays   = calculatePackedRookXRays();
 int dummyBishopAttacks = calculatePackedBishopAttacks();
 int dummyBishopXRays   = calculatePackedBishopXRays();
 
-__forceinline BitBoard getRookAttack(const BoardPosition position, const BitBoard occupancy) {
+FORCE_INLINE BitBoard getRookAttack(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
     const std::uint16_t packedRookAttacks = gPackedRookAttacks.entries[(int)position][lookUpIndex];
@@ -848,7 +848,7 @@ __forceinline BitBoard getRookAttack(const BoardPosition position, const BitBoar
             (std::uint64_t)packedRookAttacks, gPackedRookAttacks.depositMasks[(int)position]);
 }
 
-__forceinline BitBoard getRookXRay(const BoardPosition position, const BitBoard occupancy) {
+FORCE_INLINE BitBoard getRookXRay(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gRookLookupExtractMasks[(int)position]);
     const std::uint16_t packedRookAttacks = gPackedRookXRays.entries[(int)position][lookUpIndex];
@@ -856,7 +856,7 @@ __forceinline BitBoard getRookXRay(const BoardPosition position, const BitBoard 
             (std::uint64_t)packedRookAttacks, gPackedRookXRays.depositMasks[(int)position]);
 }
 
-__forceinline BitBoard getBishopAttack(const BoardPosition position, const BitBoard occupancy) {
+FORCE_INLINE BitBoard getBishopAttack(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gBishopLookupExtractMasks[(int)position]);
     const std::uint16_t packedBishopAttacks =
@@ -865,7 +865,7 @@ __forceinline BitBoard getBishopAttack(const BoardPosition position, const BitBo
             (std::uint64_t)packedBishopAttacks, gPackedBishopAttacks.depositMasks[(int)position]);
 }
 
-__forceinline BitBoard getBishopXRay(const BoardPosition position, const BitBoard occupancy) {
+FORCE_INLINE BitBoard getBishopXRay(const BoardPosition position, const BitBoard occupancy) {
     const std::uint64_t lookUpIndex =
             pext((std::uint64_t)occupancy, gBishopLookupExtractMasks[(int)position]);
     const std::uint16_t packedBishopAttacks =
@@ -874,7 +874,7 @@ __forceinline BitBoard getBishopXRay(const BoardPosition position, const BitBoar
             (std::uint64_t)packedBishopAttacks, gPackedBishopXRays.depositMasks[(int)position]);
 }
 
-__forceinline BitBoard computePieceControlledSquares(
+FORCE_INLINE BitBoard computePieceControlledSquares(
         const Piece piece, const BoardPosition position, const BitBoard anyPiece) {
     switch (piece) {
         case Piece::Pawn:
@@ -898,8 +898,8 @@ __forceinline BitBoard computePieceControlledSquares(
     }
 }
 
-__forceinline BitBoard computePieceXRays(
-        const Piece piece, const BoardPosition position, const BitBoard anyPiece) {
+FORCE_INLINE BitBoard
+computePieceXRays(const Piece piece, const BoardPosition position, const BitBoard anyPiece) {
     switch (piece) {
         case Piece::Pawn:
             return BitBoard::Empty;

@@ -30,6 +30,9 @@
     <ClInclude Include="Intrinsics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Macros.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">
