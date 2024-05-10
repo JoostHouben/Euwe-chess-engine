@@ -462,7 +462,7 @@ constexpr std::array<BitBoard, kSquares> getKingControlledSquaresArray() {
 
 constexpr std::array<BitBoard, kSquares> kKingControlledSquares = getKingControlledSquaresArray();
 
-void generateCastlingMoves(
+FORCE_INLINE void generateCastlingMoves(
         const Side sideToMove,
         const bool canCastleKingSide,
         const bool canCastleQueenSide,
@@ -477,27 +477,19 @@ void generateCastlingMoves(
     const BitBoard anyPiece = any(occupancy.ownPiece, occupancy.enemyPiece);
 
     const bool inCheck = isSet(enemyControlledSquares, kingPosition);
-    if (inCheck) {
-        // No castle moves are possible while in check
-        return;
-    }
+    MY_ASSERT(!inCheck);
 
     const auto [kingFile, kingRank] = fileRankFromPosition(kingPosition);
 
     if (canCastleKingSide) {
+        const BitBoard emptySquaresMask = (BitBoard)(0x60ULL << (kingRank * 8));
+
         bool castleIsValid = true;
-        for (int fileDelta = 1; fileDelta <= 2; ++fileDelta) {
-            const BoardPosition position = positionFromFileRank(kingFile + fileDelta, kingRank);
-            if (isSet(anyPiece, position)) {
-                // Blocking piece
-                castleIsValid = false;
-                break;
-            }
-            if (isSet(enemyControlledSquares, position)) {
-                // King passes through or into check
-                castleIsValid = false;
-                break;
-            }
+        if (intersection(emptySquaresMask, anyPiece) != BitBoard::Empty) {
+            castleIsValid = false;
+        }
+        if (intersection(emptySquaresMask, enemyControlledSquares) != BitBoard::Empty) {
+            castleIsValid = false;
         }
 
         if (castleIsValid) {
@@ -506,19 +498,15 @@ void generateCastlingMoves(
         }
     }
     if (canCastleQueenSide) {
+        const BitBoard emptySquaresMask = (BitBoard)(0xeULL << (kingRank * 8));
+        const BitBoard controlMask      = (BitBoard)(0x1cULL << (kingRank * 8));
+
         bool castleIsValid = true;
-        for (int fileDelta = 1; fileDelta <= 3; ++fileDelta) {
-            const BoardPosition position = positionFromFileRank(kingFile - fileDelta, kingRank);
-            if (isSet(anyPiece, position)) {
-                // Blocking piece
-                castleIsValid = false;
-                break;
-            }
-            if (fileDelta <= 2 && isSet(enemyControlledSquares, position)) {
-                // King passes through or into check
-                castleIsValid = false;
-                break;
-            }
+        if (intersection(emptySquaresMask, anyPiece) != BitBoard::Empty) {
+            castleIsValid = false;
+        }
+        if (intersection(controlMask, enemyControlledSquares) != BitBoard::Empty) {
+            castleIsValid = false;
         }
 
         if (castleIsValid) {
