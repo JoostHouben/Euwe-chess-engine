@@ -958,8 +958,11 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
         UNREACHABLE;
     };
 
+    const bool enPassantCheck =
+            enPassantTarget_ != BoardPosition::Invalid && enPassantWillPutUsInCheck();
+
     const BoardPosition enPassantTarget =
-            enPassantWillPutUsInCheck() ? BoardPosition::Invalid : enPassantTarget_;
+            enPassantCheck ? BoardPosition::Invalid : enPassantTarget_;
 
     // Generate moves for pawns
     generatePawnMoves(
@@ -1470,9 +1473,8 @@ std::array<BitBoard, kNumPiecesPerSide> GameState::calculatePiecePinOrKingAttack
 }
 
 bool GameState::enPassantWillPutUsInCheck() const {
-    if (enPassantTarget_ == BoardPosition::Invalid) {
-        return false;
-    }
+    MY_ASSERT(enPassantTarget_ != BoardPosition::Invalid);
+
     const auto [enPassantTargetFile, enPassantTargetRank] = fileRankFromPosition(enPassantTarget_);
     const int enPassantOriginRank =
             sideToMove_ == Side::White ? enPassantTargetRank - 1 : enPassantTargetRank + 1;
