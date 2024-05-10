@@ -1031,43 +1031,25 @@ StackVector<Move> GameState::generateMovesInCheck(
     BitBoard anyPieceNoKing = anyPiece;
     clear(anyPieceNoKing, kingPosition);
 
-    PieceIdentifier checkingPieceId       = {Piece::Invalid, BoardPosition::Invalid};
-    PieceIdentifier secondCheckingPieceId = {Piece::Invalid, BoardPosition::Invalid};
+    PieceIdentifier checkingPieceId             = enemyControl.checkingPieceId;
+    const PieceIdentifier secondCheckingPieceId = enemyControl.secondCheckingPieceId;
 
     bool doubleCheck = false;
 
     // Controlled squares of checking pieces if the king weren't there
     BitBoard kingAttackBitBoard = BitBoard::Empty;
-    // Controlled squares of the first checking piece (only used when not in double check)
-    BitBoard checkingPieceControlledSquares = BitBoard::Empty;
-
-    for (int controlIdx = 0; controlIdx < enemyControl.numControlBitBoards; ++controlIdx) {
-        const BitBoard& enemyPieceControl = enemyControl.pieceControl[controlIdx];
-        if (!isSet(enemyPieceControl, kingPosition)) {
-            continue;
-        }
-
-        if (checkingPieceId.piece != Piece::Invalid) {
-            doubleCheck = true;
-
-            secondCheckingPieceId = enemyControl.pieceIds[controlIdx];
-
-            const BitBoard secondKingAttackBitBoard = computePieceControlledSquares(
-                    secondCheckingPieceId.piece, secondCheckingPieceId.position, anyPieceNoKing);
-            kingAttackBitBoard = any(kingAttackBitBoard, secondKingAttackBitBoard);
-
-            break;
-        }
-
-        checkingPieceId                = enemyControl.pieceIds[controlIdx];
-        checkingPieceControlledSquares = enemyPieceControl;
-
-        if (isSlidingPiece(checkingPieceId.piece)) {
-            kingAttackBitBoard = computePieceControlledSquares(
-                    checkingPieceId.piece, checkingPieceId.position, anyPieceNoKing);
-        }
+    if (isSlidingPiece(checkingPieceId.piece)) {
+        kingAttackBitBoard = computePieceControlledSquares(
+                checkingPieceId.piece, checkingPieceId.position, anyPieceNoKing);
     }
-    MY_ASSERT(checkingPieceId.piece != Piece::Invalid);
+    if (isSlidingPiece(secondCheckingPieceId.piece)) {
+        doubleCheck                                         = true;
+        const BitBoard secondCheckingPieceControlledSquares = computePieceControlledSquares(
+                secondCheckingPieceId.piece, secondCheckingPieceId.position, anyPieceNoKing);
+        kingAttackBitBoard = any(kingAttackBitBoard, secondCheckingPieceControlledSquares);
+    }
+    // Controlled squares of the first checking piece (only used when not in double check)
+    const BitBoard checkingPieceControlledSquares = enemyControl.checkingPieceControl;
 
     BitBoard kingControlledSquares = kKingControlledSquares[(int)kingPosition];
     // King can't walk into check
@@ -1627,16 +1609,18 @@ bool GameState::enPassantWillPutUsInCheck() const {
 GameState::SideControl GameState::getEnemyControl() const {
     const Side enemySide    = nextSide(sideToMove_);
     const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
+    const BoardPosition kingPosition =
+            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 
     SideControl enemyControl;
 
     const BitBoard pawnControl =
             computePawnControlledSquares(getPieceBitBoard(enemySide, Piece::Pawn), enemySide);
+    if (isSet(pawnControl, kingPosition)) {
+        enemyControl.checkingPieceId = {Piece::Pawn, BoardPosition::Invalid};
+    }
 
-    enemyControl.numControlBitBoards = 1;
-    enemyControl.pieceIds[0]         = {Piece::Pawn, BoardPosition::Invalid};
-    enemyControl.pieceControl[0]     = pawnControl;
-    enemyControl.control             = pawnControl;
+    enemyControl.control = pawnControl;
 
     for (int pieceIdx = (int)Piece::Pawn + 1; pieceIdx <= (int)Piece::King; ++pieceIdx) {
         const Piece piece = (Piece)pieceIdx;
@@ -1648,11 +1632,16 @@ GameState::SideControl GameState::getEnemyControl() const {
 
             const BitBoard pieceControl =
                     computePieceControlledSquares(piece, piecePosition, anyPiece);
-            enemyControl.pieceIds[enemyControl.numControlBitBoards]     = {piece, piecePosition};
-            enemyControl.pieceControl[enemyControl.numControlBitBoards] = pieceControl;
             enemyControl.control = any(enemyControl.control, pieceControl);
 
-            ++enemyControl.numControlBitBoards;
+            if (isSet(pieceControl, kingPosition)) {
+                if (enemyControl.checkingPieceId.piece == Piece::Invalid) {
+                    enemyControl.checkingPieceId      = {piece, piecePosition};
+                    enemyControl.checkingPieceControl = pieceControl;
+                } else {
+                    enemyControl.secondCheckingPieceId = {piece, piecePosition};
+                }
+            }
         }
     }
 

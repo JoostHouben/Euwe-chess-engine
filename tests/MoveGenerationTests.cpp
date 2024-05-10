@@ -336,7 +336,7 @@ auto testCasesFast = ::testing::Values(
                         .numCastle     = 0,
                         .numPromotions = 0}});
 
-// Total in release mode: ~5.2s
+// Total in release mode: ~4.8s
 auto testCasesSlow = ::testing::Values(
         // Release mode: ~3ms
         TestStatsConfig{
@@ -348,7 +348,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 0,
                          .numCastle     = 0,
                          .numPromotions = 0}},
-        // Release mode: ~60ms
+        // Release mode: ~50ms
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 5,
@@ -358,7 +358,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 258,
                          .numCastle     = 0,
                          .numPromotions = 0}},
-        // Release mode: ~1.2s
+        // Release mode: ~1.1s
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 6,
@@ -368,7 +368,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 5248,
                          .numCastle     = 0,
                          .numPromotions = 0}},
-        // Release mode: ~40ms
+        // Release mode: ~30ms
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 4,
@@ -378,7 +378,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 1'929,
                          .numCastle     = 128'013,
                          .numPromotions = 15'172}},
-        // Release mode: ~1.5s
+        // Release mode: ~1.4s
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 5,
@@ -398,7 +398,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 1'165,
                          .numCastle     = 0,
                          .numPromotions = 0}},
-        // Release mode: ~120ms
+        // Release mode: ~110ms
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 6,
@@ -408,7 +408,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 33'325,
                          .numCastle     = 0,
                          .numPromotions = 7'552}},
-        // Release mode: ~5ms
+        // Release mode: ~4ms
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 4,
@@ -418,7 +418,7 @@ auto testCasesSlow = ::testing::Values(
                          .numEnPassant  = 0,
                          .numCastle     = 7'795,
                          .numPromotions = 60'032}},
-        // Release mode: ~150ms
+        // Release mode: ~130ms
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 5,
@@ -433,9 +433,9 @@ auto testCasesSlow = ::testing::Values(
         // Release mode: ~700ms
         TestStatsConfig{
                 .fen = kPosition5Fen, .depth = 5, .expectedStats = {.numMoves = 89'941'194}},
-        // Release mode: ~40ms
+        // Release mode: ~30ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~1.3s
+        // Release mode: ~1.2s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 5, .expectedStats = {.numMoves = 164'075'551}});
 

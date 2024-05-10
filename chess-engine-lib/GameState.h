@@ -293,11 +293,10 @@ class GameState {
     };
 
     struct SideControl {
-        // TODO: use some soft of 'static vector' type instead of std::array?
-        int numControlBitBoards;
-        std::array<PieceIdentifier, kNumPiecesPerSide> pieceIds;
-        std::array<BitBoard, kNumPiecesPerSide> pieceControl;
-        BitBoard control;
+        BitBoard control                      = BitBoard::Empty;
+        BitBoard checkingPieceControl         = BitBoard::Empty;
+        PieceIdentifier checkingPieceId       = {Piece::Invalid, BoardPosition::Invalid};
+        PieceIdentifier secondCheckingPieceId = {Piece::Invalid, BoardPosition::Invalid};
     };
 
     [[nodiscard]] BitBoard& getPieceBitBoard(Side side, Piece piece) {
