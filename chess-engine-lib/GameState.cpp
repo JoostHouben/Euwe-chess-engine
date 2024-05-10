@@ -1394,8 +1394,8 @@ void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSi
     }
 }
 
-std::array<BitBoard, kNumPiecesPerSide> GameState::calculatePiecePinOrKingAttackBitBoards(
-        const Side kingSide) const {
+FORCE_INLINE std::array<BitBoard, kNumPiecesPerSide>
+GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
     std::array<BitBoard, kNumPiecesPerSide> piecePinOrKingAttackBitBoards{};
     const BoardPosition kingPosition = getFirstSetPosition(getPieceBitBoard(kingSide, Piece::King));
     const BitBoard anyPiece          = any(occupancy_.ownPiece, occupancy_.enemyPiece);
