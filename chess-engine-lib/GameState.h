@@ -39,7 +39,7 @@ constexpr int kNumPieceTypes = 6;
     UNREACHABLE;
 }
 
-enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Invalid = 255 };
+enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Invalid = 7 };
 
 [[nodiscard]] constexpr std::string pieceToString(Piece piece) {
     switch (piece) {
@@ -70,8 +70,6 @@ enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Inval
 }
 
 enum class ColoredPiece : std::uint8_t {
-    None,
-
     WhitePawn   = (std::uint8_t)Piece::Pawn,
     WhiteKnight = (std::uint8_t)Piece::Knight,
     WhiteBishop = (std::uint8_t)Piece::Bishop,
@@ -85,6 +83,8 @@ enum class ColoredPiece : std::uint8_t {
     BlackRook   = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Rook,
     BlackQueen  = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::Queen,
     BlackKing   = ((std::uint8_t)Side::Black << 3) + (std::uint8_t)Piece::King,
+
+    Invalid = (std::uint8_t)Piece::Invalid,
 };
 
 [[nodiscard]] constexpr ColoredPiece getColoredPiece(Piece piece, Side side) {
@@ -267,6 +267,10 @@ class GameState {
         return getPieceBitBoard(getSide(coloredPiece), getPiece(coloredPiece));
     }
 
+    [[nodiscard]] ColoredPiece getPieceOnSquare(BoardPosition position) const {
+        return pieceOnSquare_[(int)position];
+    }
+
     [[nodiscard]] Side getSideToMove() const { return sideToMove_; }
 
     [[nodiscard]] bool canCastleKingSide(Side side) const {
@@ -306,6 +310,10 @@ class GameState {
         return getPieceBitBoard(getSide(coloredPiece), getPiece(coloredPiece));
     }
 
+    [[nodiscard]] ColoredPiece& getPieceOnSquare(BoardPosition position) {
+        return pieceOnSquare_[(int)position];
+    }
+
     [[nodiscard]] StackVector<Move> generateMovesInCheck(
             StackOfVectors<Move>& stack, const SideControl& enemyControl) const;
 
@@ -340,6 +348,8 @@ class GameState {
     CastlingRights castlingRights_ = CastlingRights::None;
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
+
+    std::array<ColoredPiece, kSquares> pieceOnSquare_ = {};
 
     // TODO: should we store the king as a position instead of a bitboard?
     std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides> pieceBitBoards_ = {};

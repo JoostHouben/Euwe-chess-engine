@@ -476,9 +476,6 @@ FORCE_INLINE void generateCastlingMoves(
 
     const BitBoard anyPiece = any(occupancy.ownPiece, occupancy.enemyPiece);
 
-    const bool inCheck = isSet(enemyControlledSquares, kingPosition);
-    MY_ASSERT(!inCheck);
-
     const auto [kingFile, kingRank] = fileRankFromPosition(kingPosition);
 
     if (canCastleKingSide) {
@@ -1025,7 +1022,7 @@ StackVector<Move> GameState::generateMovesInCheck(
     PieceIdentifier checkingPieceId             = enemyControl.checkingPieceId;
     const PieceIdentifier secondCheckingPieceId = enemyControl.secondCheckingPieceId;
 
-    bool doubleCheck = false;
+    const bool doubleCheck = secondCheckingPieceId.piece != Piece::Invalid;
 
     // Controlled squares of checking pieces if the king weren't there
     BitBoard kingAttackBitBoard = BitBoard::Empty;
@@ -1034,7 +1031,6 @@ StackVector<Move> GameState::generateMovesInCheck(
                 checkingPieceId.piece, checkingPieceId.position, anyPieceNoKing);
     }
     if (isSlidingPiece(secondCheckingPieceId.piece)) {
-        doubleCheck                                         = true;
         const BitBoard secondCheckingPieceControlledSquares = computePieceControlledSquares(
                 secondCheckingPieceId.piece, secondCheckingPieceId.position, anyPieceNoKing);
         kingAttackBitBoard = any(kingAttackBitBoard, secondCheckingPieceControlledSquares);
@@ -1249,10 +1245,16 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     // Update king
     getPieceBitBoard(sideToMove_, Piece::King) = (BitBoard)(1ULL << (int)kingToPosition);
 
+    getPieceOnSquare(kingToPosition)   = getPieceOnSquare(kingFromPosition);
+    getPieceOnSquare(kingFromPosition) = ColoredPiece::Invalid;
+
     // Update rook
     BitBoard& rookBitBoard = getPieceBitBoard(sideToMove_, Piece::Rook);
     clear(rookBitBoard, rookFromPosition);
     set(rookBitBoard, rookToPosition);
+
+    getPieceOnSquare(rookToPosition)   = getPieceOnSquare(rookFromPosition);
+    getPieceOnSquare(rookFromPosition) = ColoredPiece::Invalid;
 
     if (!reverse) {
         setCanCastleKingSide(sideToMove_, false);
@@ -1286,16 +1288,10 @@ Piece GameState::makeSinglePieceMove(const Move& move) {
     if (isCapture(move.flags)) {
         clear(occupancy_.enemyPiece, captureTargetSquare);
 
-        for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
-            const Piece piece       = (Piece)pieceIdx;
-            BitBoard& pieceBitBoard = getPieceBitBoard(nextSide(sideToMove_), piece);
-            if (isSet(pieceBitBoard, captureTargetSquare)) {
-                capturedPiece = piece;
-                clear(pieceBitBoard, captureTargetSquare);
-                break;
-            }
-        }
+        capturedPiece = getPiece(getPieceOnSquare(captureTargetSquare));
         MY_ASSERT(capturedPiece != Piece::Invalid);
+
+        clear(getPieceBitBoard(nextSide(sideToMove_), capturedPiece), captureTargetSquare);
 
         if (capturedPiece == Piece::Rook) {
             updateRookCastlingRights(captureTargetSquare, nextSide(sideToMove_));
@@ -1305,6 +1301,22 @@ Piece GameState::makeSinglePieceMove(const Move& move) {
     BitBoard& pieceBitBoard = getPieceBitBoard(sideToMove_, move.pieceToMove);
     clear(pieceBitBoard, move.from);
     set(pieceBitBoard, move.to);
+
+    MY_ASSERT(getPiece(getPieceOnSquare(move.from)) == move.pieceToMove);
+    MY_ASSERT(getSide(getPieceOnSquare(move.from)) == sideToMove_);
+
+    MY_ASSERT(IMPLIES(
+            isCapture(move.flags), getPieceOnSquare(captureTargetSquare) != ColoredPiece::Invalid));
+    MY_ASSERT(
+            IMPLIES(isCapture(move.flags),
+                    getSide(getPieceOnSquare(captureTargetSquare)) == nextSide(sideToMove_)));
+
+    getPieceOnSquare(move.to)   = getPieceOnSquare(move.from);
+    getPieceOnSquare(move.from) = ColoredPiece::Invalid;
+
+    if (isEnPassant(move.flags)) {
+        getPieceOnSquare(captureTargetSquare) = ColoredPiece::Invalid;
+    }
 
     if (move.pieceToMove == Piece::Pawn) {
         handlePawnMove(move);
@@ -1334,6 +1346,9 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     clear(pieceBitBoard, move.to);
     set(pieceBitBoard, move.from);
 
+    // Can't use getPieceOnSquare(move.to) here because that fails when undoing a promotion.
+    getPieceOnSquare(move.from) = getColoredPiece(move.pieceToMove, sideToMove_);
+
     const Piece promotionPiece = getPromotionPiece(move.flags);
     if (promotionPiece != Piece::Pawn) {
         BitBoard& promotionBitBoard = getPieceBitBoard(sideToMove_, promotionPiece);
@@ -1355,6 +1370,14 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
                 getPieceBitBoard(nextSide(sideToMove_), unmakeMoveInfo.capturedPiece);
         set(capturedPieceBitBoard, captureTarget);
         set(occupancy_.enemyPiece, captureTarget);
+
+        getPieceOnSquare(captureTarget) =
+                getColoredPiece(unmakeMoveInfo.capturedPiece, nextSide(sideToMove_));
+        if (isEnPassant(move.flags)) {
+            getPieceOnSquare(move.to) = ColoredPiece::Invalid;
+        }
+    } else {
+        getPieceOnSquare(move.to) = ColoredPiece::Invalid;
     }
 }
 
@@ -1366,6 +1389,8 @@ void GameState::handlePawnMove(const Move& move) {
 
         clear(pawnBitBoard, move.to);
         set(promotionPieceBitBoard, move.to);
+
+        getPieceOnSquare(move.to) = getColoredPiece(promotionPiece, sideToMove_);
     }
 
     const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
@@ -1602,7 +1627,7 @@ GameState::SideControl GameState::getEnemyControl() const {
     const BoardPosition kingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 
-    SideControl enemyControl;
+    SideControl enemyControl{};
 
     const BitBoard pawnControl =
             computePawnControlledSquares(getPieceBitBoard(enemySide, Piece::Pawn), enemySide);
@@ -1639,9 +1664,7 @@ GameState::SideControl GameState::getEnemyControl() const {
 }
 
 bool GameState::isInCheck(const SideControl& enemyControl) const {
-    const BoardPosition kingPosition =
-            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
-    return isSet(enemyControl.control, kingPosition);
+    return enemyControl.checkingPieceId.piece != Piece::Invalid;
 }
 
 void GameState::setCanCastleKingSide(const Side side, const bool canCastle) {

@@ -87,10 +87,14 @@ constexpr char toFenChar(ColoredPiece coloredPiece) {
     return c;
 }
 
-using BoardConfigurationInfo = std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides>;
+struct BoardConfigurationInfo {
+    std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides> pieceBitBoards = {};
+    std::array<ColoredPiece, kSquares> pieceOnSquare                           = {};
+};
 
 BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterator& strIt) {
     BoardConfigurationInfo boardConfiguration = {};
+    boardConfiguration.pieceOnSquare.fill(ColoredPiece::Invalid);
 
     for (int rank = 7; rank >= 0; --rank) {
         for (int file = 0; file < 8; ++strIt) {
@@ -103,7 +107,9 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterato
             const Side side                 = getSide(coloredPiece);
             const Piece piece               = getPiece(coloredPiece);
 
-            set(boardConfiguration[(int)side][(int)piece], position);
+            set(boardConfiguration.pieceBitBoards[(int)side][(int)piece], position);
+
+            boardConfiguration.pieceOnSquare[(int)position] = coloredPiece;
 
             file += 1;
         }
@@ -172,31 +178,13 @@ std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strI
     return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
-std::map<BoardPosition, ColoredPiece> getPositionToPieceMap(
-        const BoardConfigurationInfo& boardConfig) {
-    std::map<BoardPosition, ColoredPiece> positionToPiece;
-    for (int side = 0; side < kNumSides; ++side) {
-        for (int piece = 0; piece < kNumPieceTypes; ++piece) {
-            BitBoard pieceBitBoard = boardConfig[side][piece];
-            while (pieceBitBoard != BitBoard::Empty) {
-                BoardPosition position =
-                        (BoardPosition)std::countr_zero((std::uint64_t)pieceBitBoard);
-                clear(pieceBitBoard, position);
-                positionToPiece.emplace(position, getColoredPiece((Piece)piece, (Side)side));
-            }
-        }
-    }
-
-    return positionToPiece;
-}
-
 void boardConfigurationToFen(const BoardConfigurationInfo& boardConfig, std::ostream& out) {
-    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(boardConfig);
     for (int rank = 7; rank >= 0; --rank) {
         int numEmptyTiles = 0;
         for (int file = 0; file < 8; ++file) {
-            auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
-            if (pieceIt == positionToPiece.end()) {
+            const ColoredPiece coloredPiece =
+                    boardConfig.pieceOnSquare[(int)positionFromFileRank(file, rank)];
+            if (coloredPiece == ColoredPiece::Invalid) {
                 ++numEmptyTiles;
                 continue;
             }
@@ -206,7 +194,7 @@ void boardConfigurationToFen(const BoardConfigurationInfo& boardConfig, std::ost
                 numEmptyTiles = 0;
             }
 
-            out << toFenChar(pieceIt->second);
+            out << toFenChar(coloredPiece);
         }
 
         if (numEmptyTiles) {
@@ -253,9 +241,10 @@ PieceOccupancyBitBoards getPieceOccupancyBitBoards(
     PieceOccupancyBitBoards occupancy{};
 
     for (int piece = 0; piece < kNumPieceTypes; ++piece) {
-        occupancy.ownPiece = any(occupancy.ownPiece, configuration[(int)ownSide][piece]);
-        occupancy.enemyPiece =
-                any(occupancy.enemyPiece, configuration[(int)nextSide(ownSide)][piece]);
+        occupancy.ownPiece =
+                any(occupancy.ownPiece, configuration.pieceBitBoards[(int)ownSide][piece]);
+        occupancy.enemyPiece = any(
+                occupancy.enemyPiece, configuration.pieceBitBoards[(int)nextSide(ownSide)][piece]);
     }
 
     return occupancy;
@@ -268,7 +257,9 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     auto strIt = fenString.begin();
 
-    gameState.pieceBitBoards_ = parseBoardConfigurationFromFen(strIt);
+    BoardConfigurationInfo boardConfig = parseBoardConfigurationFromFen(strIt);
+    gameState.pieceBitBoards_          = boardConfig.pieceBitBoards;
+    gameState.pieceOnSquare_           = boardConfig.pieceOnSquare;
     MY_ASSERT(*strIt == ' ');
     ++strIt;
 
@@ -292,8 +283,7 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     MY_ASSERT(strIt < fenString.end());
 
-    gameState.occupancy_ =
-            getPieceOccupancyBitBoards(gameState.pieceBitBoards_, gameState.sideToMove_);
+    gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig, gameState.sideToMove_);
 
     return gameState;
 }
@@ -301,7 +291,12 @@ GameState GameState::fromFen(const std::string& fenString) {
 std::string GameState::toFen(int moveCounter) const {
     std::ostringstream ss;
 
-    boardConfigurationToFen(pieceBitBoards_, ss);
+    BoardConfigurationInfo boardConfig = {
+            .pieceBitBoards = pieceBitBoards_,
+            .pieceOnSquare  = pieceOnSquare_,
+    };
+
+    boardConfigurationToFen(boardConfig, ss);
     ss << ' ';
     sideToMoveToFen(sideToMove_, ss);
     ss << ' ';
@@ -317,8 +312,6 @@ std::string GameState::toFen(int moveCounter) const {
 }
 
 std::string GameState::toVisualString() const {
-    std::map<BoardPosition, ColoredPiece> positionToPiece = getPositionToPieceMap(pieceBitBoards_);
-
     const std::string boardTop = "  .-------------------------------.\n";
     const std::string boardSep = "  |---+---+---+---+---+---+---+---|\n";
     const std::string boardBot = "  '-------------------------------'\n";
@@ -330,11 +323,11 @@ std::string GameState::toVisualString() const {
         ss << rank + 1 << " |";
         for (int file = 0; file < 8; ++file) {
             ss << ' ';
-            auto pieceIt = positionToPiece.find(positionFromFileRank(file, rank));
-            if (pieceIt == positionToPiece.end()) {
+            const ColoredPiece coloredPiece = pieceOnSquare_[(int)positionFromFileRank(file, rank)];
+            if (coloredPiece == ColoredPiece::Invalid) {
                 ss << ' ';
             } else {
-                ss << toFenChar(pieceIt->second);
+                ss << toFenChar(coloredPiece);
             }
             ss << " |";
         }
