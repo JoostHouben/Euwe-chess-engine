@@ -93,7 +93,7 @@ void generatePawnMoves(
                     const int originIdx                = (int)targetPosition - originOffset;
                     const BoardPosition originPosition = (BoardPosition)originIdx;
 
-                    if (isSet(pinBitBoard, originPosition)) {
+                    if (isSet(pinBitBoard, originPosition)) [[unlikely]] {
                         // Find pin bit board
                         BitBoard pawnPiecePinBitBoard = BitBoard::Empty;
                         for (const auto piecePinBitBoard : piecePinBitBoards) {
