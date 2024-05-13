@@ -234,9 +234,9 @@ void enPassantTargetToFen(BoardPosition enPassantTarget, std::ostream& out) {
     }
 }
 
-PieceOccupancyBitBoards getPieceOccupancyBitBoards(
+GameState::PieceOccupancyBitBoards getPieceOccupancyBitBoards(
         BoardConfigurationInfo configuration, const Side ownSide) {
-    PieceOccupancyBitBoards occupancy{};
+    GameState::PieceOccupancyBitBoards occupancy{};
 
     for (int piece = 0; piece < kNumPieceTypes; ++piece) {
         occupancy.ownPiece =

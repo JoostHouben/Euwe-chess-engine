@@ -11,11 +11,17 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BitBoard.h" />
+    <ClInclude Include="BoardConstants.h" />
+    <ClInclude Include="BoardPosition.h" />
     <ClInclude Include="ClangDiagnosticIgnore.h" />
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />
+    <ClInclude Include="Move.h" />
     <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
+    <ClInclude Include="Piece.h" />
+    <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>
   <ItemGroup>

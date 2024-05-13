@@ -38,7 +38,7 @@ FORCE_INLINE BitBoard computePawnControlledSquares(const BitBoard pawnBitBoard, 
 void generatePawnMoves(
         const BitBoard pawnBitBoard,
         const Side side,
-        const PieceOccupancyBitBoards& occupancy,
+        const GameState::PieceOccupancyBitBoards& occupancy,
         const BoardPosition enPassantTarget,
         const std::array<BitBoard, kNumPiecesPerSide>& piecePinBitBoards,
         const BitBoard pinBitBoard,
@@ -466,7 +466,7 @@ FORCE_INLINE void generateCastlingMoves(
         const Side sideToMove,
         const bool canCastleKingSide,
         const bool canCastleQueenSide,
-        const PieceOccupancyBitBoards& occupancy,
+        const GameState::PieceOccupancyBitBoards& occupancy,
         const BitBoard enemyControlledSquares,
         StackVector<Move>& moves) {
     MY_ASSERT(sideToMove == Side::White || sideToMove == Side::Black);
@@ -518,7 +518,7 @@ FORCE_INLINE void generateSinglePieceMovesFromControl(
         const Piece piece,
         const BoardPosition piecePosition,
         BitBoard controlledSquares,
-        const PieceOccupancyBitBoards& occupancy,
+        const GameState::PieceOccupancyBitBoards& occupancy,
         const BitBoard piecePinBitBoard,
         StackVector<Move>& moves) {
     // Can't move to our own pieces
