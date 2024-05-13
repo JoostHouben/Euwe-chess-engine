@@ -42,7 +42,7 @@ enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Inval
 [[nodiscard]] constexpr std::string pieceToString(Piece piece) {
     switch (piece) {
         case Piece::Pawn:
-            return "p";
+            return "P";
         case Piece::Knight:
             return "N";
         case Piece::Bishop:
