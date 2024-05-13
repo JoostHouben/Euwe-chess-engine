@@ -13,7 +13,7 @@
 
 #include <cstdint>
 
-enum class Side : std::uint8_t { White, Black, None };
+enum class Side : std::uint8_t { White, Black };
 constexpr int kNumSides = 2;
 
 constexpr int kRanks   = 8;
@@ -33,8 +33,6 @@ constexpr int kNumPieceTypes = 6;
             return Side::Black;
         case Side::Black:
             return Side::White;
-        case Side::None:
-            return Side::None;
     }
     UNREACHABLE;
 }
@@ -342,7 +340,7 @@ class GameState {
 
     GameState() = default;
 
-    Side sideToMove_ = Side::None;
+    Side sideToMove_ = Side::White;
 
     BoardPosition enPassantTarget_ = BoardPosition::Invalid;
 

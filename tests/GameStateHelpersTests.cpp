@@ -7,13 +7,11 @@ namespace GameStateHelperTests {
 TEST(GameStateHelpers, TestGetPiece) {
     EXPECT_EQ(getPiece(getColoredPiece(Piece::Bishop, Side::White)), Piece::Bishop);
     EXPECT_EQ(getPiece(getColoredPiece(Piece::Knight, Side::Black)), Piece::Knight);
-    EXPECT_EQ(getPiece(getColoredPiece(Piece::King, Side::None)), Piece::King);
 }
 
 TEST(GameStateHelpers, TestGetSide) {
     EXPECT_EQ(getSide(getColoredPiece(Piece::Bishop, Side::White)), Side::White);
     EXPECT_EQ(getSide(getColoredPiece(Piece::Knight, Side::Black)), Side::Black);
-    EXPECT_EQ(getSide(getColoredPiece(Piece::King, Side::None)), Side::None);
 }
 
 TEST(GameStateHelpers, TestFileRankFromPosition) {

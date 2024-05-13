@@ -50,8 +50,6 @@ constexpr char toFenChar(Side side) {
             return 'w';
         case Side::Black:
             return 'b';
-        case Side::None:
-            return 'x';
     }
     UNREACHABLE;
 }
