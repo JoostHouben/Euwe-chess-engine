@@ -30,7 +30,9 @@
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />
+    <ClCompile Include="Piece.cpp" />
     <ClCompile Include="PieceControl.cpp" />
+    <ClCompile Include="Side.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

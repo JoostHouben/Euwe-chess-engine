@@ -17,3 +17,6 @@ enum class Side : std::uint8_t { White, Black };
     }
     UNREACHABLE;
 }
+
+[[nodiscard]] Side sideFromFenChar(char c);
+[[nodiscard]] char toFenChar(Side side);

@@ -43,6 +43,9 @@ inline constexpr std::array kPromotionPieces = {
     return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
 }
 
+[[nodiscard]] Piece pieceFromFenChar(char c);
+[[nodiscard]] char toFenChar(Piece piece);
+
 enum class ColoredPiece : std::uint8_t {
     WhitePawn   = (std::uint8_t)Piece::Pawn,
     WhiteKnight = (std::uint8_t)Piece::Knight,
@@ -73,3 +76,6 @@ enum class ColoredPiece : std::uint8_t {
 [[nodiscard]] constexpr Side getSide(ColoredPiece coloredPiece) {
     return static_cast<Side>((std::uint8_t)coloredPiece >> 3);
 }
+
+[[nodiscard]] ColoredPiece coloredPieceFromFenChar(char c);
+[[nodiscard]] char toFenChar(ColoredPiece coloredPiece);

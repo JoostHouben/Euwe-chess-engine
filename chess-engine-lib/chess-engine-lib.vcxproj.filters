@@ -71,5 +71,11 @@
     <ClCompile Include="Move.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Piece.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Side.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
