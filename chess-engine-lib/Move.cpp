@@ -2,7 +2,123 @@
 
 #include "GameState.h"
 
-[[nodiscard]] std::string moveToExtendedString(const Move& move) {
+#include <algorithm>
+#include <format>
+
+namespace {
+
+[[nodiscard]] std::string algebraicFromPawnMove(const Move& move) {
+    std::string result = "";
+
+    if (isCapture(move.flags)) {
+        result += (char)('a' + fileFromPosition(move.from));
+        result += 'x';
+    }
+    result += algebraicFromPosition(move.to);
+
+    if (isPromotion(move.flags)) {
+        result += "=" + pieceToString(getPromotionPiece(move.flags));
+    }
+
+    return result;
+}
+
+[[nodiscard]] std::string algebraicFromKingMove(const Move& move) {
+    const auto [kingFromFile, kingFromRank] = fileRankFromPosition(move.from);
+    const auto [kingToFile, kingToRank]     = fileRankFromPosition(move.to);
+
+    if (std::abs(kingFromFile - kingToFile) == 2) {
+        const bool isQueenSide = kingToFile == 2;  // c
+        return isQueenSide ? "O-O-O" : "O-O";
+    }
+
+    return std::format("K{}", algebraicFromPosition(move.to));
+}
+
+[[nodiscard]] std::string algebraicFromPieceMove(
+        const Move& move, const GameState& gameState, StackOfVectors<Move>& stack) {
+    const StackVector<Move> moves = gameState.generateMoves(stack);
+
+    StackVector<Move> ambiguousMoves = stack.makeStackVector();
+    std::copy_if(
+            moves.begin(),
+            moves.end(),
+            std::back_inserter(ambiguousMoves),
+            [&move](const Move& otherMove) {
+                return otherMove.pieceToMove == move.pieceToMove && otherMove.to == move.to &&
+                       otherMove.from != move.from;
+            });
+    ambiguousMoves.lock();
+
+    std::string result = pieceToString(move.pieceToMove);
+
+    if (ambiguousMoves.size() > 0) {
+        const int numSameFile = std::count_if(
+                ambiguousMoves.begin(), ambiguousMoves.end(), [&move](const Move& otherMove) {
+                    return fileFromPosition(otherMove.from) == fileFromPosition(move.from);
+                });
+
+        const int numSameRank = std::count_if(
+                ambiguousMoves.begin(), ambiguousMoves.end(), [&move](const Move& otherMove) {
+                    return rankFromPosition(otherMove.from) == rankFromPosition(move.from);
+                });
+
+        if (numSameFile == 0) {
+            result += (char)('a' + fileFromPosition(move.from));
+        } else if (numSameRank == 0) {
+            result += (char)('1' + rankFromPosition(move.from));
+        } else {
+            result += algebraicFromPosition(move.from);
+        }
+    }
+
+    if (isCapture(move.flags)) {
+        result += 'x';
+    }
+
+    result += algebraicFromPosition(move.to);
+
+    return result;
+}
+
+}  // namespace
+
+std::string algebraicFromMove(const Move& move, const GameState& gameState) {
+    StackOfVectors<Move> stack;
+
+    std::string algebraic;
+
+    switch (move.pieceToMove) {
+        case Piece::Pawn:
+            algebraic = algebraicFromPawnMove(move);
+            break;
+        case Piece::King:
+            algebraic = algebraicFromKingMove(move);
+            break;
+        default:
+            algebraic = algebraicFromPieceMove(move, gameState, stack);
+            break;
+    }
+
+    GameState copyState(gameState);
+    copyState.makeMove(move);
+
+    const bool isCheck     = copyState.isInCheck();
+    const bool isCheckMate = isCheck && copyState.generateMoves(stack).empty();
+
+    if (isCheckMate) {
+        algebraic += '#';
+    } else if (isCheck) {
+        algebraic += '+';
+    }
+
+    return algebraic;
+}
+
+[[nodiscard]]
+
+std::string
+moveToExtendedString(const Move& move) {
     if (isCastle(move.flags)) {
         const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
         const bool isQueenSide              = kingToFile == 2;  // c
@@ -20,7 +136,7 @@
            algebraicFromPosition(move.to) + promotionString + enPassant;
 }
 
-[[nodiscard]] std::string moveToUciString(const Move& move) {
+std::string moveToUciString(const Move& move) {
     std::string uciString = algebraicFromPosition(move.from) + algebraicFromPosition(move.to);
 
     if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {

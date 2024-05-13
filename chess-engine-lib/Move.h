@@ -54,10 +54,11 @@ struct Move {
 
 class GameState;
 
-Move moveFromAlgebraic(std::string_view algebraic,
-                       const GameState& gameState);  // TODO
+[[nodiscard]] Move moveFromAlgebraic(
+        std::string_view algebraic,
+        const GameState& gameState);  // TODO
 
-std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
+[[nodiscard]] std::string algebraicFromMove(const Move& move, const GameState& gameState);
 
 // Long algebraic notation for moves, except no indicators for check or checkmate
 // {piece}{from}-{to}
