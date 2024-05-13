@@ -4,6 +4,7 @@
 
 #include "MyAssert.h"
 
+#include <iterator>
 #include <utility>
 #include <vector>
 
@@ -48,87 +49,222 @@ class StackOfVectors {
 };
 
 template <typename T>
+class StackVector;
+
+template <typename T>
+class StackVectorIterator {
+  public:
+    using difference_type   = int;
+    using value_type        = T;
+    using pointer           = T*;
+    using reference         = T&;
+    using iterator_category = std::random_access_iterator_tag;
+    using iterator_concept  = std::contiguous_iterator_tag;
+
+    StackVectorIterator(StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+
+    T& operator*() const { return parent_[idx_]; }
+
+    T* operator->() { return &parent_[idx_]; }
+    const T* operator->() const { return &parent_[idx_]; }
+
+    StackVectorIterator& operator+=(int offset) {
+        idx_ += offset;
+        return *this;
+    }
+
+    StackVectorIterator& operator-=(int offset) {
+        idx_ -= offset;
+        return *this;
+    }
+
+    StackVectorIterator& operator++() {
+        (*this) += 1;
+        return *this;
+    }
+
+    StackVectorIterator operator++(int) {
+        StackVectorIterator copy(*this);
+        operator++();
+        return copy;
+    }
+
+    StackVectorIterator& operator--() {
+        (*this) -= 1;
+        return *this;
+    }
+
+    StackVectorIterator& operator--(int) {
+        StackVectorIterator copy(*this);
+        operator--();
+        return copy;
+    }
+
+    StackVectorIterator operator+(int offset) const {
+        StackVectorIterator copy(*this);
+        copy += offset;
+        return copy;
+    }
+    StackVectorIterator operator-(int offset) const {
+        StackVectorIterator copy(*this);
+        copy -= offset;
+        return copy;
+    }
+
+    int operator-(const StackVectorIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ - rhs.idx_;
+    }
+
+    T& operator[](int offset) { return *(*this + offset); }
+
+    auto operator<=>(const StackVectorIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ <=> rhs.idx_;
+    }
+
+    bool operator==(const StackVectorIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ == rhs.idx_;
+    }
+
+  private:
+    StackVector<T>& parent_;
+    int idx_;
+};
+
+template <typename T>
+StackVectorIterator<T> operator+(int offset, const StackVectorIterator<T>& it) {
+    return (it + offset);
+}
+
+template <typename T>
+StackVectorIterator<T> operator-(int offset, const StackVectorIterator<T>& it) {
+    return (it - offset);
+}
+
+template <typename T>
+class StackVectorConstIterator {
+  public:
+    using difference_type   = int;
+    using value_type        = T;
+    using pointer           = const T*;
+    using reference         = const T&;
+    using iterator_category = std::random_access_iterator_tag;
+    using iterator_concept  = std::contiguous_iterator_tag;
+
+    StackVectorConstIterator(const StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+
+    const T& operator*() const { return parent_[idx_]; }
+
+    const T* operator->() const { return &parent_[idx_]; }
+
+    StackVectorConstIterator& operator+=(int offset) {
+        idx_ += offset;
+        return *this;
+    }
+
+    StackVectorConstIterator& operator-=(int offset) {
+        idx_ -= offset;
+        return *this;
+    }
+
+    StackVectorConstIterator& operator++() {
+        (*this) += 1;
+        return *this;
+    }
+
+    StackVectorConstIterator operator++(int) {
+        StackVectorConstIterator copy(*this);
+        operator++();
+        return copy;
+    }
+
+    StackVectorConstIterator& operator--() {
+        (*this) -= 1;
+        return *this;
+    }
+
+    StackVectorConstIterator& operator--(int) {
+        StackVectorConstIterator copy(*this);
+        operator--();
+        return copy;
+    }
+
+    StackVectorConstIterator operator+(int offset) const {
+        StackVectorConstIterator copy(*this);
+        copy += offset;
+        return copy;
+    }
+    StackVectorConstIterator operator-(int offset) const {
+        StackVectorConstIterator copy(*this);
+        copy -= offset;
+        return copy;
+    }
+
+    int operator-(const StackVectorConstIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ - rhs.idx_;
+    }
+
+    const T& operator[](int offset) { return *(*this + offset); }
+
+    auto operator<=>(const StackVectorConstIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ <=> rhs.idx_;
+    }
+
+    bool operator==(const StackVectorConstIterator& rhs) const {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        return idx_ == rhs.idx_;
+    }
+
+  private:
+    const StackVector<T>& parent_;
+    int idx_;
+};
+
+template <typename T>
+StackVectorConstIterator<T> operator+(int offset, const StackVectorConstIterator<T>& it) {
+    return (it + offset);
+}
+
+template <typename T>
+StackVectorConstIterator<T> operator-(int offset, const StackVectorConstIterator<T>& it) {
+    return (it - offset);
+}
+
+template <typename T>
+struct std::iterator_traits<StackVectorIterator<T>> {
+    using difference_type   = typename StackVectorIterator<T>::difference_type;
+    using value_type        = typename StackVectorIterator<T>::value_type;
+    using pointer           = typename StackVectorIterator<T>::pointer;
+    using reference         = typename StackVectorIterator<T>::reference;
+    using iterator_category = typename StackVectorIterator<T>::iterator_category;
+    using iterator_concept  = typename StackVectorIterator<T>::iterator_concept;
+};
+
+template <typename T>
+struct std::iterator_traits<StackVectorConstIterator<T>> {
+    using difference_type   = typename StackVectorConstIterator<T>::difference_type;
+    using value_type        = typename StackVectorConstIterator<T>::value_type;
+    using pointer           = typename StackVectorConstIterator<T>::pointer;
+    using reference         = typename StackVectorConstIterator<T>::reference;
+    using iterator_category = typename StackVectorConstIterator<T>::iterator_category;
+    using iterator_concept  = typename StackVectorConstIterator<T>::iterator_concept;
+};
+
+template <typename T>
 class StackVector {
   private:
     using ContainerT = typename StackOfVectors<T>::ContainerT;
 
   public:
-    class Iterator {
-      public:
-        Iterator(StackVector& parent, int idx) : parent_(parent), idx_(idx) {}
-
-        T operator*() const { return parent_[idx_]; }
-
-        T* operator->() { return &parent_[idx_]; }
-        const T* operator->() const { return &parent_[idx_]; }
-
-        Iterator& operator++() {
-            ++idx_;
-            return *this;
-        }
-
-        Iterator& operator--() {
-            --idx_;
-            return *this;
-        }
-
-        Iterator operator+(int offset) const { return Iterator(parent_, idx_ + offset); }
-        Iterator operator-(int offset) const { return Iterator(parent_, idx_ - offset); }
-
-        auto operator<=>(const Iterator& rhs) const {
-            MY_ASSERT(&parent_ == &rhs.parent_);
-            return idx_ <=> rhs.idx_;
-        }
-
-        bool operator==(const Iterator& rhs) const {
-            MY_ASSERT(&parent_ == &rhs.parent_);
-            return idx_ == rhs.idx_;
-        }
-
-      private:
-        StackVector& parent_;
-        int idx_;
-    };
-
-    class ConstIterator {
-      public:
-        ConstIterator(const StackVector& parent, int idx) : parent_(parent), idx_(idx) {}
-
-        T operator*() const { return parent_[idx_]; }
-
-        const T* operator->() const { return &parent_[idx_]; }
-
-        ConstIterator& operator++() {
-            ++idx_;
-            return *this;
-        }
-
-        ConstIterator& operator--() {
-            --idx_;
-            return *this;
-        }
-
-        ConstIterator operator+(int offset) const { return ConstIterator(parent_, idx_ + offset); }
-        ConstIterator operator-(int offset) const { return ConstIterator(parent_, idx_ - offset); }
-
-        auto operator<=>(const ConstIterator& rhs) const {
-            MY_ASSERT(&parent_ == &rhs.parent_);
-            return idx_ <=> rhs.idx_;
-        }
-
-        bool operator==(const ConstIterator& rhs) const {
-            MY_ASSERT(&parent_ == &rhs.parent_);
-            return idx_ == rhs.idx_;
-        }
-
-      private:
-        const StackVector& parent_;
-        int idx_;
-    };
-
-    using value_type     = T;
-    using iterator       = Iterator;
-    using const_iterator = ConstIterator;
+    using value_type        = T;
+    using iterator          = StackVectorIterator<T>;
+    using const_iterator    = StackVectorConstIterator<T>;
+    using iterator_category = std::random_access_iterator_tag;
+    using iterator_concept  = std::contiguous_iterator_tag;
 
     StackVector(const StackVector&) = delete;
     StackVector(StackVector&& other) noexcept
@@ -199,12 +335,12 @@ class StackVector {
     int size() const { return endIdx_ - startIdx_; }
     bool empty() const { return size() == 0; }
 
-    iterator begin() { return Iterator(*this, 0); }
-    const_iterator begin() const { return ConstIterator(*this, 0); }
+    iterator begin() { return iterator(*this, 0); }
+    const_iterator begin() const { return const_iterator(*this, 0); }
     const_iterator cbegin() const { return begin(); }
 
-    iterator end() { return Iterator(*this, size()); }
-    const_iterator end() const { return ConstIterator(*this, size()); }
+    iterator end() { return iterator(*this, size()); }
+    const_iterator end() const { return const_iterator(*this, size()); }
     const_iterator cend() const { return end(); }
 
     T& operator[](int idx) {
