@@ -33,6 +33,7 @@
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="BitBoardTests.cpp" />
     <ClCompile Include="BoardPositionTests.cpp" />
     <ClCompile Include="GameStateHelpersTests.cpp" />
     <ClCompile Include="FenParsingTests.cpp" />
