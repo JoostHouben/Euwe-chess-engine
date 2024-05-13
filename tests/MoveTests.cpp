@@ -71,7 +71,7 @@ TEST(MoveTests, TestMoveToUciString) {
                      BoardPosition::B7,
                      BoardPosition::C8,
                      getFlags(MoveFlags::IsCapture, Piece::Queen)}),
-            "b7c8");
+            "b7c8q");
 
     EXPECT_EQ(
             moveToUciString(

@@ -19,5 +19,11 @@
 }
 
 [[nodiscard]] std::string moveToUciString(const Move& move) {
-    return algebraicFromPosition(move.from) + algebraicFromPosition(move.to);
+    std::string uciString = algebraicFromPosition(move.from) + algebraicFromPosition(move.to);
+
+    if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {
+        uciString += toLowerCaseFenChar(promotionPiece);
+    }
+
+    return uciString;
 }

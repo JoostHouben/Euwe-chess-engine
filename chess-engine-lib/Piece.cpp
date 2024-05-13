@@ -50,6 +50,10 @@ char toFenChar(Piece piece) {
     }
 }
 
+char toLowerCaseFenChar(Piece piece) {
+    return toFenChar(piece) | kLowerCaseBit;
+}
+
 char toFenChar(ColoredPiece coloredPiece) {
     char c = toFenChar(getPiece(coloredPiece));
     if (getSide(coloredPiece) == Side::Black) {

@@ -45,6 +45,7 @@ inline constexpr std::array kPromotionPieces = {
 
 [[nodiscard]] Piece pieceFromFenChar(char c);
 [[nodiscard]] char toFenChar(Piece piece);
+[[nodiscard]] char toLowerCaseFenChar(Piece piece);
 
 enum class ColoredPiece : std::uint8_t {
     WhitePawn   = (std::uint8_t)Piece::Pawn,
