@@ -33,9 +33,12 @@
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
   </PropertyGroup>
   <ItemGroup>
+    <ClCompile Include="BoardPositionTests.cpp" />
     <ClCompile Include="GameStateHelpersTests.cpp" />
     <ClCompile Include="FenParsingTests.cpp" />
     <ClCompile Include="MoveGenerationTests.cpp" />
+    <ClCompile Include="MoveTests.cpp" />
+    <ClCompile Include="PieceTests.cpp" />
     <ClCompile Include="StackOfVectorsTests.cpp" />
   </ItemGroup>
   <ItemGroup>

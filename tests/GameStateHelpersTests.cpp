@@ -4,38 +4,6 @@
 
 namespace GameStateHelperTests {
 
-TEST(GameStateHelpers, TestGetPiece) {
-    EXPECT_EQ(getPiece(getColoredPiece(Piece::Bishop, Side::White)), Piece::Bishop);
-    EXPECT_EQ(getPiece(getColoredPiece(Piece::Knight, Side::Black)), Piece::Knight);
-}
-
-TEST(GameStateHelpers, TestGetSide) {
-    EXPECT_EQ(getSide(getColoredPiece(Piece::Bishop, Side::White)), Side::White);
-    EXPECT_EQ(getSide(getColoredPiece(Piece::Knight, Side::Black)), Side::Black);
-}
-
-TEST(GameStateHelpers, TestFileRankFromPosition) {
-    using FileRankT = std::pair<int, int>;
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 0)), FileRankT(0, 0));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(0, 7)), FileRankT(0, 7));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 0)), FileRankT(7, 0));
-    EXPECT_EQ(fileRankFromPosition(positionFromFileRank(7, 7)), FileRankT(7, 7));
-}
-
-TEST(GameStateHelpers, TestPositionFromAlgebraic) {
-    EXPECT_EQ(positionFromAlgebraic("a1"), positionFromFileRank(0, 0));
-    EXPECT_EQ(positionFromAlgebraic("a8"), positionFromFileRank(0, 7));
-    EXPECT_EQ(positionFromAlgebraic("h1"), positionFromFileRank(7, 0));
-    EXPECT_EQ(positionFromAlgebraic("h8"), positionFromFileRank(7, 7));
-}
-
-TEST(GameStateHelpers, TestAlgebraicFromPosition) {
-    EXPECT_EQ(algebraicFromPosition(positionFromFileRank(0, 0)), "a1");
-    EXPECT_EQ(algebraicFromPosition(positionFromFileRank(0, 7)), "a8");
-    EXPECT_EQ(algebraicFromPosition(positionFromFileRank(7, 0)), "h1");
-    EXPECT_EQ(algebraicFromPosition(positionFromFileRank(7, 7)), "h8");
-}
-
 TEST(GameStateHelpers, TestToVisualString) {
     const GameState startingPosition = GameState::startingPosition();
     const std::string startingVisual = startingPosition.toVisualString();
@@ -149,16 +117,6 @@ TEST(GameStateHelpers, TestToVisualStringPosition4) {
             "1 | R |   |   | Q |   | R | K |   | w\n"
             "  '-------------------------------'\n"
             "    a   b   c   d   e   f   g   h\n";
-}
-
-TEST(GameStateHelpers, TestGetFlags) {
-    EXPECT_EQ(
-            getFlags(MoveFlags::IsCapture, MoveFlags::IsCastle),
-            (MoveFlags)((int)MoveFlags::IsCapture | (int)MoveFlags::IsCastle));
-
-    EXPECT_EQ(
-            getFlags(MoveFlags::IsCapture, Piece::Bishop),
-            (MoveFlags)((int)MoveFlags::IsCapture | (int)Piece::Bishop));
 }
 
 }  // namespace GameStateHelperTests
