@@ -66,24 +66,6 @@ std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
 // For en passant: suffix ' e.p.'
 // For castling: normal algebraic notation
 // Examples: Pe2-e4, Rd3xd7, Pe5xd6 e.p.
-[[nodiscard]] constexpr std::string moveToExtendedString(const Move& move) {
-    if (isCastle(move.flags)) {
-        const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
-        const bool isQueenSide              = kingToFile == 2;  // c
-        return isQueenSide ? "O-O-O" : "O-O";
-    }
+[[nodiscard]] std::string moveToExtendedString(const Move& move);
 
-    const char positionSeparator = isCapture(move.flags) ? 'x' : '-';
-    const Piece promotionPiece   = getPromotionPiece(move.flags);
-    const std::string promotionString =
-            promotionPiece == Piece::Pawn ? "" : std::format("={}", pieceToString(promotionPiece));
-
-    const std::string enPassant = isEnPassant(move.flags) ? " e.p." : "";
-
-    return pieceToString(move.pieceToMove) + algebraicFromPosition(move.from) + positionSeparator +
-           algebraicFromPosition(move.to) + promotionString + enPassant;
-}
-
-[[nodiscard]] constexpr std::string moveToUciString(const Move& move) {
-    return algebraicFromPosition(move.from) + algebraicFromPosition(move.to);
-}
+[[nodiscard]] std::string moveToUciString(const Move& move);
