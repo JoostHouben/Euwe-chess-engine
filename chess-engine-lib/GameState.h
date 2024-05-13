@@ -296,8 +296,7 @@ class GameState {
         BoardPosition position;
     };
 
-    struct SideControl {
-        BitBoard control                      = BitBoard::Empty;
+    struct CheckInformation {
         BitBoard checkingPieceControl         = BitBoard::Empty;
         PieceIdentifier checkingPieceId       = {Piece::Invalid, BoardPosition::Invalid};
         PieceIdentifier secondCheckingPieceId = {Piece::Invalid, BoardPosition::Invalid};
@@ -315,7 +314,7 @@ class GameState {
     }
 
     [[nodiscard]] StackVector<Move> generateMovesInCheck(
-            StackOfVectors<Move>& stack, const SideControl& enemyControl) const;
+            StackOfVectors<Move>& stack, BitBoard enemyControl) const;
 
     // TODO: rename this something like xray bitboards?
     // The last entry in the array stores the union of the other entries
@@ -324,8 +323,10 @@ class GameState {
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 
-    [[nodiscard]] SideControl getEnemyControl() const;
-    bool isInCheck(const SideControl& enemyControl) const;
+    [[nodiscard]] BitBoard getEnemyControl() const;
+    bool isInCheck(BitBoard enemyControl) const;
+
+    [[nodiscard]] CheckInformation getCheckInformation() const;
 
     void setCanCastleKingSide(Side side, bool canCastle);
     void setCanCastleQueenSide(Side side, bool canCastle);

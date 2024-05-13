@@ -917,7 +917,7 @@ bool GameState::isInCheck() const {
 }
 
 StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
-    const SideControl enemyControl = getEnemyControl();
+    const BitBoard enemyControl = getEnemyControl();
 
     if (isInCheck(enemyControl)) {
         return generateMovesInCheck(stack, enemyControl);
@@ -985,7 +985,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
     BitBoard kingControlledSquares = kKingControlledSquares[(int)kingPosition];
     // King can't walk into check
-    kingControlledSquares = subtract(kingControlledSquares, enemyControl.control);
+    kingControlledSquares = subtract(kingControlledSquares, enemyControl);
     generateSinglePieceMovesFromControl(
             Piece::King,
             kingPosition,
@@ -1000,7 +1000,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             canCastleKingSide(sideToMove_),
             canCastleQueenSide(sideToMove_),
             occupancy_,
-            enemyControl.control,
+            enemyControl,
             moves);
 
     moves.lock();
@@ -1008,7 +1008,7 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
 }
 
 StackVector<Move> GameState::generateMovesInCheck(
-        StackOfVectors<Move>& stack, const SideControl& enemyControl) const {
+        StackOfVectors<Move>& stack, const BitBoard enemyControl) const {
     StackVector<Move> moves = stack.makeStackVector();
 
     const BoardPosition kingPosition =
@@ -1019,8 +1019,10 @@ StackVector<Move> GameState::generateMovesInCheck(
     BitBoard anyPieceNoKing = anyPiece;
     clear(anyPieceNoKing, kingPosition);
 
-    PieceIdentifier checkingPieceId             = enemyControl.checkingPieceId;
-    const PieceIdentifier secondCheckingPieceId = enemyControl.secondCheckingPieceId;
+    const CheckInformation checkInformation = getCheckInformation();
+
+    PieceIdentifier checkingPieceId             = checkInformation.checkingPieceId;
+    const PieceIdentifier secondCheckingPieceId = checkInformation.secondCheckingPieceId;
 
     const bool doubleCheck = secondCheckingPieceId.piece != Piece::Invalid;
 
@@ -1036,11 +1038,11 @@ StackVector<Move> GameState::generateMovesInCheck(
         kingAttackBitBoard = any(kingAttackBitBoard, secondCheckingPieceControlledSquares);
     }
     // Controlled squares of the first checking piece (only used when not in double check)
-    const BitBoard checkingPieceControlledSquares = enemyControl.checkingPieceControl;
+    const BitBoard checkingPieceControlledSquares = checkInformation.checkingPieceControl;
 
     BitBoard kingControlledSquares = kKingControlledSquares[(int)kingPosition];
     // King can't walk into check
-    kingControlledSquares = subtract(kingControlledSquares, enemyControl.control);
+    kingControlledSquares = subtract(kingControlledSquares, enemyControl);
     kingControlledSquares = subtract(kingControlledSquares, kingAttackBitBoard);
     generateSinglePieceMovesFromControl(
             Piece::King,
@@ -1621,21 +1623,14 @@ bool GameState::enPassantWillPutUsInCheck() const {
     return false;
 }
 
-GameState::SideControl GameState::getEnemyControl() const {
+BitBoard GameState::getEnemyControl() const {
     const Side enemySide    = nextSide(sideToMove_);
     const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
-    const BoardPosition kingPosition =
-            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 
-    SideControl enemyControl{};
+    BitBoard enemyControl = BitBoard::Empty;
 
-    const BitBoard pawnControl =
+    enemyControl =
             computePawnControlledSquares(getPieceBitBoard(enemySide, Piece::Pawn), enemySide);
-    if (isSet(pawnControl, kingPosition)) {
-        enemyControl.checkingPieceId = {Piece::Pawn, BoardPosition::Invalid};
-    }
-
-    enemyControl.control = pawnControl;
 
     for (int pieceIdx = (int)Piece::Pawn + 1; pieceIdx <= (int)Piece::King; ++pieceIdx) {
         const Piece piece = (Piece)pieceIdx;
@@ -1647,24 +1642,58 @@ GameState::SideControl GameState::getEnemyControl() const {
 
             const BitBoard pieceControl =
                     computePieceControlledSquares(piece, piecePosition, anyPiece);
-            enemyControl.control = any(enemyControl.control, pieceControl);
-
-            if (isSet(pieceControl, kingPosition)) {
-                if (enemyControl.checkingPieceId.piece == Piece::Invalid) {
-                    enemyControl.checkingPieceId      = {piece, piecePosition};
-                    enemyControl.checkingPieceControl = pieceControl;
-                } else {
-                    enemyControl.secondCheckingPieceId = {piece, piecePosition};
-                }
-            }
+            enemyControl = any(enemyControl, pieceControl);
         }
     }
 
     return enemyControl;
 }
 
-bool GameState::isInCheck(const SideControl& enemyControl) const {
-    return enemyControl.checkingPieceId.piece != Piece::Invalid;
+bool GameState::isInCheck(const BitBoard enemyControl) const {
+    return isSet(enemyControl, getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King)));
+}
+
+GameState::CheckInformation GameState::getCheckInformation() const {
+    const Side enemySide    = nextSide(sideToMove_);
+    const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
+    const BoardPosition kingPosition =
+            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
+
+    CheckInformation checkInformation{};
+
+    const BitBoard pawnControl =
+            computePawnControlledSquares(getPieceBitBoard(enemySide, Piece::Pawn), enemySide);
+    if (isSet(pawnControl, kingPosition)) {
+        checkInformation.checkingPieceId = {Piece::Pawn, BoardPosition::Invalid};
+    }
+
+    // Skip king
+    for (int pieceIdx = (int)Piece::Pawn + 1; pieceIdx < (int)Piece::King; ++pieceIdx) {
+        const Piece piece = (Piece)pieceIdx;
+
+        BitBoard pieceBitBoard = getPieceBitBoard(enemySide, piece);
+
+        while (pieceBitBoard != BitBoard::Empty) {
+            const BoardPosition piecePosition = popFirstSetPosition(pieceBitBoard);
+
+            const BitBoard pieceControl =
+                    computePieceControlledSquares(piece, piecePosition, anyPiece);
+
+            if (isSet(pieceControl, kingPosition)) {
+                if (checkInformation.checkingPieceId.piece == Piece::Invalid) {
+                    checkInformation.checkingPieceId      = {piece, piecePosition};
+                    checkInformation.checkingPieceControl = pieceControl;
+                } else {
+                    checkInformation.secondCheckingPieceId = {piece, piecePosition};
+
+                    // Can't have more than two checking pieces.
+                    return checkInformation;
+                }
+            }
+        }
+    }
+
+    return checkInformation;
 }
 
 void GameState::setCanCastleKingSide(const Side side, const bool canCastle) {
