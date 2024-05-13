@@ -320,15 +320,51 @@ std::string GameState::toVisualString() const {
     for (int rank = 7; rank >= 0; --rank) {
         ss << rank + 1 << " |";
         for (int file = 0; file < 8; ++file) {
+            const BoardPosition position = positionFromFileRank(file, rank);
+
+            if (position == enPassantTarget_) {
+                ss << " * |";
+                continue;
+            }
+
             ss << ' ';
-            const ColoredPiece coloredPiece = pieceOnSquare_[(int)positionFromFileRank(file, rank)];
+            const ColoredPiece coloredPiece = pieceOnSquare_[(int)position];
             if (coloredPiece == ColoredPiece::Invalid) {
                 ss << ' ';
             } else {
                 ss << toFenChar(coloredPiece);
             }
-            ss << " |";
+
+            bool castleCharacter = false;
+            if (coloredPiece == ColoredPiece::WhiteRook) {
+                if (canCastleKingSide(Side::White) && position == positionFromFileRank(7, 0)) {
+                    castleCharacter = true;
+                } else if (
+                        canCastleQueenSide(Side::White) && position == positionFromFileRank(0, 0)) {
+                    castleCharacter = true;
+                }
+            } else if (coloredPiece == ColoredPiece::BlackRook) {
+                if (canCastleKingSide(Side::Black) && position == positionFromFileRank(7, 7)) {
+                    castleCharacter = true;
+                } else if (
+                        canCastleQueenSide(Side::Black) && position == positionFromFileRank(0, 7)) {
+                    castleCharacter = true;
+                }
+            }
+
+            if (castleCharacter) {
+                ss << '*';
+            } else {
+                ss << ' ';
+            }
+
+            ss << '|';
         }
+
+        if (rank == 0) {
+            ss << " " << toFenChar(sideToMove_);
+        }
+
         ss << "\n";
         if (rank > 0) {
             ss << boardSep;
