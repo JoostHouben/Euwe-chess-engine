@@ -69,3 +69,4 @@ std::string algebraicFromMove(Move move, const GameState& gameState);  // TODO
 [[nodiscard]] std::string moveToExtendedString(const Move& move);
 
 [[nodiscard]] std::string moveToUciString(const Move& move);
+[[nodiscard]] Move moveFromUciString(std::string_view uciString, const GameState& gameState);

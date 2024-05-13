@@ -1,5 +1,7 @@
 #include "Move.h"
 
+#include "GameState.h"
+
 [[nodiscard]] std::string moveToExtendedString(const Move& move) {
     if (isCastle(move.flags)) {
         const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
@@ -26,4 +28,35 @@
     }
 
     return uciString;
+}
+
+Move moveFromUciString(std::string_view uciString, const GameState& gameState) {
+    const BoardPosition from = positionFromAlgebraic(uciString.substr(0, 2));
+    const BoardPosition to   = positionFromAlgebraic(uciString.substr(2, 2));
+
+    Piece promotionPiece = Piece::Pawn;
+    if (uciString.length() == 5) {
+        promotionPiece = pieceFromFenChar(uciString[4]);
+    }
+
+    const Piece pieceToMove = getPiece(gameState.getPieceOnSquare(from));
+
+    MoveFlags moveFlags = getFlags(promotionPiece);
+
+    if (pieceToMove == Piece::Pawn && to == gameState.getEnPassantTarget()) {
+        moveFlags = getFlags(moveFlags, MoveFlags::IsCapture, MoveFlags::IsEnPassant);
+    } else if (getPiece(gameState.getPieceOnSquare(to)) != Piece::Invalid) {
+        moveFlags = getFlags(moveFlags, MoveFlags::IsCapture);
+    }
+
+    if (pieceToMove == Piece::King) {
+        const auto [kingFromFile, _1] = fileRankFromPosition(from);
+        const auto [kintToFile, _2]   = fileRankFromPosition(to);
+
+        if (std::abs(kingFromFile - kintToFile) == 2) {
+            moveFlags = getFlags(moveFlags, MoveFlags::IsCastle);
+        }
+    }
+
+    return Move{.pieceToMove = pieceToMove, .from = from, .to = to, .flags = moveFlags};
 }
