@@ -81,7 +81,7 @@ std::size_t perftSplit(
         if (!moveString.empty()) {
             moveString += ',';
         }
-        moveString += moveToStringSimple(move);
+        moveString += moveToUciString(move);
 
         GameState copy = gameState;
         copy.makeMove(move);
@@ -144,7 +144,7 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
     for (const auto& moveString : moveStrings) {
         const auto moves = gameState.generateMoves(stack);
         for (const auto& move : moves) {
-            if (moveToStringSimple(move) == moveString) {
+            if (moveToUciString(move) == moveString) {
                 gameState.makeMove(move);
                 break;
             }
