@@ -53,3 +53,9 @@ template <typename... BitBoardTs>
     bitBoard = (BitBoard)((std::uint64_t)bitBoard & ((std::uint64_t)bitBoard - 1ull));
     return position;
 }
+
+inline constexpr std::uint64_t notNorthRankMask = ~(0xffULL << (7 * 8));
+inline constexpr std::uint64_t notWestFileMask  = ~0x0101010101010101ULL;
+inline constexpr std::uint64_t notSouthRankMask = ~0xffULL;
+inline constexpr std::uint64_t notEastFileMask  = ~0x8080808080808080ULL;
+inline constexpr std::uint64_t allMask          = ~0ULL;

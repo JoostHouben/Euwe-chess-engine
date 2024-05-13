@@ -21,12 +21,14 @@
     <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="Piece.h" />
+    <ClInclude Include="PieceControl.h" />
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
+    <ClCompile Include="PieceControl.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

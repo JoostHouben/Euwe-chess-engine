@@ -5,11 +5,15 @@
 #include "MyAssert.h"
 #include "Side.h"
 
+#include <array>
 #include <string>
 
 #include <cstdint>
 
 enum class Piece : std::uint8_t { Pawn, Knight, Bishop, Rook, Queen, King, Invalid = 7 };
+
+inline constexpr std::array kPromotionPieces = {
+        Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen};
 
 [[nodiscard]] constexpr std::string pieceToString(Piece piece) {
     switch (piece) {
