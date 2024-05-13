@@ -26,6 +26,7 @@
     <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BitBoard.cpp" />
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="PieceControl.cpp" />

@@ -16,7 +16,7 @@ BitBoard getRookXRay(BoardPosition position, BitBoard occupancy);
 BitBoard getBishopAttack(BoardPosition position, BitBoard occupancy);
 BitBoard getBishopXRay(BoardPosition position, BitBoard occupancy);
 
-constexpr std::uint64_t getFullRay(BoardPosition position, int fileIncrement, int rankIncrement);
+std::uint64_t getFullRay(BoardPosition position, int fileIncrement, int rankIncrement);
 
 BitBoard getPieceControlledSquares(Piece piece, BoardPosition position, BitBoard anyPiece);
 BitBoard getPieceXRays(Piece piece, BoardPosition position, BitBoard anyPiece);

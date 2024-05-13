@@ -629,7 +629,7 @@ FORCE_INLINE BitBoard getBishopXRay(const BoardPosition position, const BitBoard
             (std::uint64_t)packedBishopAttacks, gPackedBishopXRays.depositMasks[(int)position]);
 }
 
-FORCE_INLINE constexpr std::uint64_t getFullRay(
+FORCE_INLINE std::uint64_t getFullRay(
         const BoardPosition position, const int fileIncrement, const int rankIncrement) {
     return kFullRays[fileIncrement + 1][rankIncrement + 1][(int)position];
 }
