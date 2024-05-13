@@ -54,9 +54,7 @@ struct Move {
 
 class GameState;
 
-[[nodiscard]] Move moveFromAlgebraic(
-        std::string_view algebraic,
-        const GameState& gameState);  // TODO
+[[nodiscard]] Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState);
 
 [[nodiscard]] std::string algebraicFromMove(const Move& move, const GameState& gameState);
 

@@ -1,6 +1,7 @@
 #include "Move.h"
 
 #include "GameState.h"
+#include "MyAssert.h"
 
 #include <algorithm>
 #include <format>
@@ -83,6 +84,18 @@ namespace {
 
 }  // namespace
 
+Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState) {
+    StackOfVectors<Move> stack;
+
+    const StackVector<Move> moves = gameState.generateMoves(stack);
+    for (const auto& move : moves) {
+        if (algebraicFromMove(move, gameState) == algebraic) {
+            return move;
+        }
+    }
+    UNREACHABLE;
+}
+
 std::string algebraicFromMove(const Move& move, const GameState& gameState) {
     StackOfVectors<Move> stack;
 
@@ -115,10 +128,7 @@ std::string algebraicFromMove(const Move& move, const GameState& gameState) {
     return algebraic;
 }
 
-[[nodiscard]]
-
-std::string
-moveToExtendedString(const Move& move) {
+std::string moveToExtendedString(const Move& move) {
     if (isCastle(move.flags)) {
         const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
         const bool isQueenSide              = kingToFile == 2;  // c

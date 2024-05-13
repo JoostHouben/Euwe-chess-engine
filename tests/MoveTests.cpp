@@ -225,4 +225,32 @@ TEST(AlgebraicNotation, AlgebraicFromMoveRankFileAmbiguous) {
     EXPECT_EQ(queenMoveE5Algebraic, "Qe5d4");
 }
 
+TEST(AlgebraicNotation, TestMoveFromAlgebraicPosition5) {
+    // Position 5 from https://www.chessprogramming.org/Perft_Results
+    const GameState gameState =
+            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+
+    const Move promotionCapture = moveFromAlgebraic("dxc8=Q", gameState);
+    const Move expectedPromotionCapture{
+            Piece::Pawn,
+            BoardPosition::D7,
+            BoardPosition::C8,
+            getFlags(MoveFlags::IsCapture, Piece::Queen)};
+
+    EXPECT_EQ(promotionCapture, expectedPromotionCapture);
+
+    const Move castle = moveFromAlgebraic("O-O", gameState);
+    const Move expectedCastle{
+            Piece::King, BoardPosition::E1, BoardPosition::G1, MoveFlags::IsCastle};
+    EXPECT_EQ(castle, expectedCastle);
+
+    const Move ambiguousKnightMove = moveFromAlgebraic("Nbc3", gameState);
+    const Move expectedAmbiguousKnightMove{Piece::Knight, BoardPosition::B1, BoardPosition::C3};
+    EXPECT_EQ(ambiguousKnightMove, expectedAmbiguousKnightMove);
+
+    const Move ambiguousKnightMove2 = moveFromAlgebraic("Nec3", gameState);
+    const Move expectedAmbiguousKnightMove2{Piece::Knight, BoardPosition::E2, BoardPosition::C3};
+    EXPECT_EQ(ambiguousKnightMove2, expectedAmbiguousKnightMove2);
+}
+
 }  // namespace MoveTests
