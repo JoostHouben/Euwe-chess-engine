@@ -34,9 +34,7 @@ TEST(GameStateHelpers, TestToVisualStringDoublePush) {
     GameState startingPosition = GameState::startingPosition();
 
     const Move doublePush{
-            .pieceToMove = Piece::Pawn,
-            .from        = positionFromAlgebraic("e2"),
-            .to          = positionFromAlgebraic("e4")};
+            .pieceToMove = Piece::Pawn, .from = BoardPosition::E2, .to = BoardPosition::E4};
     (void)startingPosition.makeMove(doublePush);
 
     const std::string visual = startingPosition.toVisualString();
@@ -92,10 +90,8 @@ TEST(GameStateHelpers, TestToVisualStringPosition4) {
     EXPECT_EQ(visual, expectedVisual);
 
     // Make a pawn move for white, then move one of the black rooks to test changing castling rights
-    (void)gameState.makeMove(
-            {Piece::Pawn, positionFromAlgebraic("h2"), positionFromAlgebraic("h3")});
-    (void)gameState.makeMove(
-            {Piece::Rook, positionFromAlgebraic("h8"), positionFromAlgebraic("h7")});
+    (void)gameState.makeMove({Piece::Pawn, BoardPosition::H2, BoardPosition::H3});
+    (void)gameState.makeMove({Piece::Rook, BoardPosition::H8, BoardPosition::H7});
 
     const std::string visual2 = gameState.toVisualString();
     const std::string expectedVisual2 =

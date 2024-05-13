@@ -152,7 +152,7 @@ TEST(FenParsing, CastlingRights) {
 TEST(FenParsing, EnPassantTarget) {
     std::string enPassantFen = "rnbqkbnr/1ppppppp/8/p7/8/8/PPPPPPPP/RNBQKBNR w KQkq a3 0 1";
     GameState gameState      = GameState::fromFen(enPassantFen);
-    EXPECT_EQ(gameState.getEnPassantTarget(), positionFromAlgebraic("a3"));
+    EXPECT_EQ(gameState.getEnPassantTarget(), BoardPosition::A3);
 }
 
 TEST(FenParsing, HalfMoveClock) {

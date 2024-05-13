@@ -121,7 +121,7 @@ FORCE_INLINE void generateCastlingMoves(
     MY_ASSERT(sideToMove == Side::White || sideToMove == Side::Black);
 
     const BoardPosition kingPosition =
-            sideToMove == Side::White ? positionFromAlgebraic("e1") : positionFromAlgebraic("e8");
+            sideToMove == Side::White ? BoardPosition::E1 : BoardPosition::E8;
 
     const BitBoard anyPiece = any(occupancy.ownPiece, occupancy.enemyPiece);
 
@@ -726,13 +726,13 @@ void GameState::handleNormalKingMove() {
 }
 
 void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSide) {
-    if (rookSide == Side::White && rookPosition == positionFromAlgebraic("a1")) {
+    if (rookSide == Side::White && rookPosition == BoardPosition::A1) {
         setCanCastleQueenSide(rookSide, false);
-    } else if (rookSide == Side::White && rookPosition == positionFromAlgebraic("h1")) {
+    } else if (rookSide == Side::White && rookPosition == BoardPosition::H1) {
         setCanCastleKingSide(rookSide, false);
-    } else if (rookSide == Side::Black && rookPosition == positionFromAlgebraic("a8")) {
+    } else if (rookSide == Side::Black && rookPosition == BoardPosition::A8) {
         setCanCastleQueenSide(rookSide, false);
-    } else if (rookSide == Side::Black && rookPosition == positionFromAlgebraic("h8")) {
+    } else if (rookSide == Side::Black && rookPosition == BoardPosition::H8) {
         setCanCastleKingSide(rookSide, false);
     }
 }

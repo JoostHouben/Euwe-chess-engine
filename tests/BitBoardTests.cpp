@@ -30,7 +30,7 @@ TEST(BitBoardTests, TestBitBoardToVisualString) {
 
     EXPECT_EQ(emptyBitBoardVisualString, expectedEmptyBoardVisual);
 
-    set(bitBoard, positionFromAlgebraic("c4"));
+    set(bitBoard, BoardPosition::C4);
 
     const std::string bitBoardVisualString = bitBoardToVisualString(bitBoard);
     const std::string expectedVisualWithC4 =
@@ -55,7 +55,7 @@ TEST(BitBoardTests, TestBitBoardToVisualString) {
 
     EXPECT_EQ(bitBoardVisualString, expectedVisualWithC4);
 
-    clear(bitBoard, positionFromAlgebraic("c4"));
+    clear(bitBoard, BoardPosition::C4);
 
     const std::string bitBoardVisualStringAfterClear = bitBoardToVisualString(bitBoard);
 
