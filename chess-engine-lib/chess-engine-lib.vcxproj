@@ -20,6 +20,7 @@
     <ClInclude Include="Move.h" />
     <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
+    <ClInclude Include="Perft.h" />
     <ClInclude Include="Piece.h" />
     <ClInclude Include="PieceControl.h" />
     <ClInclude Include="Side.h" />
@@ -30,6 +31,7 @@
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />
+    <ClCompile Include="Perft.cpp" />
     <ClCompile Include="Piece.cpp" />
     <ClCompile Include="PieceControl.cpp" />
     <ClCompile Include="Side.cpp" />
