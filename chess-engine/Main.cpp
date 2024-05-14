@@ -1,7 +1,10 @@
 #include "chess-engine-lib/Perft.h"
 
+#include <iostream>
 #include <print>
+#include <random>
 #include <ranges>
+#include <sstream>
 
 void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings) {
     StackOfVectors<Move> stack;
@@ -23,9 +26,105 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
     }
 }
 
-int main() {
-    std::locale::global(std::locale("en_US.UTF-8"));
+struct UciState {
+    GameState gameState = GameState::startingPosition();
 
+    std::mt19937 randomGenerator;
+};
+
+void handleIsReady() {
+    std::print("readyok\n");
+}
+
+void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
+    std::string token;
+    lineSStream >> token;
+
+    GameState& gameState = uciState.gameState;
+
+    if (token == "startpos") {
+        gameState = GameState::startingPosition();
+
+        lineSStream >> token;
+    } else if (token == "fen") {
+        std::string fen;
+        lineSStream >> fen;
+        gameState = GameState::fromFen(fen);
+
+        lineSStream >> token;
+    }
+
+    if (token != "moves") {
+        std::print(std::cerr, "Unrecognized token '{}'. Expected 'moves'.\n", token);
+        return;
+    }
+
+    while (lineSStream) {
+        std::string moveString;
+        lineSStream >> moveString;
+        if (moveString.empty()) {
+            break;
+        }
+
+        const Move move = moveFromUciString(moveString, gameState);
+        (void)gameState.makeMove(move);
+    }
+
+    std::print(std::cerr, "Position:\n{}\n", gameState.toVisualString());
+}
+
+void handleGo(std::stringstream& lineSStream, UciState& uciState) {
+    // No sub-commands supported
+
+    GameState& gameState = uciState.gameState;
+
+    // Select a random move
+    StackOfVectors<Move> stack;
+    const auto moves = gameState.generateMoves(stack);
+
+    std::uniform_int_distribution randomDistribution(0, moves.size() - 1);
+    const int moveIndex    = randomDistribution(uciState.randomGenerator);
+    const Move& moveToPlay = moves[moveIndex];
+
+    std::print("bestmove {}\n", moveToUciString(moveToPlay));
+}
+
+void runUci() {
+    std::print("id name Rando 1.0\n");
+    std::print("id author Joost Houben\n");
+    std::print("uciok\n");
+
+    UciState uciState{};
+
+    while (true) {
+        std::string inputLine;
+        std::getline(std::cin, inputLine);
+
+        std::stringstream lineSStream(inputLine);
+
+        std::string command;
+        lineSStream >> command;
+
+        // Not implemented:
+        //  debug
+        //  setoption
+        //  register
+        //  stop
+        //  ponderhit
+
+        if (command == "isready") {
+            handleIsReady();
+        } else if (command == "position") {
+            handlePosition(lineSStream, uciState);
+        } else if (command == "go") {
+            handleGo(lineSStream, uciState);
+        } else if (command == "quit") {
+            return;
+        }
+    }
+}
+
+void runPerft() {
     GameState gameState = GameState::startingPosition();
 
     std::print("Copy + make:\n");
@@ -33,4 +132,22 @@ int main() {
 
     std::print("\nMake + unmake:\n");
     perftPrint(gameState, 7, true);
+}
+
+int main() {
+    std::locale::global(std::locale("en_US.UTF-8"));
+
+    while (true) {
+        std::string command;
+        std::cin >> command;
+
+        if (command == "uci") {
+            runUci();
+            break;
+        } else if (command == "perft") {
+            runPerft();
+        } else if (command == "exit") {
+            break;
+        }
+    }
 }
