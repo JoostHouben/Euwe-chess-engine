@@ -22,7 +22,7 @@ Move findMove(const GameState& gameState) {
     for (const Move& move : moves) {
         GameState copyState(gameState);
         (void)copyState.makeMove(move);
-        const EvalT eval = evaluate(copyState);
+        const EvalT eval = evaluate(copyState, gMoveStack);
 
         if (eval < bestEval) {
             bestEval = eval;

@@ -79,7 +79,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name Rando-material\n");
+    std::print("id name Rando-material-and-game-end\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

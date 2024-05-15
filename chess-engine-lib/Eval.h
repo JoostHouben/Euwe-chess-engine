@@ -11,4 +11,4 @@ using EvalT = std::int16_t;
 
 inline constexpr EvalT kInfiniteEval = std::numeric_limits<EvalT>::max();
 
-[[nodiscard]] EvalT evaluate(const GameState& gameState);
+[[nodiscard]] EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack);
