@@ -25,6 +25,7 @@
     <ClInclude Include="Perft.h" />
     <ClInclude Include="Piece.h" />
     <ClInclude Include="PieceControl.h" />
+    <ClInclude Include="Search.h" />
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
   </ItemGroup>
@@ -38,6 +39,7 @@
     <ClCompile Include="Perft.cpp" />
     <ClCompile Include="Piece.cpp" />
     <ClCompile Include="PieceControl.cpp" />
+    <ClCompile Include="Search.cpp" />
     <ClCompile Include="Side.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

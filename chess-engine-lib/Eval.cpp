@@ -38,10 +38,7 @@ constexpr EvalT kMateEval = (EvalT)30'000;
 
 [[nodiscard]] std::optional<EvalT> evaluateEndState(
         const GameState& gameState, StackOfVectors<Move>& stack) {
-    // TODO: three-fold repetition.
-
-    if (gameState.getPlySinceCaptureOrPawn() >= 100) {
-        // 50 move rule
+    if (gameState.isForcedDraw()) {
         return 0;
     }
 
@@ -52,6 +49,12 @@ constexpr EvalT kMateEval = (EvalT)30'000;
         return std::nullopt;
     }
 
+    return evaluateNoLegalMoves(gameState);
+}
+
+}  // namespace
+
+EvalT evaluateNoLegalMoves(const GameState& gameState) {
     if (gameState.isInCheck()) {
         // We're in check and there are no legal moves so we're in checkmate.
         return -kMateEval;
@@ -60,8 +63,6 @@ constexpr EvalT kMateEval = (EvalT)30'000;
     // We're not in check and there are no legal moves so this is a stalemate.
     return 0;
 }
-
-}  // namespace
 
 EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack) {
     if (auto maybeEndEval = evaluateEndState(gameState, stack); maybeEndEval) {

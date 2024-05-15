@@ -15,7 +15,7 @@ std::size_t perft(const GameState& gameState, const int depth, StackOfVectors<Mo
     }
 
     std::size_t nodes = 0;
-    for (const auto& move : moves) {
+    for (Move move : moves) {
         GameState copy = gameState;
         copy.makeMove(move);
         nodes += perft(copy, depth - 1, stack);
@@ -36,7 +36,7 @@ std::size_t perftUnmake(GameState& gameState, const int depth, StackOfVectors<Mo
     }
 
     std::size_t nodes = 0;
-    for (const auto& move : moves) {
+    for (Move move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
         nodes += perftUnmake(gameState, depth - 1, stack);
         gameState.unmakeMove(move, unmakeInfo);
@@ -62,7 +62,7 @@ std::size_t perftSplit(
     const StackVector<Move> moves = gameState.generateMoves(stack);
 
     std::size_t nodes = 0;
-    for (const auto& move : moves) {
+    for (Move move : moves) {
         std::string moveString = movePrefix;
         if (!moveString.empty()) {
             moveString += ',';

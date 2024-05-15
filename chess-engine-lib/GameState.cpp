@@ -967,6 +967,13 @@ bool GameState::isInCheck(const BitBoard enemyControl) const {
     return isSet(enemyControl, getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King)));
 }
 
+bool GameState::isForcedDraw() const {
+    // TODO: three-fold repetition.
+
+    // 50 move rule
+    return plySinceCaptureOrPawn_ >= 100;
+}
+
 GameState::CheckInformation GameState::getCheckInformation() const {
     const Side enemySide    = nextSide(sideToMove_);
     const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);

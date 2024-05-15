@@ -16,7 +16,7 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
 
     for (const auto& moveString : moveStrings) {
         const auto moves = gameState.generateMoves(stack);
-        for (const auto& move : moves) {
+        for (Move move : moves) {
             if (moveToUciString(move) == moveString) {
                 gameState.makeMove(move);
                 break;
@@ -46,10 +46,13 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
         lineSStream >> token;
     } else if (token == "fen") {
         std::string fen;
-        lineSStream >> fen;
-        gameState = GameState::fromFen(fen);
-
         lineSStream >> token;
+        while (token != "moves" && lineSStream) {
+            fen += token + " ";
+            lineSStream >> token;
+        }
+        fen.pop_back();  // remove trailing space
+        gameState = GameState::fromFen(fen);
     }
 
     if (token != "moves") {
@@ -79,7 +82,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name Rando-material-and-game-end\n");
+    std::print("id name Minimax-depth4\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 
