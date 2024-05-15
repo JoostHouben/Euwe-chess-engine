@@ -107,6 +107,12 @@ std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strI
     return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
+std::uint16_t parseHalfMoveClockFromFen(std::string::const_iterator& strIt) {
+    const int moveClock = std::atoi(&*strIt);
+    // multiply by two to convert to half move clock; minus one because the fen counter starts at 1
+    return static_cast<std::uint16_t>(moveClock - 1) * 2;
+}
+
 void boardConfigurationToFen(const BoardConfigurationInfo& boardConfig, std::ostream& out) {
     for (int rank = 7; rank >= 0; --rank) {
         int numEmptyTiles = 0;
@@ -208,22 +214,24 @@ GameState GameState::fromFen(const std::string& fenString) {
     MY_ASSERT(*strIt == ' ');
     ++strIt;
 
-    // Ignore: move counter
+    gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt);
 
-    MY_ASSERT(strIt < fenString.end());
+    MY_ASSERT(strIt == fenString.end());
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig, gameState.sideToMove_);
 
     return gameState;
 }
 
-std::string GameState::toFen(int moveCounter) const {
+std::string GameState::toFen() const {
     std::ostringstream ss;
 
     BoardConfigurationInfo boardConfig = {
             .pieceBitBoards = pieceBitBoards_,
             .pieceOnSquare  = pieceOnSquare_,
     };
+
+    const int moveCounter = halfMoveClock_ / 2 + 1;
 
     boardConfigurationToFen(boardConfig, ss);
     ss << ' ';

@@ -9,7 +9,7 @@
 void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings) {
     StackOfVectors<Move> stack;
 
-    std::print("Starting fen: {}\n", gameState.toFen(0));
+    std::print("Starting fen: {}\n", gameState.toFen());
     std::string movesAsString =
             moveStrings | std::views::join_with(std::string(", ")) | std::ranges::to<std::string>();
     std::print("Moves: {}\n", movesAsString);
@@ -22,7 +22,7 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
                 break;
             }
         }
-        std::print("{}: {}\n", moveString, gameState.toFen(0));
+        std::print("{}: {}\n", moveString, gameState.toFen());
     }
 }
 
@@ -82,7 +82,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name ab-iterative-deepening-1-sec\n");
+    std::print("id name prefer-early-mates\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

@@ -47,7 +47,7 @@ class GameState {
     [[nodiscard]] static GameState fromFen(const std::string& fenString);
     [[nodiscard]] static GameState startingPosition();
 
-    [[nodiscard]] std::string toFen(int moveCounter) const;
+    [[nodiscard]] std::string toFen() const;
     [[nodiscard]] std::string toVisualString() const;
 
     [[nodiscard]] bool isInCheck() const;
@@ -88,7 +88,9 @@ class GameState {
 
     [[nodiscard]] BoardPosition getEnPassantTarget() const { return enPassantTarget_; }
 
-    [[nodiscard]] std::uint16_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
+    [[nodiscard]] std::uint8_t getPlySinceCaptureOrPawn() const { return plySinceCaptureOrPawn_; }
+
+    [[nodiscard]] std::uint16_t getHalfMoveClock() const { return halfMoveClock_; }
 
   private:
     struct PieceIdentifier {
@@ -149,6 +151,8 @@ class GameState {
     CastlingRights castlingRights_ = CastlingRights::None;
 
     std::uint8_t plySinceCaptureOrPawn_ = 0;
+
+    std::uint16_t halfMoveClock_ = 0;
 
     std::array<ColoredPiece, kSquares> pieceOnSquare_ = {};
 

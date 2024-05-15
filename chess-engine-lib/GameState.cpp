@@ -492,6 +492,8 @@ GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
         unmakeInfo.capturedPiece = makeSinglePieceMove(move);
     }
 
+    ++halfMoveClock_;
+
     return unmakeInfo;
 }
 
@@ -505,6 +507,7 @@ GameState::UnmakeMoveInfo GameState::makeNullMove() {
     enPassantTarget_ = BoardPosition::Invalid;
     // Do not increment plySinceCaptureOrPawn_
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
+    ++halfMoveClock_;
 
     return unmakeInfo;
 }
@@ -515,6 +518,7 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     castlingRights_        = unmakeMoveInfo.castlingRights;
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
+    --halfMoveClock_;
 
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
@@ -529,6 +533,7 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
     castlingRights_        = unmakeMoveInfo.castlingRights;
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
+    --halfMoveClock_;
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {

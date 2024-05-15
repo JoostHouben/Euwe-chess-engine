@@ -57,7 +57,7 @@ constexpr EvalT kMateEval = (EvalT)30'000;
 EvalT evaluateNoLegalMoves(const GameState& gameState) {
     if (gameState.isInCheck()) {
         // We're in check and there are no legal moves so we're in checkmate.
-        return -kMateEval;
+        return -(kMateEval - gameState.getHalfMoveClock());
     }
 
     // We're not in check and there are no legal moves so this is a stalemate.
