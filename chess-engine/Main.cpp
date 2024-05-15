@@ -1,8 +1,8 @@
+#include "chess-engine-lib/Engine.h"
 #include "chess-engine-lib/Perft.h"
 
 #include <iostream>
 #include <print>
-#include <random>
 #include <ranges>
 #include <sstream>
 
@@ -28,8 +28,6 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
 
 struct UciState {
     GameState gameState = GameState::startingPosition();
-
-    std::mt19937 randomGenerator;
 };
 
 void handleIsReady() {
@@ -76,16 +74,7 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
 void handleGo(std::stringstream& lineSStream, UciState& uciState) {
     // No sub-commands supported
 
-    GameState& gameState = uciState.gameState;
-
-    // Select a random move
-    StackOfVectors<Move> stack;
-    const auto moves = gameState.generateMoves(stack);
-
-    std::uniform_int_distribution randomDistribution(0, moves.size() - 1);
-    const int moveIndex    = randomDistribution(uciState.randomGenerator);
-    const Move& moveToPlay = moves[moveIndex];
-
+    const Move moveToPlay = findMove(uciState.gameState);
     std::print("bestmove {}\n", moveToUciString(moveToPlay));
 }
 

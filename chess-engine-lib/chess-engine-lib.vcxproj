@@ -15,6 +15,7 @@
     <ClInclude Include="BoardConstants.h" />
     <ClInclude Include="BoardPosition.h" />
     <ClInclude Include="ClangDiagnosticIgnore.h" />
+    <ClInclude Include="Engine.h" />
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />
     <ClInclude Include="Move.h" />
@@ -28,6 +29,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitBoard.cpp" />
+    <ClCompile Include="Engine.cpp" />
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />
