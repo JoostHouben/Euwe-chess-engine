@@ -1,11 +1,18 @@
 #include "Search.h"
 
+#include <atomic>
+
 namespace {
 
 bool gRecordBestMove = false;
 Move gBestMove;
+std::atomic<bool> gStopSearch;
 
 [[nodiscard]] EvalT search(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+    if (gStopSearch) {
+        return 0;
+    }
+
     if (depth == 0) {
         return evaluate(gameState, stack);
     }
@@ -32,6 +39,10 @@ Move gBestMove;
 
         gameState.unmakeMove(move, unmakeInfo);
 
+        if (gStopSearch) {
+            break;
+        }
+
         if (score > bestEval) {
             bestEval = score;
             bestMove = move;
@@ -49,8 +60,13 @@ Move gBestMove;
 
 SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
     gRecordBestMove = true;
+    gStopSearch     = false;
 
     const EvalT eval = search(gameState, depth, stack);
 
     return {.bestMove = gBestMove, .eval = eval};
+}
+
+void stopSearch() {
+    gStopSearch = true;
 }
