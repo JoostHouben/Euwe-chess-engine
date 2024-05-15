@@ -82,7 +82,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name Minimax-iterative-deepening-1-sec\n");
+    std::print("id name ab-iterative-deepening-1-sec\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

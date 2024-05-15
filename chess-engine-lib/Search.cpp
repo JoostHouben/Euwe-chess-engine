@@ -8,7 +8,12 @@ bool gRecordBestMove = false;
 Move gBestMove;
 std::atomic<bool> gStopSearch;
 
-[[nodiscard]] EvalT search(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+[[nodiscard]] EvalT search(
+        GameState& gameState,
+        const int depth,
+        EvalT alpha,
+        EvalT beta,
+        StackOfVectors<Move>& stack) {
     if (gStopSearch) {
         return 0;
     }
@@ -27,7 +32,6 @@ std::atomic<bool> gStopSearch;
     }
 
     Move bestMove;
-    EvalT bestEval = -kInfiniteEval;
 
     const bool recordBestMove = gRecordBestMove;
     gRecordBestMove           = false;
@@ -35,7 +39,7 @@ std::atomic<bool> gStopSearch;
     for (Move move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
 
-        const EvalT score = -search(gameState, depth - 1, stack);
+        const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
@@ -43,9 +47,13 @@ std::atomic<bool> gStopSearch;
             break;
         }
 
-        if (score > bestEval) {
-            bestEval = score;
+        if (score > alpha) {
+            alpha    = score;
             bestMove = move;
+
+            if (alpha >= beta) {
+                break;
+            }
         }
     }
 
@@ -53,7 +61,7 @@ std::atomic<bool> gStopSearch;
         gBestMove = bestMove;
     }
 
-    return bestEval;
+    return alpha;
 }
 
 }  // namespace
@@ -62,7 +70,7 @@ SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVec
     gRecordBestMove = true;
     gStopSearch     = false;
 
-    const EvalT eval = search(gameState, depth, stack);
+    const EvalT eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
 
     return {.bestMove = gBestMove, .eval = eval};
 }

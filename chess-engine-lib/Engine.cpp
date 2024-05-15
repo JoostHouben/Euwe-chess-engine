@@ -20,9 +20,10 @@ std::atomic_bool gStopSearch;
     GameState copySate(gameState);
 
     Move moveToPlay;
+    EvalT eval;
 
     for (int depth = 1; depth < 40; ++depth) {
-        const Move moveFromSearch = searchForBestMove(copySate, depth, gMoveStack).bestMove;
+        const auto searchResult = searchForBestMove(copySate, depth, gMoveStack);
 
         if (gStopSearch) {
             std::print(
@@ -33,8 +34,11 @@ std::atomic_bool gStopSearch;
             break;
         }
 
-        moveToPlay = moveFromSearch;
+        moveToPlay = searchResult.bestMove;
+        eval       = searchResult.eval;
     }
+
+    std::print(std::cerr, "Best move: {} (eval: {})\n", moveToExtendedString(moveToPlay), eval);
 
     return moveToPlay;
 }
