@@ -54,6 +54,10 @@ template <typename... BitBoardTs>
     return position;
 }
 
+[[nodiscard]] constexpr int popCount(const BitBoard bitBoard) {
+    return std::popcount((std::uint64_t)bitBoard);
+}
+
 inline constexpr std::uint64_t notNorthRankMask = ~(0xffULL << (7 * 8));
 inline constexpr std::uint64_t notWestFileMask  = ~0x0101010101010101ULL;
 inline constexpr std::uint64_t notSouthRankMask = ~0xffULL;

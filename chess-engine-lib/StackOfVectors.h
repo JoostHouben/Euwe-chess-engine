@@ -317,6 +317,14 @@ class StackVector {
         --endIdx_;
     }
 
+    void clear() {
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
+        parent_.items_.resize(startIdx_);
+        endIdx_ = startIdx_;
+    }
+
     void lock() {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);

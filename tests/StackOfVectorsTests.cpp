@@ -50,6 +50,9 @@ TEST(StackOfVectors, basicTest) {
     EXPECT_EQ(stackVector2Moved[0], 5);
     EXPECT_EQ(stackVector2Moved[1], 6);
     EXPECT_EQ(stackVector2Moved[2], 8);
+
+    stackVector2Moved.clear();
+    EXPECT_EQ(stackVector2Moved.size(), 0);
 }
 
 TEST(StackOfVectors, nestedRangeBasedForLoop) {
