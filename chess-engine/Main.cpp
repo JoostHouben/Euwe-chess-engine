@@ -77,12 +77,31 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
 void handleGo(std::stringstream& lineSStream, UciState& uciState) {
     // No sub-commands supported
 
-    const Move moveToPlay = findMove(uciState.gameState);
-    std::print("bestmove {}\n", moveToUciString(moveToPlay));
+    const auto searchInfo = findMove(uciState.gameState);
+
+    std::string scoreString = std::format("cp {}", searchInfo.score);
+    if (searchInfo.score > kMateEval - 100) {
+        const int mateIn = kMateEval - searchInfo.score;
+        scoreString      = std::format("mate {}", mateIn);
+    } else if (searchInfo.score < -(kMateEval - 100)) {
+        const int mateIn = searchInfo.score - kMateEval;
+        scoreString      = std::format("mate {}", -mateIn);
+    }
+
+    std::print(
+            "info depth {} time {} nodes {} pv {} score {} nps {}\n",
+            searchInfo.depth,
+            searchInfo.timeMs,
+            searchInfo.numNodes,
+            moveToUciString(searchInfo.bestMove),
+            scoreString,
+            searchInfo.nodesPerSecond);
+
+    std::print("bestmove {}\n", moveToUciString(searchInfo.bestMove));
 }
 
 void runUci() {
-    std::print("id name detect-repetitions\n");
+    std::print("id name uci-info\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

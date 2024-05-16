@@ -13,8 +13,6 @@ constexpr std::array<EvalT, kNumPieceTypes - 1> kPieceValues = {
         950,  // Queen
 };
 
-constexpr EvalT kMateEval = (EvalT)30'000;
-
 [[nodiscard]] EvalT evaluateMaterialForSide(const GameState& gameState, const Side side) {
     EvalT material = 0;
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {

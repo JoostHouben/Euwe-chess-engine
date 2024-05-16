@@ -8,6 +8,8 @@ bool gRecordBestMove = false;
 Move gBestMove;
 std::atomic<bool> gStopSearch;
 
+SearchStatistics gSearchStatistics;
+
 [[nodiscard]] EvalT search(
         GameState& gameState,
         const int depth,
@@ -17,6 +19,8 @@ std::atomic<bool> gStopSearch;
     if (gStopSearch) {
         return 0;
     }
+
+    ++gSearchStatistics.nodesSearched;
 
     if (depth == 0) {
         return evaluate(gameState, stack);
@@ -77,4 +81,12 @@ SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVec
 
 void stopSearch() {
     gStopSearch = true;
+}
+
+SearchStatistics getSearchStatistics() {
+    return gSearchStatistics;
+}
+
+void resetSearchStatistics() {
+    gSearchStatistics = {};
 }

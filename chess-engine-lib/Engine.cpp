@@ -14,15 +14,20 @@ namespace {
 StackOfVectors<Move> gMoveStack;
 std::atomic_bool gStopSearch;
 
-[[nodiscard]] Move findMoveWorker(const GameState& gameState) {
+[[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState) {
     gMoveStack.reserve(1'000);
 
     GameState copySate(gameState);
 
-    Move moveToPlay;
+    resetSearchStatistics();
+
+    Move bestMove;
     EvalT eval;
 
-    for (int depth = 1; depth < 40; ++depth) {
+    auto startTime = std::chrono::high_resolution_clock::now();
+
+    int depth;
+    for (depth = 1; depth < 40; ++depth) {
         const auto searchResult = searchForBestMove(copySate, depth, gMoveStack);
 
         if (gStopSearch) {
@@ -31,21 +36,51 @@ std::atomic_bool gStopSearch;
                     "Terminating search during search of depth {} (completed to depth {}).\n",
                     depth,
                     depth - 1);
+
+            --depth;
             break;
         }
 
-        moveToPlay = searchResult.bestMove;
-        eval       = searchResult.eval;
+        bestMove = searchResult.bestMove;
+        eval     = searchResult.eval;
+
+        const auto timeNow = std::chrono::high_resolution_clock::now();
+        const auto millisecondsElapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - startTime).count();
+
+        std::print(
+                std::cerr,
+                "Depth {} - best move: {} (eval: {}; time elapsed: {} ms)\n",
+                depth,
+                moveToExtendedString(bestMove),
+                eval,
+                millisecondsElapsed);
     }
 
-    std::print(std::cerr, "Best move: {} (eval: {})\n", moveToExtendedString(moveToPlay), eval);
+    const auto endTime = std::chrono::high_resolution_clock::now();
+    const auto millisecondsElapsed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    return moveToPlay;
+    const auto searchStatistics = getSearchStatistics();
+
+    const float nodesPerSecond =
+            static_cast<float>(searchStatistics.nodesSearched) / (millisecondsElapsed / 1'000.0f);
+
+    const SearchInfo info{
+            .bestMove       = bestMove,
+            .score          = eval,
+            .depth          = depth,
+            .timeMs         = (int)millisecondsElapsed,
+            .numNodes       = searchStatistics.nodesSearched,
+            .nodesPerSecond = (int)nodesPerSecond,
+    };
+
+    return info;
 }
 
 }  // namespace
 
-Move findMove(const GameState& gameState) {
+SearchInfo findMove(const GameState& gameState) {
     gStopSearch = false;
 
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);

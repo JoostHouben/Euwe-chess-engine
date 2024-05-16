@@ -10,6 +10,7 @@
 using EvalT = std::int16_t;
 
 inline constexpr EvalT kInfiniteEval = std::numeric_limits<EvalT>::max();
+inline constexpr EvalT kMateEval     = (EvalT)30'000;
 
 [[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
 

@@ -2,6 +2,16 @@
 
 #pragma once
 
+#include "Eval.h"
 #include "GameState.h"
 
-Move findMove(const GameState& gameState);
+struct SearchInfo {
+    Move bestMove;
+    EvalT score;
+    int depth;
+    int timeMs;
+    int numNodes;
+    int nodesPerSecond;
+};
+
+[[nodiscard]] SearchInfo findMove(const GameState& gameState);
