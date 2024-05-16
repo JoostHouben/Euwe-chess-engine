@@ -79,10 +79,23 @@ void countMoveStatisticsAtPlyWithUnmake(
         updateStatistics(moves, statistics);
         return;
     };
+
+    HashT hash = gameState.getBoardHash();
+
     for (const auto& move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
+
+        EXPECT_NE(hash, gameState.getBoardHash());
+
         countMoveStatisticsAtPlyWithUnmake(gameState, ply - 1, statistics, stack);
         gameState.unmakeMove(move, unmakeInfo);
+
+        EXPECT_EQ(hash, gameState.getBoardHash());
+
+        if (hash != gameState.getBoardHash()) {
+            std::cerr << moveToExtendedString(move) << std::endl;
+            hash = gameState.getBoardHash();
+        }
     }
 }
 

@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="BitBoard.h" />
     <ClInclude Include="BoardConstants.h" />
+    <ClInclude Include="BoardHash.h" />
     <ClInclude Include="BoardPosition.h" />
     <ClInclude Include="ClangDiagnosticIgnore.h" />
     <ClInclude Include="Engine.h" />
@@ -31,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitBoard.cpp" />
+    <ClCompile Include="BoardHash.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Eval.cpp" />
     <ClCompile Include="GameState.cpp" />

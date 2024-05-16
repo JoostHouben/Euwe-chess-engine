@@ -185,6 +185,41 @@ GameState::PieceOccupancyBitBoards getPieceOccupancyBitBoards(
     return occupancy;
 }
 
+HashT computeBoardHash(const GameState& gameState) {
+    HashT hash = 0;
+
+    for (int sideIdx = 0; sideIdx < kNumSides; ++sideIdx) {
+        const Side side = (Side)sideIdx;
+        for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+            const Piece piece      = (Piece)pieceIdx;
+            BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
+            while (pieceBitBoard != BitBoard::Empty) {
+                const BoardPosition position = popFirstSetPosition(pieceBitBoard);
+                updateHashForPiecePosition(side, piece, position, hash);
+            }
+        }
+
+        if (gameState.canCastleKingSide(side)) {
+            updateHashForKingSideCastlingRights(side, hash);
+        }
+        if (gameState.canCastleQueenSide(side)) {
+            updateHashForQueenSideCastlingRights(side, hash);
+        }
+    }
+
+    if (gameState.getSideToMove() == Side::Black) {
+        updateHashForSideToMove(hash);
+    }
+
+    if (BoardPosition enPassantTarget = gameState.getEnPassantTarget();
+        enPassantTarget != BoardPosition::Invalid) {
+        const int enPassantFile = fileFromPosition(enPassantTarget);
+        updateHashForEnPassantFile(enPassantFile, hash);
+    }
+
+    return hash;
+}
+
 }  // namespace
 
 GameState GameState::fromFen(const std::string& fenString) {
@@ -219,6 +254,8 @@ GameState GameState::fromFen(const std::string& fenString) {
     MY_ASSERT(strIt == fenString.end());
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig, gameState.sideToMove_);
+
+    gameState.boardHash_ = computeBoardHash(gameState);
 
     return gameState;
 }

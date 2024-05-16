@@ -4,6 +4,7 @@
 
 #include "BitBoard.h"
 #include "BoardConstants.h"
+#include "BoardHash.h"
 #include "BoardPosition.h"
 #include "Move.h"
 #include "MyAssert.h"
@@ -92,6 +93,8 @@ class GameState {
 
     [[nodiscard]] std::uint16_t getHalfMoveClock() const { return halfMoveClock_; }
 
+    [[nodiscard]] HashT getBoardHash() const { return boardHash_; }
+
   private:
     struct PieceIdentifier {
         Piece piece;
@@ -160,4 +163,6 @@ class GameState {
     std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides> pieceBitBoards_ = {};
 
     PieceOccupancyBitBoards occupancy_ = {};
+
+    HashT boardHash_ = 0;
 };
