@@ -88,20 +88,18 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
         scoreString      = std::format("mate {}", -mateIn);
     }
 
-    std::print(
-            "info depth {} time {} nodes {} pv {} score {} nps {}\n",
-            searchInfo.depth,
-            searchInfo.timeMs,
-            searchInfo.numNodes,
-            moveToUciString(searchInfo.bestMove),
-            scoreString,
-            searchInfo.nodesPerSecond);
+    std::print("info depth {}\n", searchInfo.depth);
+    std::print("info time {}\n", searchInfo.timeMs);
+    std::print("info nodes {}\n", searchInfo.numNodes);
+    std::print("info nps {}\n", searchInfo.nodesPerSecond);
+    std::print("info pv {}\n", moveToUciString(searchInfo.bestMove));
+    std::print("info score {}\n", scoreString);
 
     std::print("bestmove {}\n", moveToUciString(searchInfo.bestMove));
 }
 
 void runUci() {
-    std::print("id name uci-info\n");
+    std::print("id name ttable-score\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

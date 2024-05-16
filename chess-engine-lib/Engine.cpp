@@ -66,14 +66,15 @@ std::atomic_bool gStopSearch;
     const float nodesPerSecond =
             static_cast<float>(searchStatistics.nodesSearched) / (millisecondsElapsed / 1'000.0f);
 
+    std::print(std::cerr, "TTable hits: {}\n", searchStatistics.tTableHits);
+
     const SearchInfo info{
             .bestMove       = bestMove,
             .score          = eval,
             .depth          = depth,
             .timeMs         = (int)millisecondsElapsed,
             .numNodes       = searchStatistics.nodesSearched,
-            .nodesPerSecond = (int)nodesPerSecond,
-    };
+            .nodesPerSecond = (int)nodesPerSecond};
 
     return info;
 }

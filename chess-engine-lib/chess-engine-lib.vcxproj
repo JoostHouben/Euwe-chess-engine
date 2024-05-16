@@ -29,6 +29,7 @@
     <ClInclude Include="Search.h" />
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
+    <ClInclude Include="TTable.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitBoard.cpp" />
@@ -43,6 +44,7 @@
     <ClCompile Include="PieceControl.cpp" />
     <ClCompile Include="Search.cpp" />
     <ClCompile Include="Side.cpp" />
+    <ClCompile Include="TTable.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
