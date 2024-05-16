@@ -83,6 +83,8 @@ std::atomic_bool gSearchIsRunning = false;
         }
     }
 
+    gSearchIsRunning = false;
+
     const auto endTime = std::chrono::high_resolution_clock::now();
     const auto millisecondsElapsed =
             std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
