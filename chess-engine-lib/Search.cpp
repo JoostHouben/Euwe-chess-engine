@@ -16,6 +16,28 @@ TTable gTTable(kTTableSizeInEntries);
 
 SearchStatistics gSearchStatistics;
 
+void updateTTable(
+        EvalT bestScore, EvalT alphaOrig, EvalT beta, Move bestMove, int depth, HashT hash) {
+    ScoreType scoreType;
+    if (bestScore <= alphaOrig) {
+        scoreType = ScoreType::UpperBound;
+    } else if (bestScore >= beta) {
+        scoreType = ScoreType::LowerBound;
+    } else {
+        scoreType = ScoreType::Exact;
+    }
+
+    const TTEntry entry = {
+            .hash      = hash,
+            .depth     = (std::uint8_t)depth,
+            .scoreType = scoreType,
+            .score     = bestScore,
+            .bestMove  = bestMove,
+    };
+
+    gTTable.store(entry);
+}
+
 [[nodiscard]] EvalT search(
         GameState& gameState,
         const int depth,
@@ -37,17 +59,20 @@ SearchStatistics gSearchStatistics;
 
     const EvalT alphaOrig = alpha;
 
-    if (!recordBestMove) {
+    if (!recordBestMove && gameState.isForcedDraw(/* repetitionsForDraw = */ 1)) {
         // For a forced draw we can return 0 immediately.
-        if (gameState.isForcedDraw(/* repetitionsForDraw = */ 1)) {
-            return 0;
-        }
+        return 0;
+    }
 
-        // Probe the transposition table to update our score based on previous info.
-        auto ttHit = gTTable.probe(gameState.getBoardHash());
-        if (ttHit && ttHit->depth >= depth) {
-            gSearchStatistics.tTableHits++;
+    Move bestMove;
+    EvalT bestScore = -kInfiniteEval;
 
+    // Probe the transposition table to update our score based on previous info.
+    auto ttHit = gTTable.probe(gameState.getBoardHash());
+    if (ttHit) {
+        gSearchStatistics.tTableHits++;
+
+        if (!recordBestMove && ttHit->depth >= depth) {
             if (ttHit->scoreType == ScoreType::Exact) {
                 return ttHit->score;
             } else if (ttHit->scoreType == ScoreType::LowerBound) {
@@ -66,6 +91,34 @@ SearchStatistics gSearchStatistics;
                 return ttHit->score;
             }
         }
+
+        // Try hash move first.
+        auto unmakeInfo = gameState.makeMove(ttHit->bestMove);
+
+        const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
+
+        gameState.unmakeMove(ttHit->bestMove, unmakeInfo);
+
+        if (gStopSearch) {
+            return 0;
+        }
+
+        bestScore = score;
+        bestMove  = ttHit->bestMove;
+
+        if (bestScore > alpha) {
+            alpha = bestScore;
+
+            if (alpha >= beta) {
+                updateTTable(bestScore, alphaOrig, beta, bestMove, depth, gameState.getBoardHash());
+
+                if (recordBestMove) {
+                    gBestMove = bestMove;
+                }
+
+                return bestScore;
+            }
+        }
     }
 
     auto moves = gameState.generateMoves(stack);
@@ -73,10 +126,11 @@ SearchStatistics gSearchStatistics;
         return evaluateNoLegalMoves(gameState);
     }
 
-    Move bestMove;
-    EvalT bestScore = -kInfiniteEval;
-
     for (Move move : moves) {
+        if (ttHit && move == ttHit->bestMove) {
+            continue;
+        }
+
         auto unmakeInfo = gameState.makeMove(move);
 
         const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
@@ -90,8 +144,10 @@ SearchStatistics gSearchStatistics;
         if (score > bestScore) {
             bestScore = score;
             bestMove  = move;
+
             if (score > alpha) {
                 alpha = score;
+
                 if (alpha >= beta) {
                     break;
                 }
@@ -99,23 +155,7 @@ SearchStatistics gSearchStatistics;
         }
     }
 
-    ScoreType scoreType;
-    if (bestScore <= alphaOrig) {
-        scoreType = ScoreType::UpperBound;
-    } else if (bestScore >= beta) {
-        scoreType = ScoreType::LowerBound;
-    } else {
-        scoreType = ScoreType::Exact;
-    }
-
-    const TTEntry entry = {
-            .hash      = gameState.getBoardHash(),
-            .depth     = (std::uint8_t)depth,
-            .scoreType = scoreType,
-            .score     = bestScore,
-    };
-
-    gTTable.store(entry);
+    updateTTable(bestScore, alphaOrig, beta, bestMove, depth, gameState.getBoardHash());
 
     if (recordBestMove) {
         gBestMove = bestMove;

@@ -99,7 +99,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name ttable-score\n");
+    std::print("id name ttable-move\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

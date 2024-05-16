@@ -16,6 +16,7 @@ struct TTEntry {
     std::uint8_t depth  = 0;
     ScoreType scoreType = ScoreType::NotSet;
     EvalT score         = 0;
+    Move bestMove;  // TODO: could store smaller move representation
 };
 
 class TTable {
