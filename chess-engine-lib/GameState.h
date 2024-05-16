@@ -14,6 +14,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 #include <cstdint>
 
@@ -38,6 +39,7 @@ class GameState {
         CastlingRights castlingRights      = CastlingRights::None;
         std::uint8_t plySinceCaptureOrPawn = 0;
         Piece capturedPiece                = Piece::Invalid;
+        int lastReversiblePositionHashIdx  = 0;
     };
 
     struct PieceOccupancyBitBoards {
@@ -52,7 +54,7 @@ class GameState {
     [[nodiscard]] std::string toVisualString() const;
 
     [[nodiscard]] bool isInCheck() const;
-    [[nodiscard]] bool isForcedDraw() const;
+    [[nodiscard]] bool isForcedDraw(int repetitionsForDraw = 2) const;
 
     [[nodiscard]] StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
 
@@ -165,4 +167,10 @@ class GameState {
     PieceOccupancyBitBoards occupancy_ = {};
 
     HashT boardHash_ = 0;
+
+    std::vector<HashT> previousHashes_ = {};
+
+    // Index of the hash of the first position after the last irreversible move (in
+    // previousHashes_).
+    int lastReversiblePositionHashIdx_ = 0;
 };

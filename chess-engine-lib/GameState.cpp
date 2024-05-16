@@ -482,9 +482,10 @@ StackVector<Move> GameState::generateMovesInCheck(
 
 GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
     UnmakeMoveInfo unmakeInfo = {
-            .enPassantTarget       = enPassantTarget_,
-            .castlingRights        = castlingRights_,
-            .plySinceCaptureOrPawn = plySinceCaptureOrPawn_};
+            .enPassantTarget               = enPassantTarget_,
+            .castlingRights                = castlingRights_,
+            .plySinceCaptureOrPawn         = plySinceCaptureOrPawn_,
+            .lastReversiblePositionHashIdx = lastReversiblePositionHashIdx_};
 
     if (isCastle(move.flags)) {
         makeCastleMove(move);
@@ -494,22 +495,38 @@ GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
 
     ++halfMoveClock_;
 
+    const bool isIrreversible = isCapture(move.flags) || move.pieceToMove == Piece::Pawn
+                             || unmakeInfo.castlingRights != castlingRights_;
+
+    if (isIrreversible) {
+        lastReversiblePositionHashIdx_ = (int)previousHashes_.size();
+    }
+
+    previousHashes_.push_back(boardHash_);
+
     return unmakeInfo;
 }
 
 GameState::UnmakeMoveInfo GameState::makeNullMove() {
     UnmakeMoveInfo unmakeInfo = {
-            .enPassantTarget       = enPassantTarget_,
-            .castlingRights        = castlingRights_,
-            .plySinceCaptureOrPawn = plySinceCaptureOrPawn_};
+            .enPassantTarget               = enPassantTarget_,
+            .castlingRights                = castlingRights_,
+            .plySinceCaptureOrPawn         = plySinceCaptureOrPawn_,
+            .lastReversiblePositionHashIdx = lastReversiblePositionHashIdx_};
 
     sideToMove_      = nextSide(sideToMove_);
     enPassantTarget_ = BoardPosition::Invalid;
-    // Do not increment plySinceCaptureOrPawn_
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
     ++halfMoveClock_;
 
     updateHashForSideToMove(boardHash_);
+
+    // We consider a null move to be irreversible for tie checking purposes.
+    // For discussion see: https://www.talkchess.com/forum/viewtopic.php?t=35052
+    lastReversiblePositionHashIdx_ = (int)previousHashes_.size();
+    plySinceCaptureOrPawn_         = 0;
+
+    previousHashes_.push_back(boardHash_);
 
     return unmakeInfo;
 }
@@ -553,6 +570,9 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
         }
     }
 
+    lastReversiblePositionHashIdx_ = unmakeMoveInfo.lastReversiblePositionHashIdx;
+    previousHashes_.pop_back();
+
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
     } else {
@@ -567,6 +587,9 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
     plySinceCaptureOrPawn_ = unmakeMoveInfo.plySinceCaptureOrPawn;
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
     --halfMoveClock_;
+
+    lastReversiblePositionHashIdx_ = unmakeMoveInfo.lastReversiblePositionHashIdx;
+    previousHashes_.pop_back();
 
     updateHashForSideToMove(boardHash_);
 }
@@ -1068,11 +1091,25 @@ bool GameState::isInCheck(const BitBoard enemyControl) const {
     return isSet(enemyControl, getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King)));
 }
 
-bool GameState::isForcedDraw() const {
-    // TODO: three-fold repetition.
-
+bool GameState::isForcedDraw(int repetitionsForDraw) const {
     // 50 move rule
-    return plySinceCaptureOrPawn_ >= 100;
+    if (plySinceCaptureOrPawn_ >= 100) {
+        return true;
+    }
+
+    // Three-fold repetition
+    int repetitions = 0;
+    for (int hashIdx = (int)previousHashes_.size() - 3; hashIdx >= lastReversiblePositionHashIdx_;
+         hashIdx -= 2) {
+        if (previousHashes_[hashIdx] == boardHash_) {
+            ++repetitions;
+            if (repetitions == repetitionsForDraw) {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 GameState::CheckInformation GameState::getCheckInformation() const {

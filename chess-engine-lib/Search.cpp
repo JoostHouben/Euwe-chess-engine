@@ -22,7 +22,10 @@ std::atomic<bool> gStopSearch;
         return evaluate(gameState, stack);
     }
 
-    if (gameState.isForcedDraw()) {
+    const bool recordBestMove = gRecordBestMove;
+    gRecordBestMove           = false;
+
+    if (!recordBestMove && gameState.isForcedDraw(/* repetitionsForDraw = */ 1)) {
         return 0;
     }
 
@@ -32,9 +35,6 @@ std::atomic<bool> gStopSearch;
     }
 
     Move bestMove;
-
-    const bool recordBestMove = gRecordBestMove;
-    gRecordBestMove           = false;
 
     for (Move move : moves) {
         auto unmakeInfo = gameState.makeMove(move);

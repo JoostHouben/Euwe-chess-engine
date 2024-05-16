@@ -251,11 +251,13 @@ GameState GameState::fromFen(const std::string& fenString) {
 
     gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt);
 
-    MY_ASSERT(strIt == fenString.end());
-
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig, gameState.sideToMove_);
 
     gameState.boardHash_ = computeBoardHash(gameState);
+
+    gameState.previousHashes_.reserve(500);
+    gameState.previousHashes_.push_back(gameState.boardHash_);
+    gameState.lastReversiblePositionHashIdx_ = 0;
 
     return gameState;
 }
