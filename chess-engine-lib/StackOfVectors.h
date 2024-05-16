@@ -63,6 +63,12 @@ class StackVectorIterator {
 
     StackVectorIterator(StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
 
+    StackVectorIterator& operator=(const StackVectorIterator& rhs) {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        idx_ = rhs.idx_;
+        return *this;
+    }
+
     T& operator*() const { return parent_[idx_]; }
 
     T* operator->() { return &parent_[idx_]; }
@@ -154,6 +160,12 @@ class StackVectorConstIterator {
     using iterator_concept  = std::contiguous_iterator_tag;
 
     StackVectorConstIterator(const StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+
+    StackVectorConstIterator& operator=(const StackVectorConstIterator& rhs) {
+        MY_ASSERT(&parent_ == &rhs.parent_);
+        idx_ = rhs.idx_;
+        return *this;
+    }
 
     const T& operator*() const { return parent_[idx_]; }
 

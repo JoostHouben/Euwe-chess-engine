@@ -70,3 +70,45 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack) {
     const EvalT whiteEval = evaluateForWhite(gameState);
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
+
+void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState) {
+    EvalT bestMoveScore = -kInfiniteEval;
+    int bestMoveIdx     = -1;
+
+    static constexpr EvalT kCaptureBonus   = 2'000;
+    static constexpr EvalT kPromotionBonus = 2'000;
+
+    for (int moveIdx = firstMoveIdx; moveIdx < moves.size(); ++moveIdx) {
+        const Move& move = moves[moveIdx];
+
+        EvalT moveScore = 0;
+
+        if (isCapture(move.flags)) {
+            moveScore += kCaptureBonus;
+
+            Piece capturedPiece;
+            if (isEnPassant(move.flags)) {
+                capturedPiece = Piece::Pawn;
+            } else {
+                capturedPiece = getPiece(gameState.getPieceOnSquare(move.to));
+            }
+
+            moveScore += kPieceValues[(int)capturedPiece];
+            moveScore -= kPieceValues[(int)move.pieceToMove];
+        }
+
+        if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {
+            moveScore += kPromotionBonus;
+
+            moveScore += kPieceValues[(int)promotionPiece];
+            moveScore -= kPieceValues[(int)Piece::Pawn];
+        }
+
+        if (moveScore > bestMoveScore) {
+            bestMoveScore = moveScore;
+            bestMoveIdx   = moveIdx;
+        }
+    }
+
+    std::swap(moves[firstMoveIdx], moves[bestMoveIdx]);
+}

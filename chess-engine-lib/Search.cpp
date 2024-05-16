@@ -2,6 +2,7 @@
 
 #include "TTable.h"
 
+#include <algorithm>
 #include <atomic>
 
 namespace {
@@ -93,6 +94,7 @@ void updateTTable(
         }
 
         // Try hash move first.
+        // TODO: do we need a legality check here for hash collisions?
         auto unmakeInfo = gameState.makeMove(ttHit->bestMove);
 
         const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
@@ -126,10 +128,20 @@ void updateTTable(
         return evaluateNoLegalMoves(gameState);
     }
 
-    for (Move move : moves) {
-        if (ttHit && move == ttHit->bestMove) {
-            continue;
+    int moveIdx = 0;
+
+    if (ttHit) {
+        const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttHit->bestMove);
+        if (hashMoveIt != moves.end()) {
+            std::iter_swap(moves.begin(), hashMoveIt);
+            ++moveIdx;
         }
+    }
+
+    while (moveIdx < moves.size()) {
+        selectBestMove(moves, moveIdx, gameState);
+
+        const Move move = moves[moveIdx++];
 
         auto unmakeInfo = gameState.makeMove(move);
 

@@ -4,8 +4,10 @@
 
 #include "GameState.h"
 
-#include <cstdint>
 #include <numeric>
+#include <optional>
+
+#include <cstdint>
 
 using EvalT = std::int16_t;
 
@@ -15,3 +17,5 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 [[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
 
 [[nodiscard]] EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack);
+
+void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState);
