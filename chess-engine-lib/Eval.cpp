@@ -1,5 +1,7 @@
 #include "Eval.h"
 
+#include "Math.h"
+
 #include <array>
 #include <optional>
 
@@ -62,7 +64,7 @@ constexpr std::array<EvalT, kNumPieceTypes> kPieceValues = {
 EvalT evaluateNoLegalMoves(const GameState& gameState) {
     if (gameState.isInCheck()) {
         // We're in check and there are no legal moves so we're in checkmate.
-        return -(kMateEval - gameState.getHalfMoveClock());
+        return -kMateEval;
     }
 
     // We're not in check and there are no legal moves so this is a stalemate.
@@ -118,4 +120,17 @@ void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState&
     }
 
     std::swap(moves[firstMoveIdx], moves[bestMoveIdx]);
+}
+
+bool isMate(EvalT eval) {
+    return std::abs(eval) >= kMateEval - 1000;
+}
+
+int getMateDistance(EvalT eval) {
+    MY_ASSERT(isMate(eval));
+
+    const int mateInPly   = kMateEval - std::abs(eval);
+    const int mateInMoves = (mateInPly + 1) / 2;
+
+    return signum(eval) * mateInMoves;
 }

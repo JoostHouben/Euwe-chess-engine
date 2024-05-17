@@ -1,6 +1,7 @@
 #include "GameState.h"
 
 #include "Macros.h"
+#include "Math.h"
 #include "MyAssert.h"
 #include "PieceControl.h"
 
@@ -187,10 +188,6 @@ FORCE_INLINE void generateSinglePieceMovesFromControl(
         const BoardPosition movePosition = popFirstSetPosition(nonCaptures);
         moves.emplace_back(piece, piecePosition, movePosition);
     }
-}
-
-FORCE_INLINE constexpr int signum(const int x) {
-    return (x > 0) - (x < 0);
 }
 
 FORCE_INLINE bool getFileRankIncrement(

@@ -19,3 +19,6 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 [[nodiscard]] EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack);
 
 void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState);
+
+[[nodiscard]] bool isMate(EvalT eval);
+[[nodiscard]] int getMateDistance(EvalT eval);

@@ -18,6 +18,7 @@
     <ClInclude Include="ClangDiagnosticIgnore.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Eval.h" />
+    <ClInclude Include="Math.h" />
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />
     <ClInclude Include="Move.h" />

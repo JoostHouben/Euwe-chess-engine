@@ -1,5 +1,6 @@
 #include "Search.h"
 
+#include "Math.h"
 #include "TTable.h"
 
 #include <algorithm>
@@ -107,7 +108,10 @@ void updateTTable(
         // TODO: do we need a legality check here for hash collisions?
         auto unmakeInfo = gameState.makeMove(ttHit->bestMove);
 
-        const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
+        EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
+        if (isMate(score)) {
+            score -= signum(score);
+        }
 
         gameState.unmakeMove(ttHit->bestMove, unmakeInfo);
 
@@ -155,7 +159,10 @@ void updateTTable(
 
         auto unmakeInfo = gameState.makeMove(move);
 
-        const EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
+        EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
+        if (isMate(score)) {
+            score -= signum(score);
+        }
 
         gameState.unmakeMove(move, unmakeInfo);
 

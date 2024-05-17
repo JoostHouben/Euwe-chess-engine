@@ -80,12 +80,9 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
     const auto searchInfo = findMove(uciState.gameState);
 
     std::string scoreString = std::format("cp {}", searchInfo.score);
-    if (searchInfo.score > kMateEval - 100) {
-        const int mateIn = kMateEval - searchInfo.score;
-        scoreString      = std::format("mate {}", mateIn);
-    } else if (searchInfo.score < -(kMateEval - 100)) {
-        const int mateIn = searchInfo.score - kMateEval;
-        scoreString      = std::format("mate {}", -mateIn);
+    if (isMate(searchInfo.score)) {
+        const int mateInMoves = getMateDistance(searchInfo.score);
+        scoreString           = std::format("mate {}", mateInMoves);
     }
 
     std::print("info depth {}\n", searchInfo.depth);
