@@ -387,11 +387,14 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
 SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
     gRecordBestMove = true;
-    gStopSearch     = false;
 
     const auto eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
 
     return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
+}
+
+void startSearch() {
+    gStopSearch = false;
 }
 
 void stopSearch() {

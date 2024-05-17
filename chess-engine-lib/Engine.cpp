@@ -14,6 +14,28 @@ namespace {
 
 StackOfVectors<Move> gMoveStack;
 
+std::atomic_bool gSearchIsRunning = false;
+
+[[nodiscard]] bool reachesDraw(
+        GameState& gameState, const StackVector<Move>& principalVariation, int moveIdx = 0) {
+    if (moveIdx == principalVariation.size()) {
+        if (gameState.isRepetition() || gameState.isFiftyMoves()) {
+            return true;
+        }
+
+        const auto moves = gameState.generateMoves(gMoveStack);
+        return moves.size() == 0;
+    }
+
+    const auto move = principalVariation[moveIdx];
+
+    const auto unmakeInfo = gameState.makeMove(move);
+    const bool isDraw     = reachesDraw(gameState, principalVariation, moveIdx + 1);
+    gameState.unmakeMove(move, unmakeInfo);
+
+    return isDraw;
+}
+
 [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState) {
     gMoveStack.reserve(1'000);
 
@@ -55,6 +77,10 @@ StackOfVectors<Move> gMoveStack;
                 pvString,
                 eval,
                 millisecondsElapsed);
+
+        if (isMate(eval) || (eval == 0 && reachesDraw(copySate, searchResult.principalVariation))) {
+            break;
+        }
     }
 
     const auto endTime = std::chrono::high_resolution_clock::now();
@@ -79,15 +105,29 @@ StackOfVectors<Move> gMoveStack;
             .nodesPerSecond     = (int)nodesPerSecond};
 }
 
+void stopSearchAfter(std::chrono::milliseconds timeLimit) {
+    const auto startTime = std::chrono::high_resolution_clock::now();
+
+    do {
+        std::this_thread::sleep_for(timeLimit / 10);
+
+        if (!gSearchIsRunning) {
+            return;
+        }
+    } while (std::chrono::high_resolution_clock::now() - startTime < timeLimit);
+
+    stopSearch();
+}
+
 }  // namespace
 
 SearchInfo findMove(const GameState& gameState) {
+    startSearch();
+    gSearchIsRunning = true;
+
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
-    // Sleep while search is in progress.
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    // Send stop signal to search function.
-    stopSearch();
+    stopSearchAfter(std::chrono::milliseconds(1'000));
 
     return moveFuture.get();
 }
