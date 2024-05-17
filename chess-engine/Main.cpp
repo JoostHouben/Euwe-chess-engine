@@ -85,18 +85,22 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
         scoreString           = std::format("mate {}", mateInMoves);
     }
 
+    const std::string pvString = searchInfo.principalVariation
+                               | std::views::transform(moveToExtendedString)
+                               | std::views::join_with(' ') | std::ranges::to<std::string>();
+
     std::print("info depth {}\n", searchInfo.depth);
     std::print("info time {}\n", searchInfo.timeMs);
     std::print("info nodes {}\n", searchInfo.numNodes);
     std::print("info nps {}\n", searchInfo.nodesPerSecond);
-    std::print("info pv {}\n", moveToUciString(searchInfo.bestMove));
+    std::print("info pv {}\n", pvString);
     std::print("info score {}\n", scoreString);
 
-    std::print("bestmove {}\n", moveToUciString(searchInfo.bestMove));
+    std::print("bestmove {}\n", moveToUciString(searchInfo.principalVariation[0]));
 }
 
 void runUci() {
-    std::print("id name move-order\n");
+    std::print("id name several-fixes\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

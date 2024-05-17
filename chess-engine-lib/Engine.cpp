@@ -8,6 +8,7 @@
 #include <iostream>
 #include <print>
 #include <random>
+#include <ranges>
 
 namespace {
 
@@ -21,7 +22,7 @@ std::atomic_bool gStopSearch;
 
     resetSearchStatistics();
 
-    Move bestMove;
+    std::vector<Move> principalVariation;
     EvalT eval;
 
     auto startTime = std::chrono::high_resolution_clock::now();
@@ -41,8 +42,12 @@ std::atomic_bool gStopSearch;
             break;
         }
 
-        bestMove = searchResult.bestMove;
-        eval     = searchResult.eval;
+        principalVariation = std::vector<Move>(
+                searchResult.principalVariation.begin(), searchResult.principalVariation.end());
+        eval = searchResult.eval;
+
+        std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
+                             | std::views::join_with(' ') | std::ranges::to<std::string>();
 
         const auto timeNow = std::chrono::high_resolution_clock::now();
         const auto millisecondsElapsed =
@@ -50,9 +55,9 @@ std::atomic_bool gStopSearch;
 
         std::print(
                 std::cerr,
-                "Depth {} - best move: {} (eval: {}; time elapsed: {} ms)\n",
+                "Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
                 depth,
-                moveToExtendedString(bestMove),
+                pvString,
                 eval,
                 millisecondsElapsed);
     }
@@ -68,15 +73,12 @@ std::atomic_bool gStopSearch;
 
     std::print(std::cerr, "TTable hits: {}\n", searchStatistics.tTableHits);
 
-    const SearchInfo info{
-            .bestMove       = bestMove,
-            .score          = eval,
-            .depth          = depth,
-            .timeMs         = (int)millisecondsElapsed,
-            .numNodes       = searchStatistics.nodesSearched,
-            .nodesPerSecond = (int)nodesPerSecond};
-
-    return info;
+    return {.principalVariation = principalVariation,
+            .score              = eval,
+            .depth              = depth,
+            .timeMs             = (int)millisecondsElapsed,
+            .numNodes           = searchStatistics.nodesSearched,
+            .nodesPerSecond     = (int)nodesPerSecond};
 }
 
 }  // namespace

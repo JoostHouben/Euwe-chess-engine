@@ -5,8 +5,10 @@
 #include "Eval.h"
 #include "GameState.h"
 
+#include <vector>
+
 struct SearchInfo {
-    Move bestMove;
+    std::vector<Move> principalVariation;
     EvalT score;
     int depth;
     int timeMs;

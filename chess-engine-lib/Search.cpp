@@ -193,6 +193,28 @@ void updateTTable(
     return bestScore;
 }
 
+StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, const int depth) {
+    // Note: taking copy
+    // TODO: would make+unmake be faster here?
+
+    StackVector<Move> pv = stack.makeStackVector();
+
+    pv.push_back(gBestMove);
+
+    (void)gameState.makeMove(gBestMove);
+
+    auto ttHit = gTTable.probe(gameState.getBoardHash());
+    while (ttHit && pv.size() < depth) {
+        pv.push_back(ttHit->bestMove);
+
+        (void)gameState.makeMove(ttHit->bestMove);
+
+        ttHit = gTTable.probe(gameState.getBoardHash());
+    }
+
+    return pv;
+}
+
 }  // namespace
 
 SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
@@ -201,7 +223,7 @@ SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVec
 
     const EvalT eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
 
-    return {.bestMove = gBestMove, .eval = eval};
+    return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
 }
 
 void stopSearch() {

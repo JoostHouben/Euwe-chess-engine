@@ -6,7 +6,7 @@
 #include "GameState.h"
 
 struct SearchResult {
-    Move bestMove;
+    StackVector<Move> principalVariation;
     EvalT eval;
 };
 
