@@ -21,9 +21,6 @@ SearchStatistics gSearchStatistics;
 std::optional<EvalT> quiesce(
         GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
     // TODO:
-    //  - Consider checks: if we're in check we might want to consider non-captures. However we need
-    //    to limit the search depth with checks to avoid infinite recursion on repeated checks. We
-    //    also may need to check for repetitions and 50 move rule.
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
 
@@ -50,14 +47,14 @@ std::optional<EvalT> quiesce(
         alpha = std::max(alpha, bestScore);
     }
 
-    auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/true);
+    auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
     if (moves.size() == 0) {
-        // No captures are available.
-
         if (isInCheck) {
-            // We didn't do stand pat evaluation, so run evaluation now.
-            return evaluate(gameState, stack);
+            // We ran full move generation, so no legal moves exist.
+            return evaluateNoLegalMoves(gameState);
         }
+
+        // No captures are available.
 
         // Check if we're in an end state by generating all moves.
         // Note that this ignores repetitions and 50 move rule.
