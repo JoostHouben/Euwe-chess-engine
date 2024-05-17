@@ -30,23 +30,19 @@ StackOfVectors<Move> gMoveStack;
     for (depth = 1; depth < 40; ++depth) {
         const auto searchResult = searchForBestMove(copySate, depth, gMoveStack);
 
+        principalVariation = std::vector<Move>(
+                searchResult.principalVariation.begin(), searchResult.principalVariation.end());
+
+        std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
+                             | std::views::join_with(' ') | std::ranges::to<std::string>();
+
         if (!searchResult.eval.has_value()) {
-            std::print(
-                    std::cerr,
-                    "Terminating search during search of depth {} (completed to depth {}).\n",
-                    depth,
-                    depth - 1);
+            std::print(std::cerr, "Partial search Depth {} - pv: {}\n", depth, pvString);
 
             --depth;
             break;
         }
-
-        principalVariation = std::vector<Move>(
-                searchResult.principalVariation.begin(), searchResult.principalVariation.end());
         eval = searchResult.eval.value();
-
-        std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
-                             | std::views::join_with(' ') | std::ranges::to<std::string>();
 
         const auto timeNow = std::chrono::high_resolution_clock::now();
         const auto millisecondsElapsed =
