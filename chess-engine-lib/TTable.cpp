@@ -21,5 +21,8 @@ std::optional<TTEntry> TTable::probe(HashT hash) const {
 void TTable::store(const TTEntry& entry) {
     // TODO: consider more sophisticated replacement schemes
     const std::size_t index = entry.hash % size_;
-    data_[index]            = entry;
+    if (data_[index].hash == 0) {
+        ++numInUse_;
+    }
+    data_[index] = entry;
 }

@@ -75,6 +75,8 @@ StackOfVectors<Move> gMoveStack;
     std::print(std::cerr, "Normal nodes searched: {}\n", searchStatistics.normalNodesSearched);
     std::print(std::cerr, "Quiescence nodes searched: {}\n", searchStatistics.qNodesSearched);
     std::print(std::cerr, "TTable hits: {}\n", searchStatistics.tTableHits);
+    std::print(
+            std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 
     return {.principalVariation = principalVariation,
             .score              = eval,

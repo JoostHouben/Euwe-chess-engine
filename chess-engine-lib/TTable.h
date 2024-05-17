@@ -28,7 +28,12 @@ class TTable {
 
     void store(const TTEntry& entry);
 
+    [[nodiscard]] int getNumInUse() const { return numInUse_; }
+    [[nodiscard]] float getUtilization() const { return static_cast<float>(numInUse_) / size_; }
+
   private:
     TTEntry* data_;
     std::size_t size_;
+
+    int numInUse_ = 0;
 };

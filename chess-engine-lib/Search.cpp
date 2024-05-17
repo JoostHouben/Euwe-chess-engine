@@ -426,6 +426,8 @@ void setStopSearchFlag() {
 }
 
 SearchStatistics getSearchStatistics() {
+    gSearchStatistics.ttableUtilization = gTTable.getUtilization();
+
     return gSearchStatistics;
 }
 
