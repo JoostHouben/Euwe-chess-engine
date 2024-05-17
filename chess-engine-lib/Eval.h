@@ -16,7 +16,8 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 
 [[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
 
-[[nodiscard]] EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack);
+[[nodiscard]] EvalT evaluate(
+        const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState = true);
 
 void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState);
 

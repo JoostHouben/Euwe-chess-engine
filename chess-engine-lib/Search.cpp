@@ -43,7 +43,7 @@ std::optional<EvalT> quiesce(
 
     if (!isInCheck) {
         // Stand pat
-        bestScore = evaluate(gameState, stack);
+        bestScore = evaluate(gameState, stack, /*checkEndState =*/false);
         if (bestScore >= beta) {
             return bestScore;
         }
@@ -51,9 +51,23 @@ std::optional<EvalT> quiesce(
     }
 
     auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/true);
-    if (moves.size() == 0 && isInCheck) {
-        // Since we're in check we didn't do stand pat evaluation yet; run evaluation now.
-        return evaluate(gameState, stack);
+    if (moves.size() == 0) {
+        // No captures are available.
+
+        if (isInCheck) {
+            // We didn't do stand pat evaluation, so run evaluation now.
+            return evaluate(gameState, stack);
+        }
+
+        // Check if we're in an end state by generating all moves.
+        // Note that this ignores repetitions and 50 move rule.
+        const auto allMoves = gameState.generateMoves(stack, enemyControl);
+        if (allMoves.size() == 0) {
+            return evaluateNoLegalMoves(gameState);
+        }
+
+        // If we're not in an end state return the stand pat evaluation.
+        return bestScore;
     }
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {

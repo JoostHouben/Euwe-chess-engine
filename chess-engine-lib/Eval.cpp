@@ -71,9 +71,12 @@ EvalT evaluateNoLegalMoves(const GameState& gameState) {
     return 0;
 }
 
-EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (auto maybeEndEval = evaluateEndState(gameState, stack); maybeEndEval) {
-        return *maybeEndEval;
+EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState) {
+    if (checkEndState) {
+        auto maybeEndEval = evaluateEndState(gameState, stack);
+        if (maybeEndEval) {
+            return *maybeEndEval;
+        }
     }
 
     const EvalT whiteEval = evaluateForWhite(gameState);
