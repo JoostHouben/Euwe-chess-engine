@@ -137,9 +137,6 @@ void runUci() {
 void runPerft() {
     GameState gameState = GameState::startingPosition();
 
-    std::print("Copy + make:\n");
-    perftPrint(gameState, 7);
-
     std::print("\nMake + unmake:\n");
     perftPrint(gameState, 7, true);
 }
