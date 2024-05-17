@@ -53,11 +53,19 @@ class GameState {
     [[nodiscard]] std::string toFen() const;
     [[nodiscard]] std::string toVisualString() const;
 
+    [[nodiscard]] BitBoard getEnemyControl() const;
+
     [[nodiscard]] bool isInCheck() const;
+    bool isInCheck(BitBoard enemyControl) const;
     [[nodiscard]] bool isRepetition(int repetitionsForDraw = 2) const;
     [[nodiscard]] bool isFiftyMoves() const;
 
-    [[nodiscard]] StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
+    [[nodiscard]] StackVector<Move> generateMoves(
+            StackOfVectors<Move>& stack, bool capturesOnly = false) const;
+    [[nodiscard]] StackVector<Move> generateMoves(
+            StackOfVectors<Move>& stack, BitBoard enemyControl, bool capturesOnly = false) const;
+    [[nodiscard]] StackVector<Move> generateMovesInCheck(
+            StackOfVectors<Move>& stack, BitBoard enemyControl, bool capturesOnly = false) const;
 
     UnmakeMoveInfo makeMove(const Move& move);
     UnmakeMoveInfo makeNullMove();
@@ -121,18 +129,12 @@ class GameState {
         return pieceOnSquare_[(int)position];
     }
 
-    [[nodiscard]] StackVector<Move> generateMovesInCheck(
-            StackOfVectors<Move>& stack, BitBoard enemyControl) const;
-
     // TODO: rename this something like xray bitboards?
     // The last entry in the array stores the union of the other entries
     [[nodiscard]] std::array<BitBoard, kNumPiecesPerSide> calculatePiecePinOrKingAttackBitBoards(
             Side kingSide) const;
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
-
-    [[nodiscard]] BitBoard getEnemyControl() const;
-    bool isInCheck(BitBoard enemyControl) const;
 
     [[nodiscard]] CheckInformation getCheckInformation() const;
 

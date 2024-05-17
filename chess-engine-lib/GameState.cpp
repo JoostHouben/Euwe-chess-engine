@@ -17,6 +17,7 @@ void generatePawnMoves(
         const std::array<BitBoard, kNumPiecesPerSide>& piecePinBitBoards,
         const BitBoard pinBitBoard,
         StackVector<Move>& moves,
+        const bool capturesOnly,
         const BitBoard checkResolutionBitBoard = BitBoard::Full) {
     const std::uint64_t startingRankMask =
             side == Side::White ? (0xffULL << (1 * 8)) : (0xffULL << (6 * 8));
@@ -39,17 +40,9 @@ void generatePawnMoves(
         set(captureTargets, enPassantTarget);
     }
 
-    BitBoard singlePushes = subtract(forwardShift(pawnBitBoard), anyPiece);
-
-    const BitBoard startingPawns           = intersection(pawnBitBoard, (BitBoard)startingRankMask);
-    const BitBoard startingPawnsSinglePush = subtract(forwardShift(startingPawns), anyPiece);
-    BitBoard doublePushes = subtract(forwardShift(startingPawnsSinglePush), anyPiece);
-
     BitBoard leftCaptures  = intersection(leftForwardShift(pawnBitBoard), captureTargets);
     BitBoard rightCaptures = intersection(rightForwardShift(pawnBitBoard), captureTargets);
 
-    singlePushes  = intersection(singlePushes, checkResolutionBitBoard);
-    doublePushes  = intersection(doublePushes, checkResolutionBitBoard);
     leftCaptures  = intersection(leftCaptures, checkResolutionBitBoard);
     rightCaptures = intersection(rightCaptures, checkResolutionBitBoard);
 
@@ -105,8 +98,19 @@ void generatePawnMoves(
                 }
             };
 
-    generateMoves(singlePushes, forwardBits, MoveFlags::None);
-    generateMoves(doublePushes, 2 * forwardBits, MoveFlags::None);
+    if (!capturesOnly) {
+        BitBoard singlePushes = subtract(forwardShift(pawnBitBoard), anyPiece);
+
+        const BitBoard startingPawns = intersection(pawnBitBoard, (BitBoard)startingRankMask);
+        const BitBoard startingPawnsSinglePush = subtract(forwardShift(startingPawns), anyPiece);
+        BitBoard doublePushes = subtract(forwardShift(startingPawnsSinglePush), anyPiece);
+
+        singlePushes = intersection(singlePushes, checkResolutionBitBoard);
+        doublePushes = intersection(doublePushes, checkResolutionBitBoard);
+
+        generateMoves(singlePushes, forwardBits, MoveFlags::None);
+        generateMoves(doublePushes, 2 * forwardBits, MoveFlags::None);
+    }
 
     generateMoves(leftCaptures, forwardBits + leftBits, MoveFlags::IsCapture);
     generateMoves(rightCaptures, forwardBits + rightBits, MoveFlags::IsCapture);
@@ -170,23 +174,26 @@ FORCE_INLINE void generateSinglePieceMovesFromControl(
         BitBoard controlledSquares,
         const GameState::PieceOccupancyBitBoards& occupancy,
         const BitBoard piecePinBitBoard,
-        StackVector<Move>& moves) {
+        StackVector<Move>& moves,
+        bool capturesOnly) {
     // Can't move to our own pieces
     controlledSquares = subtract(controlledSquares, occupancy.ownPiece);
 
     // Pinned pieces can only move along the pin direction
     controlledSquares = intersection(controlledSquares, piecePinBitBoard);
 
-    BitBoard captures    = intersection(controlledSquares, occupancy.enemyPiece);
-    BitBoard nonCaptures = subtract(controlledSquares, occupancy.enemyPiece);
-
+    BitBoard captures = intersection(controlledSquares, occupancy.enemyPiece);
     while (captures != BitBoard::Empty) {
         const BoardPosition capturePosition = popFirstSetPosition(captures);
         moves.emplace_back(piece, piecePosition, capturePosition, MoveFlags::IsCapture);
     }
-    while (nonCaptures != BitBoard::Empty) {
-        const BoardPosition movePosition = popFirstSetPosition(nonCaptures);
-        moves.emplace_back(piece, piecePosition, movePosition);
+
+    if (!capturesOnly) {
+        BitBoard nonCaptures = subtract(controlledSquares, occupancy.enemyPiece);
+        while (nonCaptures != BitBoard::Empty) {
+            const BoardPosition movePosition = popFirstSetPosition(nonCaptures);
+            moves.emplace_back(piece, piecePosition, movePosition);
+        }
     }
 }
 
@@ -230,11 +237,16 @@ bool GameState::isInCheck() const {
     return isInCheck(getEnemyControl());
 }
 
-StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
+StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack, bool capturesOnly) const {
     const BitBoard enemyControl = getEnemyControl();
+    return generateMoves(stack, enemyControl, capturesOnly);
+}
+
+StackVector<Move> GameState::generateMoves(
+        StackOfVectors<Move>& stack, BitBoard enemyControl, bool capturesOnly) const {
 
     if (isInCheck(enemyControl)) {
-        return generateMovesInCheck(stack, enemyControl);
+        return generateMovesInCheck(stack, enemyControl, capturesOnly);
     }
 
     StackVector<Move> moves = stack.makeStackVector();
@@ -271,7 +283,8 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             enPassantTarget,
             pinBitBoards,
             pinBitBoard,
-            moves);
+            moves,
+            capturesOnly);
 
     const BitBoard anyPiece = any(occupancy_.ownPiece, occupancy_.enemyPiece);
 
@@ -288,7 +301,13 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
                     getPieceControlledSquares(piece, piecePosition, anyPiece);
 
             generateSinglePieceMovesFromControl(
-                    piece, piecePosition, controlledSquares, occupancy_, piecePinBitBoard, moves);
+                    piece,
+                    piecePosition,
+                    controlledSquares,
+                    occupancy_,
+                    piecePinBitBoard,
+                    moves,
+                    capturesOnly);
         }
     }
 
@@ -306,23 +325,26 @@ StackVector<Move> GameState::generateMoves(StackOfVectors<Move>& stack) const {
             kingControlledSquares,
             occupancy_,
             /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */,
-            moves);
+            moves,
+            capturesOnly);
 
-    // Castling moves
-    generateCastlingMoves(
-            sideToMove_,
-            canCastleKingSide(sideToMove_),
-            canCastleQueenSide(sideToMove_),
-            occupancy_,
-            enemyControl,
-            moves);
+    if (!capturesOnly) {
+        // Castling moves
+        generateCastlingMoves(
+                sideToMove_,
+                canCastleKingSide(sideToMove_),
+                canCastleQueenSide(sideToMove_),
+                occupancy_,
+                enemyControl,
+                moves);
+    }
 
     moves.lock();
     return moves;
 }
 
 StackVector<Move> GameState::generateMovesInCheck(
-        StackOfVectors<Move>& stack, const BitBoard enemyControl) const {
+        StackOfVectors<Move>& stack, const BitBoard enemyControl, bool capturesOnly) const {
     StackVector<Move> moves = stack.makeStackVector();
 
     const BoardPosition kingPosition =
@@ -364,7 +386,8 @@ StackVector<Move> GameState::generateMovesInCheck(
             kingControlledSquares,
             occupancy_,
             /*piecePinBitBoard =*/BitBoard::Full /* King can't be pinned. */,
-            moves);
+            moves,
+            capturesOnly);
 
     if (doubleCheck) {
         // Double check: only the king can move
@@ -442,6 +465,7 @@ StackVector<Move> GameState::generateMovesInCheck(
             unusedPiecePinBitBoards,
             BitBoard::Empty,
             moves,
+            capturesOnly,
             pawnBlockOrCaptureBitBoard);
 
     // Generate moves for normal pieces (non-pawns excl. king)
@@ -469,7 +493,8 @@ StackVector<Move> GameState::generateMovesInCheck(
                     controlledSquares,
                     occupancy_,
                     /*piecePinBitBoard =*/blockOrCaptureBitBoard,
-                    moves);
+                    moves,
+                    capturesOnly);
         }
     }
 

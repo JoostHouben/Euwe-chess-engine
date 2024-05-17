@@ -63,16 +63,19 @@ StackOfVectors<Move> gMoveStack;
 
     const auto searchStatistics = getSearchStatistics();
 
-    const float nodesPerSecond =
-            static_cast<float>(searchStatistics.nodesSearched) / (millisecondsElapsed / 1'000.0f);
+    const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
 
+    const float nodesPerSecond = static_cast<float>(numNodes) / millisecondsElapsed * 1'000.0f;
+
+    std::print(std::cerr, "Normal nodes searched: {}\n", searchStatistics.normalNodesSearched);
+    std::print(std::cerr, "Quiescence nodes searched: {}\n", searchStatistics.qNodesSearched);
     std::print(std::cerr, "TTable hits: {}\n", searchStatistics.tTableHits);
 
     return {.principalVariation = principalVariation,
             .score              = eval,
             .depth              = depth,
             .timeMs             = (int)millisecondsElapsed,
-            .numNodes           = searchStatistics.nodesSearched,
+            .numNodes           = numNodes,
             .nodesPerSecond     = (int)nodesPerSecond};
 }
 

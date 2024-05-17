@@ -13,8 +13,9 @@ struct SearchResult {
 };
 
 struct SearchStatistics {
-    int nodesSearched = 0;
-    int tTableHits    = 0;
+    int normalNodesSearched = 0;
+    int qNodesSearched      = 0;
+    int tTableHits          = 0;
 };
 
 [[nodiscard]] SearchResult searchForBestMove(

@@ -18,6 +18,74 @@ TTable gTTable(kTTableSizeInEntries);
 
 SearchStatistics gSearchStatistics;
 
+std::optional<EvalT> quiesce(
+        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+    // TODO:
+    //  - Consider checks: if we're in check we might want to consider non-captures. However we need
+    //    to limit the search depth with checks to avoid infinite recursion on repeated checks. We
+    //    also may need to check for repetitions and 50 move rule.
+    //  - Can we use the TTable here?
+    //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
+
+    if (gStopSearch) {
+        return std::nullopt;
+    }
+
+    ++gSearchStatistics.qNodesSearched;
+
+    // No need to check for repetitions and 50 move rule: those are impossible when only doing
+    // captures.
+
+    const BitBoard enemyControl = gameState.getEnemyControl();
+    const bool isInCheck        = gameState.isInCheck(enemyControl);
+
+    EvalT bestScore = -kInfiniteEval;
+
+    if (!isInCheck) {
+        // Stand pat
+        bestScore = evaluate(gameState, stack);
+        if (bestScore >= beta) {
+            return bestScore;
+        }
+        alpha = std::max(alpha, bestScore);
+    }
+
+    auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/true);
+    if (moves.size() == 0 && isInCheck) {
+        // Since we're in check we didn't do stand pat evaluation yet; run evaluation now.
+        return evaluate(gameState, stack);
+    }
+
+    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+        selectBestMove(moves, moveIdx, gameState);
+
+        const Move move = moves[moveIdx];
+
+        const auto unmakeInfo = gameState.makeMove(move);
+
+        const auto searchResult = quiesce(gameState, -beta, -alpha, stack);
+        if (!searchResult) {
+            return std::nullopt;
+        }
+
+        EvalT score = -searchResult.value();
+        if (isMate(score)) {
+            score -= signum(score);
+        }
+
+        gameState.unmakeMove(move, unmakeInfo);
+
+        if (score >= beta) {
+            return score;
+        }
+
+        alpha     = std::max(alpha, score);
+        bestScore = std::max(bestScore, score);
+    }
+
+    return bestScore;
+}
+
 void updateTTable(
         EvalT bestScore,
         EvalT alphaOrig,
@@ -66,11 +134,11 @@ void updateTTable(
         return std::nullopt;
     }
 
-    ++gSearchStatistics.nodesSearched;
+    ++gSearchStatistics.normalNodesSearched;
 
     if (depth == 0) {
         // Exact value
-        return evaluate(gameState, stack);
+        return quiesce(gameState, alpha, beta, stack);
     }
 
     const bool recordBestMove = gRecordBestMove;
@@ -194,10 +262,10 @@ void updateTTable(
         }
     }
 
-    while (moveIdx < moves.size()) {
+    for (; moveIdx < moves.size(); ++moveIdx) {
         selectBestMove(moves, moveIdx, gameState);
 
-        const Move move = moves[moveIdx++];
+        const Move move = moves[moveIdx];
 
         auto unmakeInfo = gameState.makeMove(move);
 
@@ -206,7 +274,7 @@ void updateTTable(
         gameState.unmakeMove(move, unmakeInfo);
 
         if (!searchResult) {
-            if (moveIdx > 1) {
+            if (moveIdx > 0) {
                 updateTTable(
                         bestScore,
                         alphaOrig,
