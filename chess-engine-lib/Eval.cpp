@@ -196,9 +196,13 @@ void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState&
                 capturedPiece = getPiece(gameState.getPieceOnSquare(move.to));
             }
 
-            // Value of victim - attacker (LVV/MVA)
+            // Most valuable victim, least valuable aggressor (MVV-LVA)
+            // We achieve this by adding the value of the victim, and then subtracting the value of
+            // the aggressor, but divided by a large enough factor so that the victim's value
+            // dominates. Right shifting by 5 is sufficient, since king value / 32 is less than one
+            // pawn.
             moveScore += kPieceValues[(int)capturedPiece];
-            moveScore -= kPieceValues[(int)move.pieceToMove];
+            moveScore -= (kPieceValues[(int)move.pieceToMove] >> 5);
 
             moveScore += kPieceSquareTables[(int)capturedPiece][(int)captureTarget];
         }
