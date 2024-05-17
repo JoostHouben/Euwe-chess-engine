@@ -86,8 +86,8 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
     }
 
     const std::string pvString = searchInfo.principalVariation
-                               | std::views::transform(moveToExtendedString)
-                               | std::views::join_with(' ') | std::ranges::to<std::string>();
+                               | std::views::transform(moveToUciString) | std::views::join_with(' ')
+                               | std::ranges::to<std::string>();
 
     std::print("info depth {}\n", searchInfo.depth);
     std::print("info time {}\n", searchInfo.timeMs);
