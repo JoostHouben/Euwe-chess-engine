@@ -36,14 +36,19 @@ constexpr std::array<EvalT, kNumPieceTypes - 1> kPieceValues = {
 
 [[nodiscard]] std::optional<EvalT> evaluateEndState(
         const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isForcedDraw()) {
+    if (gameState.isRepetition()) {
         return 0;
     }
 
-    auto moves = gameState.generateMoves(stack);
+    const auto moves = gameState.generateMoves(stack);
 
     if (moves.size() > 0) {
-        // If there are any legal moves we're not in an end state.
+        if (gameState.isFiftyMoves()) {
+            // If there are legal moves the 50 move rule applies.
+            return 0;
+        }
+
+        // If there are any legal moves and the 50 move rule doesn't apply we're not in an end state.
         return std::nullopt;
     }
 

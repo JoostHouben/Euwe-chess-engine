@@ -54,7 +54,8 @@ class GameState {
     [[nodiscard]] std::string toVisualString() const;
 
     [[nodiscard]] bool isInCheck() const;
-    [[nodiscard]] bool isForcedDraw(int repetitionsForDraw = 2) const;
+    [[nodiscard]] bool isRepetition(int repetitionsForDraw = 2) const;
+    [[nodiscard]] bool isFiftyMoves() const;
 
     [[nodiscard]] StackVector<Move> generateMoves(StackOfVectors<Move>& stack) const;
 

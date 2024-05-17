@@ -1091,12 +1091,7 @@ bool GameState::isInCheck(const BitBoard enemyControl) const {
     return isSet(enemyControl, getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King)));
 }
 
-bool GameState::isForcedDraw(int repetitionsForDraw) const {
-    // 50 move rule
-    if (plySinceCaptureOrPawn_ >= 100) {
-        return true;
-    }
-
+bool GameState::isRepetition(int repetitionsForDraw) const {
     // Three-fold repetition
     int repetitions = 0;
     for (int hashIdx = (int)previousHashes_.size() - 3; hashIdx >= lastReversiblePositionHashIdx_;
@@ -1107,6 +1102,15 @@ bool GameState::isForcedDraw(int repetitionsForDraw) const {
                 return true;
             }
         }
+    }
+
+    return false;
+}
+
+bool GameState::isFiftyMoves() const {
+    // 50 move rule
+    if (plySinceCaptureOrPawn_ >= 100) {
+        return true;
     }
 
     return false;

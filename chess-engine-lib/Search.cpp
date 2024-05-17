@@ -60,9 +60,19 @@ void updateTTable(
 
     const EvalT alphaOrig = alpha;
 
-    if (!recordBestMove && gameState.isForcedDraw(/* repetitionsForDraw = */ 1)) {
-        // For a forced draw we can return 0 immediately.
-        return 0;
+    if (!recordBestMove) {
+        if (gameState.isRepetition(/* repetitionsForDraw = */ 1)) {
+            return 0;
+        }
+
+        if (gameState.isFiftyMoves()) {
+            const auto moves = gameState.generateMoves(stack);
+            if (moves.size() == 0) {
+                return evaluateNoLegalMoves(gameState);
+            } else {
+                return 0;
+            }
+        }
     }
 
     Move bestMove;
