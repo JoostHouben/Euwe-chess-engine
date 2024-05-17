@@ -40,14 +40,15 @@ void updateTTable(
     gTTable.store(entry);
 }
 
-[[nodiscard]] EvalT search(
+// If gStopSearch is true, returns std::nullopt
+[[nodiscard]] std::optional<EvalT> search(
         GameState& gameState,
         const int depth,
         EvalT alpha,
         EvalT beta,
         StackOfVectors<Move>& stack) {
     if (gStopSearch) {
-        return 0;
+        return std::nullopt;
     }
 
     ++gSearchStatistics.nodesSearched;
@@ -108,15 +109,16 @@ void updateTTable(
         // TODO: do we need a legality check here for hash collisions?
         auto unmakeInfo = gameState.makeMove(ttHit->bestMove);
 
-        EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
-        if (isMate(score)) {
-            score -= signum(score);
-        }
+        const auto searchResult = search(gameState, depth - 1, -beta, -alpha, stack);
 
         gameState.unmakeMove(ttHit->bestMove, unmakeInfo);
 
-        if (gStopSearch) {
-            return 0;
+        if (!searchResult) {
+            return std::nullopt;
+        }
+        EvalT score = -searchResult.value();
+        if (isMate(score)) {
+            score -= signum(score);
         }
 
         bestScore = score;
@@ -159,15 +161,16 @@ void updateTTable(
 
         auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -search(gameState, depth - 1, -beta, -alpha, stack);
-        if (isMate(score)) {
-            score -= signum(score);
-        }
+        const auto searchResult = search(gameState, depth - 1, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
-        if (gStopSearch) {
-            return 0;
+        if (!searchResult) {
+            return std::nullopt;
+        }
+        auto score = -searchResult.value();
+        if (isMate(score)) {
+            score -= signum(score);
         }
 
         if (score > bestScore) {
@@ -221,7 +224,7 @@ SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVec
     gRecordBestMove = true;
     gStopSearch     = false;
 
-    const EvalT eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
+    const auto eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
 
     return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
 }

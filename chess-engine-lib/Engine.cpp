@@ -13,7 +13,6 @@
 namespace {
 
 StackOfVectors<Move> gMoveStack;
-std::atomic_bool gStopSearch;
 
 [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState) {
     gMoveStack.reserve(1'000);
@@ -31,7 +30,7 @@ std::atomic_bool gStopSearch;
     for (depth = 1; depth < 40; ++depth) {
         const auto searchResult = searchForBestMove(copySate, depth, gMoveStack);
 
-        if (gStopSearch) {
+        if (!searchResult.eval.has_value()) {
             std::print(
                     std::cerr,
                     "Terminating search during search of depth {} (completed to depth {}).\n",
@@ -44,7 +43,7 @@ std::atomic_bool gStopSearch;
 
         principalVariation = std::vector<Move>(
                 searchResult.principalVariation.begin(), searchResult.principalVariation.end());
-        eval = searchResult.eval;
+        eval = searchResult.eval.value();
 
         std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
                              | std::views::join_with(' ') | std::ranges::to<std::string>();
@@ -84,14 +83,10 @@ std::atomic_bool gStopSearch;
 }  // namespace
 
 SearchInfo findMove(const GameState& gameState) {
-    gStopSearch = false;
-
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
     // Sleep while search is in progress.
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    // Set stop signal for worker thread.
-    gStopSearch = true;
     // Send stop signal to search function.
     stopSearch();
 

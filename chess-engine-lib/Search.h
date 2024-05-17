@@ -5,9 +5,11 @@
 #include "Eval.h"
 #include "GameState.h"
 
+#include <optional>
+
 struct SearchResult {
     StackVector<Move> principalVariation;
-    EvalT eval;
+    std::optional<EvalT> eval;
 };
 
 struct SearchStatistics {
