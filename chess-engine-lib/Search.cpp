@@ -16,7 +16,30 @@ constexpr int kTTableSizeInBytes   = 64 * 1024 * 1024;
 constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(TTEntry);
 TTable gTTable(kTTableSizeInEntries);
 
+StackOfVectors<MoveEvalT> gMoveScoreStack;
+
 SearchStatistics gSearchStatistics;
+
+[[nodiscard]] Move selectBestMove(
+        StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int firstMoveIdx) {
+    int bestMoveIdx         = -1;
+    MoveEvalT bestMoveScore = std::numeric_limits<MoveEvalT>::lowest();
+
+    for (int moveIdx = firstMoveIdx; moveIdx < moveScores.size(); ++moveIdx) {
+        if (moveScores[moveIdx] > bestMoveScore) {
+            bestMoveScore = moveScores[moveIdx];
+            bestMoveIdx   = moveIdx;
+        }
+    }
+
+    const Move bestMove = moves[bestMoveIdx];
+
+    // Destructive 'swap'
+    moves[bestMoveIdx]      = moves[firstMoveIdx];
+    moveScores[bestMoveIdx] = moveScores[firstMoveIdx];
+
+    return bestMove;
+}
 
 std::optional<EvalT> quiesce(
         GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
@@ -67,10 +90,10 @@ std::optional<EvalT> quiesce(
         return bestScore;
     }
 
-    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
-        selectBestMove(moves, moveIdx, gameState);
+    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
 
-        const Move move = moves[moveIdx];
+    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+        const Move move = selectBestMove(moves, moveScores, moveIdx);
 
         const auto unmakeInfo = gameState.makeMove(move);
 
@@ -263,20 +286,18 @@ void updateTTable(
         return evaluateNoLegalMoves(gameState);
     }
 
-    int moveIdx = 0;
-
     if (ttHit) {
         const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttHit->bestMove);
         if (hashMoveIt != moves.end()) {
-            std::iter_swap(moves.begin(), hashMoveIt);
-            ++moveIdx;
+            std::iter_swap(moves.end() - 1, hashMoveIt);
+            moves.hide_back();
         }
     }
 
-    for (; moveIdx < moves.size(); ++moveIdx) {
-        selectBestMove(moves, moveIdx, gameState);
+    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
 
-        const Move move = moves[moveIdx];
+    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+        const Move move = selectBestMove(moves, moveScores, moveIdx);
 
         auto unmakeInfo = gameState.makeMove(move);
 
@@ -285,7 +306,8 @@ void updateTTable(
         gameState.unmakeMove(move, unmakeInfo);
 
         if (!searchResult) {
-            if (moveIdx > 0) {
+            if (bestScore > -kInfiniteEval) {
+                // If we fully evaluated any positions, update the ttable.
                 updateTTable(
                         bestScore,
                         alphaOrig,
@@ -386,6 +408,8 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 }  // namespace
 
 SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+    gMoveScoreStack.reserve(1'000);
+
     gRecordBestMove = true;
 
     const auto eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);

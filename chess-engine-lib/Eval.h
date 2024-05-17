@@ -9,7 +9,8 @@
 
 #include <cstdint>
 
-using EvalT = std::int16_t;
+using EvalT     = std::int16_t;
+using MoveEvalT = int;
 
 inline constexpr EvalT kInfiniteEval = std::numeric_limits<EvalT>::max();
 inline constexpr EvalT kMateEval     = (EvalT)30'000;
@@ -19,7 +20,10 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 [[nodiscard]] EvalT evaluate(
         const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState = true);
 
-void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState);
+[[nodiscard]] StackVector<MoveEvalT> scoreMoves(
+        const StackVector<Move>& moves,
+        const GameState& gameState,
+        StackOfVectors<MoveEvalT>& stack);
 
 [[nodiscard]] bool isMate(EvalT eval);
 [[nodiscard]] int getMateDistance(EvalT eval);

@@ -100,7 +100,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name mvv-lva\n");
+    std::print("id name faster-move-ordering\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

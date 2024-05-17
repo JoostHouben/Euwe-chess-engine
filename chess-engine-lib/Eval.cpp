@@ -172,16 +172,14 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
 
-void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState& gameState) {
-    int bestMoveScore = -kInfiniteEval;
-    int bestMoveIdx   = -1;
+StackVector<int> scoreMoves(
+        const StackVector<Move>& moves, const GameState& gameState, StackOfVectors<int>& stack) {
+    StackVector<int> scores = stack.makeStackVector();
 
     static constexpr int kCaptureBonus   = 2'000;
     static constexpr int kPromotionBonus = 2'000;
 
-    for (int moveIdx = firstMoveIdx; moveIdx < moves.size(); ++moveIdx) {
-        const Move& move = moves[moveIdx];
-
+    for (const Move& move : moves) {
         int moveScore = 0;
 
         if (isCapture(move.flags)) {
@@ -220,13 +218,11 @@ void selectBestMove(StackVector<Move>& moves, int firstMoveIdx, const GameState&
             moveScore += kPieceSquareTables[(int)move.pieceToMove][(int)move.to];
         }
 
-        if (moveScore > bestMoveScore) {
-            bestMoveScore = moveScore;
-            bestMoveIdx   = moveIdx;
-        }
+        scores.push_back(moveScore);
     }
 
-    std::swap(moves[firstMoveIdx], moves[bestMoveIdx]);
+    scores.lock();
+    return scores;
 }
 
 bool isMate(EvalT eval) {

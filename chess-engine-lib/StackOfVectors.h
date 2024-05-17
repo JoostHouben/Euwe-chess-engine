@@ -329,6 +329,11 @@ class StackVector {
         --endIdx_;
     }
 
+    void hide_back() {
+        MY_ASSERT(endIdx_ > startIdx_);
+        --endIdx_;
+    }
+
     void clear() {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
