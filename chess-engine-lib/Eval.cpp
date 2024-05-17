@@ -5,14 +5,16 @@
 
 namespace {
 
-constexpr std::array<EvalT, kNumPieceTypes - 1> kPieceValues = {
-        100,  // Pawn
-        305,  // Knight
-        333,  // Bishop
-        563,  // Rook
-        950,  // Queen
+constexpr std::array<EvalT, kNumPieceTypes> kPieceValues = {
+        100,     // Pawn
+        305,     // Knight
+        333,     // Bishop
+        563,     // Rook
+        950,     // Queen
+        20'000,  // King (for move ordering)
 };
 
+// TODO: handle overflows of EvalT
 [[nodiscard]] EvalT evaluateMaterialForSide(const GameState& gameState, const Side side) {
     EvalT material = 0;
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
