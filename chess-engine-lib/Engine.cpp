@@ -14,8 +14,6 @@ namespace {
 
 StackOfVectors<Move> gMoveStack;
 
-std::atomic_bool gSearchIsRunning = false;
-
 [[nodiscard]] bool reachesDraw(
         GameState& gameState, const StackVector<Move>& principalVariation, int moveIdx = 0) {
     if (moveIdx == principalVariation.size()) {
@@ -59,6 +57,7 @@ std::atomic_bool gSearchIsRunning = false;
                              | std::views::join_with(' ') | std::ranges::to<std::string>();
 
         if (!searchResult.eval.has_value()) {
+            // Search was stopped externally
             std::print(std::cerr, "Partial search Depth {} - pv: {}\n", depth, pvString);
 
             --depth;
@@ -83,8 +82,6 @@ std::atomic_bool gSearchIsRunning = false;
         }
     }
 
-    gSearchIsRunning = false;
-
     const auto endTime = std::chrono::high_resolution_clock::now();
     const auto millisecondsElapsed =
             std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
@@ -107,29 +104,16 @@ std::atomic_bool gSearchIsRunning = false;
             .nodesPerSecond     = (int)nodesPerSecond};
 }
 
-void stopSearchAfter(std::chrono::milliseconds timeLimit) {
-    const auto startTime = std::chrono::high_resolution_clock::now();
-
-    do {
-        std::this_thread::sleep_for(timeLimit / 10);
-
-        if (!gSearchIsRunning) {
-            return;
-        }
-    } while (std::chrono::high_resolution_clock::now() - startTime < timeLimit);
-
-    stopSearch();
-}
-
 }  // namespace
 
 SearchInfo findMove(const GameState& gameState) {
-    startSearch();
-    gSearchIsRunning = true;
+    resetStopSearchFlag();
 
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
-    stopSearchAfter(std::chrono::milliseconds(1'000));
+    const auto timeBudget = std::chrono::milliseconds(1000);
+    (void)moveFuture.wait_for(timeBudget);
+    setStopSearchFlag();
 
     return moveFuture.get();
 }

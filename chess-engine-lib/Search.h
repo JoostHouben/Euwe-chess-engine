@@ -21,8 +21,8 @@ struct SearchStatistics {
 [[nodiscard]] SearchResult searchForBestMove(
         GameState& gameState, int depth, StackOfVectors<Move>& stack);
 
-void startSearch();
-void stopSearch();
+void resetStopSearchFlag();
+void setStopSearchFlag();
 
 [[nodiscard]] SearchStatistics getSearchStatistics();
 void resetSearchStatistics();

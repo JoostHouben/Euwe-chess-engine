@@ -393,11 +393,11 @@ SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVec
     return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
 }
 
-void startSearch() {
+void resetStopSearchFlag() {
     gStopSearch = false;
 }
 
-void stopSearch() {
+void setStopSearchFlag() {
     gStopSearch = true;
 }
 
