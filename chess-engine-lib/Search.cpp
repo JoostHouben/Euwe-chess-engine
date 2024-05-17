@@ -19,12 +19,19 @@ TTable gTTable(kTTableSizeInEntries);
 SearchStatistics gSearchStatistics;
 
 void updateTTable(
-        EvalT bestScore, EvalT alphaOrig, EvalT beta, Move bestMove, int depth, HashT hash) {
+        EvalT bestScore,
+        EvalT alphaOrig,
+        EvalT beta,
+        bool stoppedEarly,
+        Move bestMove,
+        int depth,
+        HashT hash) {
     ScoreType scoreType;
     if (bestScore <= alphaOrig) {
         // Best score is below original feasibility window, so it's an upper bound.
         scoreType = ScoreType::UpperBound;
-    } else if (bestScore >= beta) {
+    } else if (stoppedEarly || bestScore >= beta) {
+        // If we stopped early the score is a lower bound. Otherwise...
         // A score above beta was obtained from a subcall that failed high, so that result is an
         // upper bound. This is true regardless of whether the score is above the original beta or
         // a tightened beta.
@@ -147,7 +154,14 @@ void updateTTable(
         if (score >= beta) {
             // Fail high
 
-            updateTTable(score, alphaOrig, beta, bestMove, depth, gameState.getBoardHash());
+            updateTTable(
+                    score,
+                    alphaOrig,
+                    beta,
+                    /* stoppedEarly = */ false,
+                    bestMove,
+                    depth,
+                    gameState.getBoardHash());
 
             if (recordBestMove) {
                 gBestMove = bestMove;
@@ -192,8 +206,19 @@ void updateTTable(
         gameState.unmakeMove(move, unmakeInfo);
 
         if (!searchResult) {
+            if (moveIdx > 1) {
+                updateTTable(
+                        bestScore,
+                        alphaOrig,
+                        beta,
+                        /* stoppedEarly = */ true,
+                        bestMove,
+                        depth,
+                        gameState.getBoardHash());
+            }
             return std::nullopt;
         }
+
         EvalT score = -searchResult.value();
         if (isMate(score)) {
             score -= signum(score);
@@ -214,7 +239,14 @@ void updateTTable(
         }
     }
 
-    updateTTable(bestScore, alphaOrig, beta, bestMove, depth, gameState.getBoardHash());
+    updateTTable(
+            bestScore,
+            alphaOrig,
+            beta,
+            /* stoppedEarly = */ false,
+            bestMove,
+            depth,
+            gameState.getBoardHash());
 
     if (recordBestMove) {
         gBestMove = bestMove;
