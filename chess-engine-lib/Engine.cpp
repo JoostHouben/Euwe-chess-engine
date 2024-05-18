@@ -22,13 +22,13 @@ StackOfVectors<Move> gMoveStack;
     resetSearchStatistics();
 
     std::vector<Move> principalVariation;
-    EvalT eval;
+    std::optional<EvalT> eval = std::nullopt;
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
     int depth;
     for (depth = 1; depth < 40; ++depth) {
-        const auto searchResult = searchForBestMove(copySate, depth, gMoveStack);
+        const auto searchResult = searchForBestMove(copySate, depth, gMoveStack, eval);
 
         principalVariation = std::vector<Move>(
                 searchResult.principalVariation.begin(), searchResult.principalVariation.end());
@@ -54,10 +54,10 @@ StackOfVectors<Move> gMoveStack;
                 "Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
                 depth,
                 pvString,
-                eval,
+                *eval,
                 millisecondsElapsed);
 
-        if (isMate(eval)) {
+        if (isMate(*eval)) {
             break;
         }
     }
@@ -79,7 +79,7 @@ StackOfVectors<Move> gMoveStack;
             std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 
     return {.principalVariation = principalVariation,
-            .score              = eval,
+            .score              = *eval,
             .depth              = depth,
             .timeMs             = (int)millisecondsElapsed,
             .numNodes           = numNodes,
@@ -89,13 +89,12 @@ StackOfVectors<Move> gMoveStack;
 }  // namespace
 
 SearchInfo findMove(const GameState& gameState) {
-    resetStopSearchFlag();
-
+    prepareForSearch();
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
     const auto timeBudget = std::chrono::milliseconds(1000);
     (void)moveFuture.wait_for(timeBudget);
-    setStopSearchFlag();
+    requestSearchStop();
 
     return moveFuture.get();
 }

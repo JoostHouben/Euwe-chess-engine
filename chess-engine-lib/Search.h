@@ -20,10 +20,13 @@ struct SearchStatistics {
 };
 
 [[nodiscard]] SearchResult searchForBestMove(
-        GameState& gameState, int depth, StackOfVectors<Move>& stack);
+        GameState& gameState,
+        int depth,
+        StackOfVectors<Move>& stack,
+        std::optional<EvalT> evalGuess = std::nullopt);
 
-void resetStopSearchFlag();
-void setStopSearchFlag();
+void prepareForSearch();
+void requestSearchStop();
 
 [[nodiscard]] SearchStatistics getSearchStatistics();
 void resetSearchStatistics();

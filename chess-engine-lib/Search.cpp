@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iostream>
+#include <print>
 
 namespace {
 
@@ -405,23 +407,86 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
     return pv;
 }
 
+[[nodiscard]] std::optional<EvalT> searchAndRecordBestMove(
+        GameState& gameState,
+        const int depth,
+        const EvalT alpha,
+        const EvalT beta,
+        StackOfVectors<Move>& stack) {
+    gRecordBestMove = true;
+    return search(gameState, depth, alpha, beta, stack);
+}
+
+[[nodiscard]] std::optional<EvalT> aspirationWindowSearch(
+        GameState& gameState,
+        const int depth,
+        StackOfVectors<Move>& stack,
+        const EvalT initialGuess) {
+    static constexpr EvalT kInitialTolerance      = 25;
+    static constexpr int kToleranceIncreaseFactor = 4;
+
+    EvalT lowerTolerance = kInitialTolerance;
+    EvalT upperTolerance = kInitialTolerance;
+
+    EvalT lowerBound = initialGuess - lowerTolerance;
+    EvalT upperBound = initialGuess + upperTolerance;
+
+    do {
+        const auto searchResult =
+                searchAndRecordBestMove(gameState, depth, lowerBound, upperBound, stack);
+        if (!searchResult) {
+            return std::nullopt;
+        }
+
+        const EvalT searchEval = *searchResult;
+
+        if (lowerBound < searchEval && searchEval < upperBound) {
+            return searchEval;
+        }
+
+        if (searchEval <= lowerBound) {
+            if (isMate(searchEval)) {
+                lowerBound = -kInfiniteEval;
+            } else {
+                lowerTolerance *= kToleranceIncreaseFactor;
+                lowerBound = std::min(searchEval - 1, initialGuess - lowerTolerance);
+            }
+        } else {
+            if (isMate(searchEval)) {
+                upperBound = kInfiniteEval;
+            } else {
+                upperTolerance *= kToleranceIncreaseFactor;
+                upperBound = std::max(searchEval + 1, initialGuess + upperTolerance);
+            }
+        }
+
+        std::print(std::cerr, "Re-searching with window [{}, {}]\n", lowerBound, upperBound);
+    } while (true);
+}
+
 }  // namespace
 
-SearchResult searchForBestMove(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
-    gMoveScoreStack.reserve(1'000);
-
-    gRecordBestMove = true;
-
-    const auto eval = search(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
+SearchResult searchForBestMove(
+        GameState& gameState,
+        const int depth,
+        StackOfVectors<Move>& stack,
+        std::optional<EvalT> evalGuess) {
+    std::optional<EvalT> eval;
+    if (evalGuess) {
+        eval = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
+    } else {
+        eval = searchAndRecordBestMove(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
+    }
 
     return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
 }
 
-void resetStopSearchFlag() {
+void prepareForSearch() {
+    gMoveScoreStack.reserve(1'000);
     gStopSearch = false;
 }
 
-void setStopSearchFlag() {
+void requestSearchStop() {
     gStopSearch = true;
 }
 
