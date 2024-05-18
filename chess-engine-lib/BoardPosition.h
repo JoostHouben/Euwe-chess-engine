@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Macros.h"
+
 #include <string>
 
 #include <cstdint>
@@ -19,19 +21,20 @@ enum class BoardPosition : std::uint8_t {
     Invalid };
 // clang-format on
 
-[[nodiscard]] constexpr BoardPosition positionFromFileRank(int file, int rank) {
+[[nodiscard]] FORCE_INLINE constexpr BoardPosition positionFromFileRank(int file, int rank) {
     return static_cast<BoardPosition>(rank * 8 + file);
 }
 
-[[nodiscard]] constexpr int fileFromPosition(BoardPosition position) {
+[[nodiscard]] FORCE_INLINE constexpr int fileFromPosition(BoardPosition position) {
     return (int)position % 8;
 }
 
-[[nodiscard]] constexpr int rankFromPosition(BoardPosition position) {
+[[nodiscard]] FORCE_INLINE constexpr int rankFromPosition(BoardPosition position) {
     return (int)position / 8;
 }
 
-[[nodiscard]] constexpr std::pair<int, int> fileRankFromPosition(BoardPosition position) {
+[[nodiscard]] FORCE_INLINE constexpr std::pair<int, int> fileRankFromPosition(
+        BoardPosition position) {
     return {fileFromPosition(position), rankFromPosition(position)};
 }
 
@@ -46,6 +49,11 @@ enum class BoardPosition : std::uint8_t {
     return {(char)('a' + file), (char)('1' + rank)};
 }
 
-[[nodiscard]] constexpr BoardPosition getVerticalReflection(BoardPosition position) {
+[[nodiscard]] FORCE_INLINE constexpr BoardPosition getVerticalReflection(BoardPosition position) {
     return (BoardPosition)((int)position ^ 56);
+}
+
+[[nodiscard]] FORCE_INLINE constexpr int getSquareColor(BoardPosition position) {
+    const auto [file, rank] = fileRankFromPosition(position);
+    return (file + rank) & 1;
 }

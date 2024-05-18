@@ -4,6 +4,7 @@
 
 #include "BoardPosition.h"
 
+#include <array>
 #include <bit>
 #include <string>
 
@@ -69,3 +70,15 @@ inline constexpr std::uint64_t notSouthRankMask = ~southRankMask;
 inline constexpr std::uint64_t notEastFileMask  = ~eastFileMask;
 
 inline constexpr std::uint64_t allMask = ~0ULL;
+
+inline constexpr BitBoard kDarkSquareBitBoard  = (BitBoard)0xaa55aa55aa55aa55ULL;
+inline constexpr BitBoard kLightSquareBitBoard = (BitBoard)~0xaa55aa55aa55aa55ULL;
+
+inline constexpr std::array kSquareColorBitBoards = {
+        kDarkSquareBitBoard,
+        kLightSquareBitBoard,
+};
+
+[[nodiscard]] constexpr BitBoard getSquareColorBitBoard(int squareColor) {
+    return kSquareColorBitBoards[squareColor];
+}
