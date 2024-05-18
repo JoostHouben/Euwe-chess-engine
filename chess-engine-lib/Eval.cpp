@@ -118,13 +118,78 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
     return piecePosition;
 }
 
+[[nodiscard]] FORCE_INLINE int manhattanDistance(BoardPosition a, BoardPosition b) {
+    const auto [aFile, aRank] = fileRankFromPosition(a);
+    const auto [bFile, bRank] = fileRankFromPosition(b);
+
+    return std::abs(aFile - bFile) + std::abs(aRank - bRank);
+}
+
+[[nodiscard]] FORCE_INLINE int manhattanDistanceToCenter(BoardPosition position) {
+    const auto [file, rank] = fileRankFromPosition(position);
+
+    return std::min({
+            std::abs(file - kFiles / 2),
+            std::abs(rank - kRanks / 2),
+    });
+}
+
+[[nodiscard]] FORCE_INLINE int evaluateKingSwarming(
+        const GameState& gameState,
+        Side swarmingSide,
+        int swarmingMaterial,
+        int defendingMaterial) {
+    if (defendingMaterial >= swarmingMaterial) {
+        return 0;
+    }
+
+    static constexpr int startingMaterial =
+            8 * kPieceValues[(int)Piece::Pawn] + 2 * kPieceValues[(int)Piece::Knight]
+            + 2 * kPieceValues[(int)Piece::Bishop] + 2 * kPieceValues[(int)Piece::Rook]
+            + 1 * kPieceValues[(int)Piece::Queen] + 1 * kPieceValues[(int)Piece::King];
+
+    static constexpr int kingValue = kPieceValues[(int)Piece::King];
+    static constexpr int rookValue = kPieceValues[(int)Piece::Rook];
+
+    int defendingMaterialOverKingRook                 = defendingMaterial - kingValue - rookValue;
+    static constexpr int startingMaterialOverKingRook = startingMaterial - kingValue - rookValue;
+
+    const float endGameFactor =
+            clamp(1.0f - (float)defendingMaterialOverKingRook / (float)startingMaterialOverKingRook,
+                  0.f,
+                  1.f);
+
+    const float materialAdvantageFactor =
+            std::min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
+
+    const BoardPosition swarmingKingPosition =
+            getFirstSetPosition(gameState.getPieceBitBoard(swarmingSide, Piece::King));
+    const BoardPosition defendingKingPosition =
+            getFirstSetPosition(gameState.getPieceBitBoard(nextSide(swarmingSide), Piece::King));
+
+    const int defendingKingDistanceToCenter = manhattanDistanceToCenter(defendingKingPosition);
+
+    const int kingDistance = manhattanDistance(swarmingKingPosition, defendingKingPosition);
+
+    const int swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
+
+    return (int)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
+}
+
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
-    const int pieceSquare = evaluatePiecePositionsForSide(gameState, Side::White)
-                          - evaluatePiecePositionsForSide(gameState, Side::Black);
+    const int whitePiecePosition = evaluatePiecePositionsForSide(gameState, Side::White);
+    const int blackPiecePosition = evaluatePiecePositionsForSide(gameState, Side::Black);
+    const int pieceSquareEval    = whitePiecePosition - blackPiecePosition;
 
-    EvalT eval = (EvalT)clamp(pieceSquare, -kMateEval + 1'000, kMateEval - 1'000);
+    const int whiteSwarmingValue =
+            evaluateKingSwarming(gameState, Side::White, whitePiecePosition, blackPiecePosition);
+    const int blackSwarmingValue =
+            evaluateKingSwarming(gameState, Side::Black, blackPiecePosition, whitePiecePosition);
+    const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
-    return eval;
+    int eval = pieceSquareEval + swarmingEval;
+
+    return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> evaluateEndState(
