@@ -8,7 +8,7 @@
 
 namespace {
 
-constexpr std::array<EvalT, kNumPieceTypes> kPieceValues = {
+constexpr std::array<int, kNumPieceTypes> kPieceValues = {
         100,     // Pawn
         305,     // Knight
         333,     // Bishop
@@ -17,10 +17,21 @@ constexpr std::array<EvalT, kNumPieceTypes> kPieceValues = {
         20'000,  // King (for move ordering)
 };
 
+constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
+        0,  // Pawn
+        1,  // Knight
+        1,  // Bishop
+        2,  // Rook
+        4,  // Queen
+        0,  // King
+};
+
+constexpr int kMaxPhaseMaterial = 24;
+
 // clang-format off
-constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTables{
+constexpr std::array<std::array<int, kSquares>, kNumPieceTypes - 1> kPieceSquareTables{
     // Pawns
-    std::array<EvalT, kSquares> {
+    std::array<int, kSquares> {
          0,  0,  0,  0,  0,  0,  0,  0,
          5, 10, 10,-20,-20, 10, 10,  5,
          5, -5,-10,  0,  0,-10, -5,  5,
@@ -32,7 +43,7 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
     },
 
     // Knights
-    std::array<EvalT, kSquares> {
+    std::array<int, kSquares> {
         -50,-40,-30,-30,-30,-30,-40,-50,
         -40,-20,  0,  5,  5,  0,-20,-40,
         -30,  5, 10, 15, 15, 10,  5,-30,
@@ -44,7 +55,7 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
     },
 
     // Bishops 
-    std::array<EvalT, kSquares> {
+    std::array<int, kSquares> {
         -20,-10,-10,-10,-10,-10,-10,-20,
         -10,  5,  0,  0,  0,  0,  5,-10,
         -10, 10, 10, 10, 10, 10, 10,-10,
@@ -56,7 +67,7 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
     },
 
     // Rooks
-    std::array<EvalT, kSquares> {
+    std::array<int, kSquares> {
           0,  0,  0,  5,  5,  0,  0,  0,
          -5,  0,  0,  0,  0,  0,  0, -5,
          -5,  0,  0,  0,  0,  0,  0, -5,
@@ -68,7 +79,7 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
     },
 
     // Queens
-    std::array<EvalT, kSquares> {
+    std::array<int, kSquares> {
         -20,-10,-10, -5, -5,-10,-10,-20,
         -10,  0,  5,  0,  0,  0,  0,-10,
         -10,  5,  5,  5,  5,  5,  0,-10,
@@ -77,27 +88,43 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
         -10,  0,  5,  5,  5,  5,  0,-10,
         -10,  0,  0,  0,  0,  0,  0,-10,
         -20,-10,-10, -5, -5,-10,-10,-20,
-    },
-
-    // King
-    // TODO: different piece-square table for end game
-    std::array<EvalT, kSquares> {
-         20, 30, 10,  0,  0, 10, 30, 20,
-         20, 20,  0,  0,  0,  0, 20, 20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
     }
+};
+
+constexpr std::array<int, kSquares> kPieceSquareTableKingEarly = {
+     20, 30, 10,  0,  0, 10, 30, 20,
+     20, 20,  0,  0,  0,  0, 20, 20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+};
+
+constexpr std::array<int, kSquares> kPieceSquareTableKingLate = {
+    -50,-30,-30,-30,-30,-30,-30,-50,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-20,-10,  0,  0,-10,-20,-30,
+    -50,-40,-30,-20,-20,-30,-40,-50,
 };
 // clang-format on
 
-[[nodiscard]] FORCE_INLINE int evaluatePiecePositionsForSide(
-        const GameState& gameState, const Side side) {
-    int piecePosition = 0;
-    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+struct PiecePositionEvaluation {
+    int material      = 0;
+    int position      = 0;
+    int phaseMaterial = 0;
+};
+
+[[nodiscard]] FORCE_INLINE PiecePositionEvaluation
+evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
+    PiecePositionEvaluation result;
+
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
         const Piece piece      = (Piece)pieceIdx;
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
 
@@ -108,12 +135,28 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
                 position = getVerticalReflection(position);
             }
 
-            piecePosition += kPieceSquareTables[pieceIdx][(int)position];
-            piecePosition += kPieceValues[pieceIdx];
+            result.material += kPieceValues[pieceIdx];
+            result.position += kPieceSquareTables[pieceIdx][(int)position];
+            result.phaseMaterial += kPhaseMaterialValues[pieceIdx];
         }
     }
 
-    return piecePosition;
+    return result;
+}
+
+[[nodiscard]] FORCE_INLINE int evaluateKingPositionForSide(
+        const GameState& gameState, const Side side, const float endGameFactor) {
+    BoardPosition kingPosition = getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
+
+    if (side == Side::Black) {
+        kingPosition = getVerticalReflection(kingPosition);
+    }
+
+    const int earlyGamePositionValue = kPieceSquareTableKingEarly[(int)kingPosition];
+    const int lateGamePositionValue  = kPieceSquareTableKingLate[(int)kingPosition];
+
+    return (int)((1 - endGameFactor) * earlyGamePositionValue
+                 + endGameFactor * lateGamePositionValue);
 }
 
 [[nodiscard]] FORCE_INLINE int manhattanDistance(BoardPosition a, BoardPosition b) {
@@ -136,26 +179,13 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
         const GameState& gameState,
         Side swarmingSide,
         int swarmingMaterial,
-        int defendingMaterial) {
+        int defendingMaterial,
+        float endGameFactor) {
     if (defendingMaterial >= swarmingMaterial) {
         return 0;
     }
 
-    static constexpr int startingMaterial =
-            8 * kPieceValues[(int)Piece::Pawn] + 2 * kPieceValues[(int)Piece::Knight]
-            + 2 * kPieceValues[(int)Piece::Bishop] + 2 * kPieceValues[(int)Piece::Rook]
-            + 1 * kPieceValues[(int)Piece::Queen] + 1 * kPieceValues[(int)Piece::King];
-
-    static constexpr int kingValue = kPieceValues[(int)Piece::King];
     static constexpr int rookValue = kPieceValues[(int)Piece::Rook];
-
-    int defendingMaterialOverKingRook                 = defendingMaterial - kingValue - rookValue;
-    static constexpr int startingMaterialOverKingRook = startingMaterial - kingValue - rookValue;
-
-    const float endGameFactor =
-            clamp(1.0f - (float)defendingMaterialOverKingRook / (float)startingMaterialOverKingRook,
-                  0.f,
-                  1.f);
 
     const float materialAdvantageFactor =
             std::min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
@@ -175,17 +205,37 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
 }
 
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
-    const int whitePiecePosition = evaluatePiecePositionsForSide(gameState, Side::White);
-    const int blackPiecePosition = evaluatePiecePositionsForSide(gameState, Side::Black);
-    const int pieceSquareEval    = whitePiecePosition - blackPiecePosition;
+    const auto whitePieceSquareEval = evaluatePiecePositionsForSide(gameState, Side::White);
+    const auto blackPieceSquareEval = evaluatePiecePositionsForSide(gameState, Side::Black);
+    const int pieceSquareEval = (whitePieceSquareEval.material + whitePieceSquareEval.position)
+                              - (blackPieceSquareEval.material + blackPieceSquareEval.position);
 
-    const int whiteSwarmingValue =
-            evaluateKingSwarming(gameState, Side::White, whitePiecePosition, blackPiecePosition);
-    const int blackSwarmingValue =
-            evaluateKingSwarming(gameState, Side::Black, blackPiecePosition, whitePiecePosition);
+    const int phaseMaterial = std::min(
+            whitePieceSquareEval.phaseMaterial + blackPieceSquareEval.phaseMaterial,
+            kMaxPhaseMaterial);
+    const float endGameFactor = 1.f - (float)phaseMaterial / (float)kMaxPhaseMaterial;
+
+    const int whiteKingPositionValue =
+            evaluateKingPositionForSide(gameState, Side::White, endGameFactor);
+    const int blackKingPositionValue =
+            evaluateKingPositionForSide(gameState, Side::Black, endGameFactor);
+    const int kingPositionEval = whiteKingPositionValue - blackKingPositionValue;
+
+    const int whiteSwarmingValue = evaluateKingSwarming(
+            gameState,
+            Side::White,
+            whitePieceSquareEval.material,
+            blackPieceSquareEval.material,
+            endGameFactor);
+    const int blackSwarmingValue = evaluateKingSwarming(
+            gameState,
+            Side::Black,
+            blackPieceSquareEval.material,
+            whitePieceSquareEval.material,
+            endGameFactor);
     const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
-    int eval = pieceSquareEval + swarmingEval;
+    int eval = pieceSquareEval + kingPositionEval + swarmingEval;
 
     return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
 }
