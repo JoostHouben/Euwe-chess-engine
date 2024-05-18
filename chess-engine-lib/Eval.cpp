@@ -2,6 +2,7 @@
 
 #include "Macros.h"
 #include "Math.h"
+#include "PawnMasks.h"
 
 #include <array>
 #include <optional>
@@ -178,6 +179,8 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
 };
 // clang-format on
 
+constexpr std::array kPassedPawnBonus = {0, 90, 60, 40, 25, 15, 15};
+
 struct PiecePositionEvaluation {
     int material          = 0;
     int phaseMaterial     = 0;
@@ -189,7 +192,49 @@ struct PiecePositionEvaluation {
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     PiecePositionEvaluation result;
 
-    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+    // pawns
+    {
+        const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
+        const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
+
+        BitBoard pawnBitBoard = ownPawns;
+
+        while (pawnBitBoard != BitBoard::Empty) {
+            const BoardPosition position = popFirstSetPosition(pawnBitBoard);
+
+            {
+                BoardPosition positionForPieceSquare = position;
+                if (side == Side::Black) {
+                    positionForPieceSquare = getVerticalReflection(positionForPieceSquare);
+                }
+
+                result.material += kPieceValues[0];
+                result.phaseMaterial += kPhaseMaterialValues[0];
+
+                result.earlyGamePosition += kPieceSquareTablesEarly[0][(int)positionForPieceSquare];
+                result.endGamePosition += kPieceSquareTablesLate[0][(int)positionForPieceSquare];
+            }
+
+            // Passed pawn bonus
+            const BitBoard opponentMask = getPassedPawnOpponentMask(position, side);
+            const BitBoard ownMask      = getPassedPawnOwnMask(position, side);
+
+            const BitBoard opponentBlockers = intersection(enemyPawns, opponentMask);
+            const BitBoard ownBlockers      = intersection(ownPawns, ownMask);
+
+            if (any(opponentBlockers, ownBlockers) != BitBoard::Empty) {
+                continue;
+            }
+
+            const int rank                = rankFromPosition(position);
+            const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
+
+            result.earlyGamePosition += kPassedPawnBonus[distanceToPromotion];
+            result.endGamePosition += kPassedPawnBonus[distanceToPromotion];
+        }
+    }
+
+    for (int pieceIdx = 1; pieceIdx < kNumPieceTypes; ++pieceIdx) {
         const Piece piece      = (Piece)pieceIdx;
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
 
