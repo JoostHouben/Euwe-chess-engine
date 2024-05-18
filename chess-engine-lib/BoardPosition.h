@@ -46,4 +46,6 @@ enum class BoardPosition : std::uint8_t {
     return {(char)('a' + file), (char)('1' + rank)};
 }
 
-[[nodiscard]] BoardPosition getVerticalReflection(BoardPosition position);
+[[nodiscard]] constexpr BoardPosition getVerticalReflection(BoardPosition position) {
+    return (BoardPosition)((int)position ^ 56);
+}

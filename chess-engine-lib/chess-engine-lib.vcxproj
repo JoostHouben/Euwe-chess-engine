@@ -35,7 +35,6 @@
   <ItemGroup>
     <ClCompile Include="BitBoard.cpp" />
     <ClCompile Include="BoardHash.cpp" />
-    <ClCompile Include="BoardPosition.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Eval.cpp" />
     <ClCompile Include="GameState.cpp" />
