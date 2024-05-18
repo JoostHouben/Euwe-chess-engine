@@ -75,9 +75,29 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void handleGo(std::stringstream& lineSStream, UciState& uciState) {
-    // No sub-commands supported
+    // Most sub-commands not supported
 
-    const auto searchInfo = findMove(uciState.gameState);
+    auto timeBudget = std::chrono::milliseconds(1000);
+
+    while (lineSStream) {
+        std::string token;
+        lineSStream >> token;
+        if (token.empty()) {
+            break;
+        }
+
+        const std::string ourIncString =
+                uciState.gameState.getSideToMove() == Side::White ? "winc" : "binc";
+
+        // If an increment is given, use the time budget as increment
+        if (token == ourIncString) {
+            int incMs;
+            lineSStream >> incMs;
+            timeBudget = std::chrono::milliseconds(incMs);
+        }
+    }
+
+    const auto searchInfo = findMove(uciState.gameState, timeBudget);
 
     std::string scoreString = std::format("cp {}", searchInfo.score);
     if (isMate(searchInfo.score)) {

@@ -3,7 +3,6 @@
 #include "Search.h"
 
 #include <atomic>
-#include <chrono>
 #include <future>
 #include <iostream>
 #include <print>
@@ -88,11 +87,10 @@ StackOfVectors<Move> gMoveStack;
 
 }  // namespace
 
-SearchInfo findMove(const GameState& gameState) {
+SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget) {
     prepareForSearch();
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
-    const auto timeBudget = std::chrono::milliseconds(1000);
     (void)moveFuture.wait_for(timeBudget);
     requestSearchStop();
 

@@ -5,6 +5,7 @@
 #include "Eval.h"
 #include "GameState.h"
 
+#include <chrono>
 #include <vector>
 
 struct SearchInfo {
@@ -16,4 +17,4 @@ struct SearchInfo {
     int nodesPerSecond;
 };
 
-[[nodiscard]] SearchInfo findMove(const GameState& gameState);
+[[nodiscard]] SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget);
