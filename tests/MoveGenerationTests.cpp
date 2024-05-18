@@ -162,7 +162,10 @@ MoveStatistics countMoveStatisticsAtPlyWithTTable(
             .hash    = gameState.getBoardHash(),
             .payload = statistics,
     };
-    gTtable.store(entry);
+    auto isMoreValuable = [](const MoveStatistics& newPayload, const MoveStatistics& oldPayload) {
+        return newPayload.ply >= oldPayload.ply;
+    };
+    gTtable.store(entry, isMoreValuable);
 
     return statistics;
 }

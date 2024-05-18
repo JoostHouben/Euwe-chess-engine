@@ -37,7 +37,8 @@ class TTable {
 
     [[nodiscard]] std::optional<EntryT> probe(HashT hash) const;
 
-    void store(const EntryT& entry);
+    template <typename FuncT>
+    void store(const EntryT& entry, FuncT&& isMoreValuable);
 
     [[nodiscard]] int getNumInUse() const { return numInUse_; }
     [[nodiscard]] float getUtilization() const { return static_cast<float>(numInUse_) / size_; }
@@ -65,20 +66,60 @@ TTable<PayloadT>::~TTable() {
 
 template <typename PayloadT>
 std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(HashT hash) const {
-    const std::size_t index = hash & mask_;
-    const EntryT& entry     = data_[index];
-    if (entry.hash == hash) {
-        return entry;
+    const std::size_t index         = hash & mask_;
+    const std::size_t valuableIndex = index & ~1;
+    const std::size_t recentIndex   = index | 1;
+
+    const EntryT& recentEntry = data_[recentIndex];
+    if (recentEntry.hash == hash) {
+        return recentEntry;
     }
+
+    const EntryT& valuableEntry = data_[valuableIndex];
+    if (valuableEntry.hash == hash) {
+        return valuableEntry;
+    }
+
     return std::nullopt;
 }
 
 template <typename PayloadT>
-void TTable<PayloadT>::store(const TTEntry<PayloadT>& entry) {
-    // TODO: consider more sophisticated replacement schemes
-    const std::size_t index = entry.hash & mask_;
-    if (data_[index].hash == 0) {
+template <typename FuncT>
+void TTable<PayloadT>::store(const TTEntry<PayloadT>& entryToStore, FuncT&& isMoreValuable) {
+    const std::size_t index         = entryToStore.hash & mask_;
+    const std::size_t valuableIndex = index & ~1;
+    const std::size_t recentIndex   = index | 1;
+
+    EntryT& valuableEntry = data_[valuableIndex];
+    EntryT& recentEntry   = data_[recentIndex];
+
+    // First check if valuableEntry is unused.
+    if (valuableEntry.hash == 0) {
+        valuableEntry = entryToStore;
         ++numInUse_;
+        // We stored the entry, no need to continue.
+        return;
     }
-    data_[index] = entry;
+    if (valuableEntry.hash == entryToStore.hash) {
+        // Same position, update if more valuable
+        if (isMoreValuable(entryToStore.payload, valuableEntry.payload)) {
+            valuableEntry = entryToStore;
+        }
+        // We either stored the entry or found that we already have more valuable information for
+        // this position. Either way, no need to continue.
+        return;
+    }
+    // Otherwise, we have an index collision.
+    if (isMoreValuable(entryToStore.payload, valuableEntry.payload)) {
+        // New position is more valuable. Move the old valuable entry to the recent entry slot and
+        // store the new entry in the valuable entry slot.
+        recentEntry   = valuableEntry;
+        valuableEntry = entryToStore;
+    } else {
+        // New position is less valuable. Store the new entry in the recent entry slot.
+        if (recentEntry.hash == 0) {
+            ++numInUse_;
+        }
+        recentEntry = entryToStore;
+    }
 }

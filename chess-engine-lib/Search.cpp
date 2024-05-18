@@ -154,7 +154,11 @@ void updateTTable(
                     .bestMove  = bestMove,
             }};
 
-    gTTable.store(entry);
+    auto isMoreValuable = [](const SearchTTPayload& newPayload, const SearchTTPayload& oldPayload) {
+        return newPayload.depth >= oldPayload.depth;
+    };
+
+    gTTable.store(entry, isMoreValuable);
 }
 
 // If returned value s satisfies alpha < s < beta, the value is exact.

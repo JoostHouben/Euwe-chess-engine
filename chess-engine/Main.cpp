@@ -100,7 +100,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name wait-full-depth-mate\n");
+    std::print("id name two-layer-ttable\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 
