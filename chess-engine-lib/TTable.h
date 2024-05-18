@@ -5,6 +5,7 @@
 #include "BoardHash.h"
 #include "Eval.h"
 
+#include <bit>
 #include <optional>
 
 #include <cstdint>
@@ -31,7 +32,7 @@ class TTable {
   public:
     using EntryT = TTEntry<PayloadT>;
 
-    TTable(std::size_t size);
+    TTable(std::size_t requestedSize);
     ~TTable();
 
     [[nodiscard]] std::optional<EntryT> probe(HashT hash) const;
@@ -44,6 +45,7 @@ class TTable {
   private:
     EntryT* data_;
     std::size_t size_;
+    std::size_t mask_;
 
     int numInUse_ = 0;
 };
@@ -51,8 +53,9 @@ class TTable {
 using SearchTTable = TTable<SearchTTPayload>;
 
 template <typename PayloadT>
-TTable<PayloadT>::TTable(std::size_t size) : size_(size) {
+TTable<PayloadT>::TTable(std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
     data_ = new EntryT[size_];
+    mask_ = size_ - 1;
 }
 
 template <typename PayloadT>
@@ -62,8 +65,7 @@ TTable<PayloadT>::~TTable() {
 
 template <typename PayloadT>
 std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(HashT hash) const {
-    // TODO: should we restrict the size to a power of 2?
-    const std::size_t index = hash % size_;
+    const std::size_t index = hash & mask_;
     const EntryT& entry     = data_[index];
     if (entry.hash == hash) {
         return entry;
@@ -74,7 +76,7 @@ std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(HashT hash) const {
 template <typename PayloadT>
 void TTable<PayloadT>::store(const TTEntry<PayloadT>& entry) {
     // TODO: consider more sophisticated replacement schemes
-    const std::size_t index = entry.hash % size_;
+    const std::size_t index = entry.hash & mask_;
     if (data_[index].hash == 0) {
         ++numInUse_;
     }
