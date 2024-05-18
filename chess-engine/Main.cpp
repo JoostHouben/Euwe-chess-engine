@@ -120,7 +120,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name passed-pawn-bonus\n");
+    std::print("id name doubled-pawn-penalty\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

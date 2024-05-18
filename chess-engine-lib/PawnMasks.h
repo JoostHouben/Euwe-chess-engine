@@ -7,4 +7,4 @@
 
 [[nodiscard]] BitBoard getPassedPawnOpponentMask(BoardPosition position, Side side);
 
-[[nodiscard]] BitBoard getPassedPawnOwnMask(BoardPosition position, Side side);
+[[nodiscard]] BitBoard getPawnForwardMask(BoardPosition position, Side side);

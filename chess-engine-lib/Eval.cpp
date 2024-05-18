@@ -181,6 +181,8 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
 
 constexpr std::array kPassedPawnBonus = {0, 90, 60, 40, 25, 15, 15};
 
+constexpr int kDoubledPawnPenalty = 20;
+
 struct PiecePositionEvaluation {
     int material          = 0;
     int phaseMaterial     = 0;
@@ -190,49 +192,7 @@ struct PiecePositionEvaluation {
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
-    PiecePositionEvaluation result;
-
-    // pawns
-    {
-        const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
-        const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
-
-        BitBoard pawnBitBoard = ownPawns;
-
-        while (pawnBitBoard != BitBoard::Empty) {
-            const BoardPosition position = popFirstSetPosition(pawnBitBoard);
-
-            {
-                BoardPosition positionForPieceSquare = position;
-                if (side == Side::Black) {
-                    positionForPieceSquare = getVerticalReflection(positionForPieceSquare);
-                }
-
-                result.material += kPieceValues[0];
-                result.phaseMaterial += kPhaseMaterialValues[0];
-
-                result.earlyGamePosition += kPieceSquareTablesEarly[0][(int)positionForPieceSquare];
-                result.endGamePosition += kPieceSquareTablesLate[0][(int)positionForPieceSquare];
-            }
-
-            // Passed pawn bonus
-            const BitBoard opponentMask = getPassedPawnOpponentMask(position, side);
-            const BitBoard ownMask      = getPassedPawnOwnMask(position, side);
-
-            const BitBoard opponentBlockers = intersection(enemyPawns, opponentMask);
-            const BitBoard ownBlockers      = intersection(ownPawns, ownMask);
-
-            if (any(opponentBlockers, ownBlockers) != BitBoard::Empty) {
-                continue;
-            }
-
-            const int rank                = rankFromPosition(position);
-            const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
-
-            result.earlyGamePosition += kPassedPawnBonus[distanceToPromotion];
-            result.endGamePosition += kPassedPawnBonus[distanceToPromotion];
-        }
-    }
+    PiecePositionEvaluation result{};
 
     for (int pieceIdx = 1; pieceIdx < kNumPieceTypes; ++pieceIdx) {
         const Piece piece      = (Piece)pieceIdx;
@@ -250,6 +210,56 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
             result.earlyGamePosition += kPieceSquareTablesEarly[pieceIdx][(int)position];
             result.endGamePosition += kPieceSquareTablesLate[pieceIdx][(int)position];
+        }
+    }
+
+    return result;
+}
+
+[[nodiscard]] FORCE_INLINE PiecePositionEvaluation
+evaluatePawnsForSide(const GameState& gameState, const Side side) {
+    // TODO: should we hash pawn structure and store pawn eval?
+
+    PiecePositionEvaluation result{};
+
+    const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
+    const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
+
+    BitBoard pawnBitBoard = ownPawns;
+
+    while (pawnBitBoard != BitBoard::Empty) {
+        const BoardPosition position = popFirstSetPosition(pawnBitBoard);
+
+        {
+            BoardPosition positionForPieceSquare = position;
+            if (side == Side::Black) {
+                positionForPieceSquare = getVerticalReflection(positionForPieceSquare);
+            }
+
+            result.material += kPieceValues[0];
+            result.phaseMaterial += kPhaseMaterialValues[0];
+
+            result.earlyGamePosition += kPieceSquareTablesEarly[0][(int)positionForPieceSquare];
+            result.endGamePosition += kPieceSquareTablesLate[0][(int)positionForPieceSquare];
+        }
+
+        const BitBoard passedPawnOpponentMask = getPassedPawnOpponentMask(position, side);
+        const BitBoard forwardMask            = getPawnForwardMask(position, side);
+
+        const BitBoard opponentBlockers = intersection(enemyPawns, passedPawnOpponentMask);
+        const BitBoard ownBlockers      = intersection(ownPawns, forwardMask);
+
+        const bool isDoubledPawn = ownBlockers != BitBoard::Empty;
+        const bool isPassedPawn  = !isDoubledPawn && opponentBlockers == BitBoard::Empty;
+        if (isDoubledPawn) {
+            result.earlyGamePosition -= kDoubledPawnPenalty;
+            result.endGamePosition -= kDoubledPawnPenalty;
+        } else if (isPassedPawn) {
+            const int rank                = rankFromPosition(position);
+            const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
+
+            result.earlyGamePosition += kPassedPawnBonus[distanceToPromotion];
+            result.endGamePosition += kPassedPawnBonus[distanceToPromotion];
         }
     }
 
@@ -304,32 +314,39 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
     const auto whitePiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::White);
     const auto blackPiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::Black);
-    const int materialEval = whitePiecePositionEval.material - blackPiecePositionEval.material;
+
+    const auto whitePawnEval = evaluatePawnsForSide(gameState, Side::White);
+    const auto blackPawnEval = evaluatePawnsForSide(gameState, Side::Black);
+
+    const int whiteMaterial = whitePiecePositionEval.material + whitePawnEval.material;
+    const int blackMaterial = blackPiecePositionEval.material + blackPawnEval.material;
+
+    const int materialEval = whiteMaterial - blackMaterial;
 
     const int phaseMaterial = std::min(
             whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
             kMaxPhaseMaterial);
     const float endGameFactor = 1.f - (float)phaseMaterial / (float)kMaxPhaseMaterial;
 
-    const int earlyGamePositionEval =
-            whitePiecePositionEval.earlyGamePosition - blackPiecePositionEval.earlyGamePosition;
-    const int endGamePositionEval =
-            whitePiecePositionEval.endGamePosition - blackPiecePositionEval.endGamePosition;
-    const int positionEval = (int)(earlyGamePositionEval * (1.f - endGameFactor)
+    const int earlyGameWhitePositionEval =
+            whitePiecePositionEval.earlyGamePosition + whitePawnEval.earlyGamePosition;
+    const int earlyGameBlackPositionEval =
+            blackPiecePositionEval.earlyGamePosition + blackPawnEval.earlyGamePosition;
+
+    const int endGameWhitePositionEval =
+            whitePiecePositionEval.endGamePosition + whitePawnEval.endGamePosition;
+    const int endGameBlackPositionEval =
+            blackPiecePositionEval.endGamePosition + blackPawnEval.endGamePosition;
+
+    const int earlyGamePositionEval = earlyGameWhitePositionEval - earlyGameBlackPositionEval;
+    const int endGamePositionEval   = endGameWhitePositionEval - endGameBlackPositionEval;
+    const int positionEval          = (int)(earlyGamePositionEval * (1.f - endGameFactor)
                                    + endGamePositionEval * endGameFactor);
 
     const int whiteSwarmingValue = evaluateKingSwarming(
-            gameState,
-            Side::White,
-            whitePiecePositionEval.material,
-            blackPiecePositionEval.material,
-            endGameFactor);
+            gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
     const int blackSwarmingValue = evaluateKingSwarming(
-            gameState,
-            Side::Black,
-            blackPiecePositionEval.material,
-            whitePiecePositionEval.material,
-            endGameFactor);
+            gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
     const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
     const int eval = materialEval + positionEval + swarmingEval;
