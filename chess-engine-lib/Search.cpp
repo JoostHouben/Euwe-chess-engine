@@ -406,7 +406,10 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
     StackVector<Move> pv = stack.makeStackVector();
 
-    MY_ASSERT(gBestMove.pieceToMove != Piece::Invalid);
+    if (gBestMove.pieceToMove == Piece::Invalid) {
+        pv.lock();
+        return pv;
+    }
 
     pv.push_back(gBestMove);
 
