@@ -29,8 +29,8 @@ constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
 constexpr int kMaxPhaseMaterial = 24;
 
 // clang-format off
-constexpr std::array<std::array<int, kSquares>, kNumPieceTypes - 1> kPieceSquareTables{
-    // Pawns
+constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTablesEarly = {
+    // Pawns - stand in front of king and promote
     std::array<int, kSquares> {
          0,  0,  0,  0,  0,  0,  0,  0,
          5, 10, 10,-20,-20, 10, 10,  5,
@@ -88,43 +88,108 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes - 1> kPieceSquare
         -10,  0,  5,  5,  5,  5,  0,-10,
         -10,  0,  0,  0,  0,  0,  0,-10,
         -20,-10,-10, -5, -5,-10,-10,-20,
+    },
+
+    // King - encourage hiding behind pawns
+    std::array<int, kSquares> {
+         20, 30, 10,  0,  0, 10, 30, 20,
+         20, 20,  0,  0,  0,  0, 20, 20,
+        -10,-20,-20,-20,-20,-20,-20,-10,
+        -20,-30,-30,-40,-40,-30,-30,-20,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
+        -30,-40,-40,-50,-50,-40,-40,-30,
     }
 };
 
-constexpr std::array<int, kSquares> kPieceSquareTableKingEarly = {
-     20, 30, 10,  0,  0, 10, 30, 20,
-     20, 20,  0,  0,  0,  0, 20, 20,
-    -10,-20,-20,-20,-20,-20,-20,-10,
-    -20,-30,-30,-40,-40,-30,-30,-20,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-};
+constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTablesLate = {
+    // Pawns - promote
+    std::array<int, kSquares> {
+         0,  0,  0,  0,  0,  0,  0,  0,
+        10, 10, 10, 10, 10, 10, 10, 10,
+        10, 10, 10, 10, 10, 10, 10, 10,
+        20, 20, 20, 20, 20, 20, 20, 20,
+        30, 30, 30, 30, 30, 30, 30, 30,
+        50, 50, 50, 50, 50, 50, 50, 50,
+        80, 80, 80, 80, 80, 80, 80, 80,
+         0,  0,  0,  0,  0,  0,  0,  0,
+    },
 
-constexpr std::array<int, kSquares> kPieceSquareTableKingLate = {
-    -50,-30,-30,-30,-30,-30,-30,-50,
-    -30,-30,  0,  0,  0,  0,-30,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-20,-10,  0,  0,-10,-20,-30,
-    -50,-40,-30,-20,-20,-30,-40,-50,
+    // Knights
+    std::array<int, kSquares> {
+        -50,-40,-30,-30,-30,-30,-40,-50,
+        -40,-20,  0,  5,  5,  0,-20,-40,
+        -30,  5, 10, 15, 15, 10,  5,-30,
+        -30,  0, 15, 20, 20, 15,  0,-30,
+        -30,  5, 15, 20, 20, 15,  5,-30,
+        -30,  0, 10, 15, 15, 10,  0,-30,
+        -40,-20,  0,  0,  0,  0,-20,-40,
+        -50,-40,-30,-30,-30,-30,-40,-50,
+    },
+
+    // Bishops 
+    std::array<int, kSquares> {
+        -20,-10,-10,-10,-10,-10,-10,-20,
+        -10,  5,  0,  0,  0,  0,  5,-10,
+        -10, 10, 10, 10, 10, 10, 10,-10,
+        -10,  0, 10, 10, 10, 10,  0,-10,
+        -10,  5,  5, 10, 10,  5,  5,-10,
+        -10,  0,  5, 10, 10,  5,  0,-10,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -20,-10,-10,-10,-10,-10,-10,-20,
+    },
+
+    // Rooks
+    std::array<int, kSquares> {
+          0,  0,  0,  5,  5,  0,  0,  0,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+         -5,  0,  0,  0,  0,  0,  0, -5,
+          5, 10, 10, 10, 10, 10, 10,  5,
+          0,  0,  0,  0,  0,  0,  0,  0,
+    },
+
+    // Queens
+    std::array<int, kSquares> {
+        -20,-10,-10, -5, -5,-10,-10,-20,
+        -10,  0,  5,  0,  0,  0,  0,-10,
+        -10,  5,  5,  5,  5,  5,  0,-10,
+          0,  0,  5,  5,  5,  5,  0, -5,
+         -5,  0,  5,  5,  5,  5,  0, -5,
+        -10,  0,  5,  5,  5,  5,  0,-10,
+        -10,  0,  0,  0,  0,  0,  0,-10,
+        -20,-10,-10, -5, -5,-10,-10,-20,
+    },
+
+    // King - encourage center
+    std::array<int, kSquares> {
+        -50,-30,-30,-30,-30,-30,-30,-50,
+        -30,-30,  0,  0,  0,  0,-30,-30,
+        -30,-10, 20, 30, 30, 20,-10,-30,
+        -30,-10, 30, 40, 40, 30,-10,-30,
+        -30,-10, 30, 40, 40, 30,-10,-30,
+        -30,-10, 20, 30, 30, 20,-10,-30,
+        -30,-20,-10,  0,  0,-10,-20,-30,
+        -50,-40,-30,-20,-20,-30,-40,-50,
+    }
 };
 // clang-format on
 
 struct PiecePositionEvaluation {
-    int material      = 0;
-    int position      = 0;
-    int phaseMaterial = 0;
+    int material          = 0;
+    int phaseMaterial     = 0;
+    int earlyGamePosition = 0;
+    int endGamePosition   = 0;
 };
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     PiecePositionEvaluation result;
 
-    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
         const Piece piece      = (Piece)pieceIdx;
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
 
@@ -136,27 +201,14 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             }
 
             result.material += kPieceValues[pieceIdx];
-            result.position += kPieceSquareTables[pieceIdx][(int)position];
             result.phaseMaterial += kPhaseMaterialValues[pieceIdx];
+
+            result.earlyGamePosition += kPieceSquareTablesEarly[pieceIdx][(int)position];
+            result.endGamePosition += kPieceSquareTablesLate[pieceIdx][(int)position];
         }
     }
 
     return result;
-}
-
-[[nodiscard]] FORCE_INLINE int evaluateKingPositionForSide(
-        const GameState& gameState, const Side side, const float endGameFactor) {
-    BoardPosition kingPosition = getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
-
-    if (side == Side::Black) {
-        kingPosition = getVerticalReflection(kingPosition);
-    }
-
-    const int earlyGamePositionValue = kPieceSquareTableKingEarly[(int)kingPosition];
-    const int lateGamePositionValue  = kPieceSquareTableKingLate[(int)kingPosition];
-
-    return (int)((1 - endGameFactor) * earlyGamePositionValue
-                 + endGameFactor * lateGamePositionValue);
 }
 
 [[nodiscard]] FORCE_INLINE int manhattanDistance(BoardPosition a, BoardPosition b) {
@@ -205,37 +257,37 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 }
 
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
-    const auto whitePieceSquareEval = evaluatePiecePositionsForSide(gameState, Side::White);
-    const auto blackPieceSquareEval = evaluatePiecePositionsForSide(gameState, Side::Black);
-    const int pieceSquareEval = (whitePieceSquareEval.material + whitePieceSquareEval.position)
-                              - (blackPieceSquareEval.material + blackPieceSquareEval.position);
+    const auto whitePiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::White);
+    const auto blackPiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::Black);
+    const int materialEval = whitePiecePositionEval.material - blackPiecePositionEval.material;
 
     const int phaseMaterial = std::min(
-            whitePieceSquareEval.phaseMaterial + blackPieceSquareEval.phaseMaterial,
+            whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
             kMaxPhaseMaterial);
     const float endGameFactor = 1.f - (float)phaseMaterial / (float)kMaxPhaseMaterial;
 
-    const int whiteKingPositionValue =
-            evaluateKingPositionForSide(gameState, Side::White, endGameFactor);
-    const int blackKingPositionValue =
-            evaluateKingPositionForSide(gameState, Side::Black, endGameFactor);
-    const int kingPositionEval = whiteKingPositionValue - blackKingPositionValue;
+    const int earlyGamePositionEval =
+            whitePiecePositionEval.earlyGamePosition - blackPiecePositionEval.earlyGamePosition;
+    const int endGamePositionEval =
+            whitePiecePositionEval.endGamePosition - blackPiecePositionEval.endGamePosition;
+    const int positionEval = (int)(earlyGamePositionEval * (1.f - endGameFactor)
+                                   + endGamePositionEval * endGameFactor);
 
     const int whiteSwarmingValue = evaluateKingSwarming(
             gameState,
             Side::White,
-            whitePieceSquareEval.material,
-            blackPieceSquareEval.material,
+            whitePiecePositionEval.material,
+            blackPiecePositionEval.material,
             endGameFactor);
     const int blackSwarmingValue = evaluateKingSwarming(
             gameState,
             Side::Black,
-            blackPieceSquareEval.material,
-            whitePieceSquareEval.material,
+            blackPiecePositionEval.material,
+            whitePiecePositionEval.material,
             endGameFactor);
     const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
-    int eval = pieceSquareEval + kingPositionEval + swarmingEval;
+    const int eval = materialEval + positionEval + swarmingEval;
 
     return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
 }
@@ -315,10 +367,10 @@ StackVector<int> scoreMoves(
             moveScore += kPieceValues[(int)capturedPiece];
             moveScore -= (kPieceValues[(int)move.pieceToMove] >> 5);
 
-            moveScore += kPieceSquareTables[(int)capturedPiece][(int)captureTarget];
+            moveScore += kPieceSquareTablesEarly[(int)capturedPiece][(int)captureTarget];
         }
 
-        moveScore -= kPieceSquareTables[(int)move.pieceToMove][(int)move.from];
+        moveScore -= kPieceSquareTablesEarly[(int)move.pieceToMove][(int)move.from];
 
         if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {
             moveScore += kPromotionBonus;
@@ -326,9 +378,9 @@ StackVector<int> scoreMoves(
             moveScore += kPieceValues[(int)promotionPiece];
             moveScore -= kPieceValues[(int)Piece::Pawn];
 
-            moveScore += kPieceSquareTables[(int)promotionPiece][(int)move.to];
+            moveScore += kPieceSquareTablesEarly[(int)promotionPiece][(int)move.to];
         } else {
-            moveScore += kPieceSquareTables[(int)move.pieceToMove][(int)move.to];
+            moveScore += kPieceSquareTablesEarly[(int)move.pieceToMove][(int)move.to];
         }
 
         scores.push_back(moveScore);
