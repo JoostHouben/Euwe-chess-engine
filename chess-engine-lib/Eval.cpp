@@ -307,10 +307,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 [[nodiscard]] FORCE_INLINE int manhattanDistanceToCenter(BoardPosition position) {
     const auto [file, rank] = fileRankFromPosition(position);
 
-    return std::min({
-            std::abs(file - kFiles / 2),
-            std::abs(rank - kRanks / 2),
-    });
+    return min(std::abs(file - kFiles / 2), std::abs(rank - kRanks / 2));
 }
 
 [[nodiscard]] FORCE_INLINE int evaluateKingSwarming(
@@ -326,7 +323,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     static constexpr int rookValue = kPieceValues[(int)Piece::Rook];
 
     const float materialAdvantageFactor =
-            std::min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
+            min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
 
     const BoardPosition swarmingKingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(swarmingSide, Piece::King));
@@ -354,9 +351,9 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
     const int materialEval = whiteMaterial - blackMaterial;
 
-    const int phaseMaterial = std::min(
-            whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
-            kMaxPhaseMaterial);
+    const int phaseMaterial =
+            min(whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
+                kMaxPhaseMaterial);
     const float endGameFactor = 1.f - (float)phaseMaterial / (float)kMaxPhaseMaterial;
 
     const int earlyGameWhitePositionEval =

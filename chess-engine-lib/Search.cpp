@@ -223,11 +223,11 @@ void updateTTable(
             } else if (ttInfo.scoreType == ScoreType::LowerBound) {
                 // Can safely raise the lower bound for our search window, because the true value
                 // is guaranteed to be above this bound.
-                alpha = std::max(alpha, ttInfo.score);
+                alpha = max(alpha, ttInfo.score);
             } else {
                 // Can safely lower the upper bound for our search window, because the true value
                 // is guaranteed to be below this bound.
-                beta = std::min(beta, ttInfo.score);
+                beta = min(beta, ttInfo.score);
             }
 
             // Check if we can return based on tighter bounds from the transposition table.
@@ -471,14 +471,14 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
                 lowerBound = -kInfiniteEval;
             } else {
                 lowerTolerance *= kToleranceIncreaseFactor;
-                lowerBound = std::min(searchEval - 1, initialGuess - lowerTolerance);
+                lowerBound = min(searchEval - 1, initialGuess - lowerTolerance);
             }
         } else {
             if (isMate(searchEval)) {
                 upperBound = kInfiniteEval;
             } else {
                 upperTolerance *= kToleranceIncreaseFactor;
-                upperBound = std::max(searchEval + 1, initialGuess + upperTolerance);
+                upperBound = max(searchEval + 1, initialGuess + upperTolerance);
             }
         }
 
