@@ -113,8 +113,5 @@
     <ClCompile Include="BoardHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="TTable.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
 </Project>

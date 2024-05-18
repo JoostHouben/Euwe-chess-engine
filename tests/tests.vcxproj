@@ -38,6 +38,7 @@
     <ClCompile Include="GameStateHelpersTests.cpp" />
     <ClCompile Include="FenParsingTests.cpp" />
     <ClCompile Include="GameStateTests.cpp" />
+    <ClCompile Include="HashingTests.cpp" />
     <ClCompile Include="MoveGenerationTests.cpp" />
     <ClCompile Include="MoveTests.cpp" />
     <ClCompile Include="PieceTests.cpp" />

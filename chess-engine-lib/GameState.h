@@ -51,6 +51,7 @@ class GameState {
     [[nodiscard]] static GameState startingPosition();
 
     [[nodiscard]] std::string toFen() const;
+    [[nodiscard]] std::string toFenNoMoveCounters() const;
     [[nodiscard]] std::string toVisualString() const;
 
     [[nodiscard]] BitBoard getEnemyControl() const;

@@ -21,7 +21,6 @@ TEST(StackOfVectors, basicTest) {
     stackVector2.push_back(7);
     stackVector2.pop_back();
     stackVector2.push_back(8);
-    stackVector2.lock();
 
     EXPECT_EQ(stackOfVectors.size(), 6);
     EXPECT_EQ(stackVector1.size(), 3);

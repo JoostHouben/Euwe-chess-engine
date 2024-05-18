@@ -1,5 +1,7 @@
 #include "chess-engine-lib/GameState.h"
 
+#include "chess-engine-lib/TTable.h"
+
 #include "MyGTest.h"
 
 #include <algorithm>
@@ -14,6 +16,8 @@ struct MoveStatistics {
     std::size_t numEnPassant  = 0;
     std::size_t numCastle     = 0;
     std::size_t numPromotions = 0;
+
+    int ply = 0;  // only used in ttable tests
 };
 
 struct ExpectedMoveStatistics {
@@ -52,6 +56,14 @@ void updateStatistics(const StackVector<Move>& moves, MoveStatistics& statistics
     }
 }
 
+void updateStatistics(const MoveStatistics& statisticsToAdd, MoveStatistics& statistics) {
+    statistics.numMoves += statisticsToAdd.numMoves;
+    statistics.numCaptures += statisticsToAdd.numCaptures;
+    statistics.numEnPassant += statisticsToAdd.numEnPassant;
+    statistics.numCastle += statisticsToAdd.numCastle;
+    statistics.numPromotions += statisticsToAdd.numPromotions;
+}
+
 void countMoveStatisticsAtPly(
         GameState& gameState, int ply, MoveStatistics& statistics, StackOfVectors<Move>& stack) {
     const StackVector<Move> moves = gameState.generateMoves(stack);
@@ -81,6 +93,7 @@ void countMoveStatisticsAtPlyWithUnmake(
     };
 
     HashT hash = gameState.getBoardHash();
+    EXPECT_NE(hash, 0);
 
     for (const auto& move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
@@ -97,6 +110,61 @@ void countMoveStatisticsAtPlyWithUnmake(
             hash = gameState.getBoardHash();
         }
     }
+}
+
+using StatisticsTTable = TTable<MoveStatistics>;
+
+StatisticsTTable gTtable(1'000'000);
+
+MoveStatistics countMoveStatisticsAtPlyWithTTable(
+        GameState& gameState, int ply, StackOfVectors<Move>& stack) {
+    const auto ttHit = gTtable.probe(gameState.getBoardHash());
+    // We need an additional check on ply becuase transpositions can appear at different depths,
+    // and these have different statistics.
+    // This also allows us to share the ttable across tests.
+    if (ttHit && ttHit->payload.ply == ply) {
+        return ttHit->payload;
+    }
+
+    MoveStatistics statistics{};
+    statistics.ply                = ply;
+    const StackVector<Move> moves = gameState.generateMoves(stack);
+    if (ply == 0) {
+        return statistics;
+    }
+    if (ply == 1) {
+        updateStatistics(moves, statistics);
+        return statistics;
+    };
+
+    HashT hash = gameState.getBoardHash();
+
+    for (const auto& move : moves) {
+        auto unmakeInfo = gameState.makeMove(move);
+
+        EXPECT_NE(hash, gameState.getBoardHash());
+
+        const MoveStatistics subStats =
+                countMoveStatisticsAtPlyWithTTable(gameState, ply - 1, stack);
+        gameState.unmakeMove(move, unmakeInfo);
+
+        updateStatistics(subStats, statistics);
+
+        EXPECT_EQ(hash, gameState.getBoardHash());
+
+        if (hash != gameState.getBoardHash()) {
+            std::cerr << moveToExtendedString(move) << std::endl;
+            hash = gameState.getBoardHash();
+        }
+    }
+
+    TTEntry<MoveStatistics> entry{
+            .hash    = gameState.getBoardHash(),
+            .payload = statistics,
+    };
+    gTtable.store(entry);
+
+    return statistics;
 }
 
 struct TestStatsConfig {
@@ -126,6 +194,21 @@ TEST_P(ValidateMoveStatsWithUnmake, TestMoveStats) {
     StackOfVectors<Move> stack;
     stack.reserve(300);
     countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics, stack);
+    compareStatistics(statistics, config.expectedStats);
+}
+
+class ValidateMoveStatsWithTTable : public ::testing::TestWithParam<TestStatsConfig> {};
+
+TEST_P(ValidateMoveStatsWithTTable, TestMoveStats) {
+    const TestStatsConfig config = GetParam();
+
+    GameState gameState = GameState::fromFen(config.fen);
+
+    StackOfVectors<Move> stack;
+    stack.reserve(300);
+
+    const MoveStatistics statistics =
+            countMoveStatisticsAtPlyWithTTable(gameState, config.depth, stack);
     compareStatistics(statistics, config.expectedStats);
 }
 
@@ -458,6 +541,12 @@ INSTANTIATE_TEST_CASE_P(
         MoveGeneration, ValidateMoveStatsWithUnmake, testCasesFast, validateMoveStatsName);
 
 INSTANTIATE_TEST_CASE_P(
+        MoveGeneration, ValidateMoveStatsWithTTable, testCasesFast, validateMoveStatsName);
+
+INSTANTIATE_TEST_CASE_P(
         MoveGenerationSlow, ValidateMoveStatsWithUnmake, testCasesSlow, validateMoveStatsName);
+
+INSTANTIATE_TEST_CASE_P(
+        MoveGenerationSlow, ValidateMoveStatsWithTTable, testCasesSlow, validateMoveStatsName);
 
 }  // namespace MoveGenerationTests

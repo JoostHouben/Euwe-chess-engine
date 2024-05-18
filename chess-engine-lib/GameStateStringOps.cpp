@@ -272,6 +272,25 @@ std::string GameState::toFen() const {
 
     const int moveCounter = halfMoveClock_ / 2 + 1;
 
+    ss << toFenNoMoveCounters();
+    ss << ' ';
+    ss << (unsigned)plySinceCaptureOrPawn_;
+    ss << ' ';
+    ss << moveCounter;
+
+    return ss.str();
+}
+
+std::string GameState::toFenNoMoveCounters() const {
+    std::ostringstream ss;
+
+    BoardConfigurationInfo boardConfig = {
+            .pieceBitBoards = pieceBitBoards_,
+            .pieceOnSquare  = pieceOnSquare_,
+    };
+
+    const int moveCounter = halfMoveClock_ / 2 + 1;
+
     boardConfigurationToFen(boardConfig, ss);
     ss << ' ';
     sideToMoveToFen(sideToMove_, ss);
@@ -279,10 +298,6 @@ std::string GameState::toFen() const {
     castlingRightsToFen(*this, ss);
     ss << ' ';
     enPassantTargetToFen(enPassantTarget_, ss);
-    ss << ' ';
-    ss << (unsigned)plySinceCaptureOrPawn_;
-    ss << ' ';
-    ss << moveCounter;
 
     return ss.str();
 }

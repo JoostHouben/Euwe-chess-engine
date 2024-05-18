@@ -15,8 +15,8 @@ Move gBestMove;
 std::atomic<bool> gStopSearch;
 
 constexpr int kTTableSizeInBytes   = 64 * 1024 * 1024;
-constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(TTEntry);
-TTable gTTable(kTTableSizeInEntries);
+constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
+SearchTTable gTTable(kTTableSizeInEntries);
 
 StackOfVectors<MoveEvalT> gMoveScoreStack;
 
@@ -145,13 +145,14 @@ void updateTTable(
         scoreType = ScoreType::Exact;
     }
 
-    const TTEntry entry = {
-            .hash      = hash,
-            .depth     = (std::uint8_t)depth,
-            .scoreType = scoreType,
-            .score     = bestScore,
-            .bestMove  = bestMove,
-    };
+    const SearchTTable::EntryT entry = {
+            .hash    = hash,
+            .payload = {
+                    .depth     = (std::uint8_t)depth,
+                    .scoreType = scoreType,
+                    .score     = bestScore,
+                    .bestMove  = bestMove,
+            }};
 
     gTTable.store(entry);
 }
@@ -205,22 +206,24 @@ void updateTTable(
     EvalT bestScore = -kInfiniteEval;
 
     // Probe the transposition table to update our score based on previous info.
-    auto ttHit = gTTable.probe(gameState.getBoardHash());
+    const auto ttHit = gTTable.probe(gameState.getBoardHash());
     if (ttHit) {
+        const auto& ttInfo = ttHit->payload;
+
         gSearchStatistics.tTableHits++;
 
-        if (!recordBestMove && ttHit->depth >= depth) {
-            if (ttHit->scoreType == ScoreType::Exact) {
+        if (!recordBestMove && ttInfo.depth >= depth) {
+            if (ttInfo.scoreType == ScoreType::Exact) {
                 // Exact value
-                return ttHit->score;
-            } else if (ttHit->scoreType == ScoreType::LowerBound) {
+                return ttInfo.score;
+            } else if (ttInfo.scoreType == ScoreType::LowerBound) {
                 // Can safely raise the lower bound for our search window, because the true value
                 // is guaranteed to be above this bound.
-                alpha = std::max(alpha, ttHit->score);
+                alpha = std::max(alpha, ttInfo.score);
             } else {
                 // Can safely lower the upper bound for our search window, because the true value
                 // is guaranteed to be below this bound.
-                beta = std::min(beta, ttHit->score);
+                beta = std::min(beta, ttInfo.score);
             }
 
             // Check if we can return based on tighter bounds from the transposition table.
@@ -232,17 +235,17 @@ void updateTTable(
                 // If beta was lowered by the tt entry this is an upper bound and we want to return
                 // that lowered beta (fail-soft: that's the tightest upper bound we have).
                 // So either way we return the tt entry score.
-                return ttHit->score;
+                return ttInfo.score;
             }
         }
 
         // Try hash move first.
         // TODO: do we need a legality check here for hash collisions?
-        auto unmakeInfo = gameState.makeMove(ttHit->bestMove);
+        auto unmakeInfo = gameState.makeMove(ttInfo.bestMove);
 
         const auto searchResult = search(gameState, depth - 1, -beta, -alpha, stack);
 
-        gameState.unmakeMove(ttHit->bestMove, unmakeInfo);
+        gameState.unmakeMove(ttInfo.bestMove, unmakeInfo);
 
         if (!searchResult) {
             return std::nullopt;
@@ -253,7 +256,7 @@ void updateTTable(
         }
 
         bestScore = score;
-        bestMove  = ttHit->bestMove;
+        bestMove  = ttInfo.bestMove;
 
         if (score >= beta) {
             // Fail high
@@ -289,7 +292,8 @@ void updateTTable(
     }
 
     if (ttHit) {
-        const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttHit->bestMove);
+        const auto& ttInfo    = ttHit->payload;
+        const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttInfo.bestMove);
         if (hashMoveIt != moves.end()) {
             std::iter_swap(moves.end() - 1, hashMoveIt);
             moves.hide_back();
@@ -396,9 +400,9 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
     auto ttHit = gTTable.probe(gameState.getBoardHash());
     while (ttHit && pv.size() < depth) {
-        pv.push_back(ttHit->bestMove);
+        pv.push_back(ttHit->payload.bestMove);
 
-        (void)gameState.makeMove(ttHit->bestMove);
+        (void)gameState.makeMove(ttHit->payload.bestMove);
 
         ttHit = gTTable.probe(gameState.getBoardHash());
     }
