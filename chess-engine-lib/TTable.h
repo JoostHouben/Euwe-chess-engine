@@ -113,6 +113,9 @@ void TTable<PayloadT>::store(const TTEntry<PayloadT>& entryToStore, FuncT&& isMo
     if (isMoreValuable(entryToStore.payload, valuableEntry.payload)) {
         // New position is more valuable. Move the old valuable entry to the recent entry slot and
         // store the new entry in the valuable entry slot.
+        if (recentEntry.hash == 0) {
+            ++numInUse_;
+        }
         recentEntry   = valuableEntry;
         valuableEntry = entryToStore;
     } else {

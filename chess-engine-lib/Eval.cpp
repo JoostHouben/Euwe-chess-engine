@@ -107,7 +107,7 @@ constexpr std::array<std::array<EvalT, kSquares>, kNumPieceTypes> kPieceSquareTa
             if (side == Side::Black) {
                 // Flip the position for black. Note that this flips both the rank and file.
                 // (I.e., it's a 180 degree rotation, not a reflection.)
-                position = (BoardPosition)(kSquares - (int)position);
+                position = (BoardPosition)(kSquares - 1 - (int)position);
             }
 
             piecePosition += kPieceSquareTables[pieceIdx][(int)position];

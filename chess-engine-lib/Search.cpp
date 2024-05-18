@@ -100,6 +100,9 @@ std::optional<EvalT> quiesce(
         const auto unmakeInfo = gameState.makeMove(move);
 
         const auto searchResult = quiesce(gameState, -beta, -alpha, stack);
+
+        gameState.unmakeMove(move, unmakeInfo);
+
         if (!searchResult) {
             return std::nullopt;
         }
@@ -108,8 +111,6 @@ std::optional<EvalT> quiesce(
         if (isMate(score)) {
             score -= signum(score);
         }
-
-        gameState.unmakeMove(move, unmakeInfo);
 
         if (score >= beta) {
             return score;
@@ -178,7 +179,6 @@ void updateTTable(
     ++gSearchStatistics.normalNodesSearched;
 
     if (depth == 0) {
-        // Exact value
         return quiesce(gameState, alpha, beta, stack);
     }
 
@@ -206,7 +206,7 @@ void updateTTable(
         }
     }
 
-    Move bestMove;
+    Move bestMove{};
     EvalT bestScore = -kInfiniteEval;
 
     // Probe the transposition table to update our score based on previous info.
@@ -243,6 +243,12 @@ void updateTTable(
             }
         }
 
+        // Initialize best move to the hash move in case we don't get to complete the search of the
+        // hash move.
+        if (recordBestMove) {
+            gBestMove = ttInfo.bestMove;
+        }
+
         // Try hash move first.
         // TODO: do we need a legality check here for hash collisions?
         auto unmakeInfo = gameState.makeMove(ttInfo.bestMove);
@@ -273,10 +279,6 @@ void updateTTable(
                     bestMove,
                     depth,
                     gameState.getBoardHash());
-
-            if (recordBestMove) {
-                gBestMove = bestMove;
-            }
 
             // score was obtained from a subcall that failed high, so it was a lower bound for
             // that position. It is also a lower bound for the overall position because we're
@@ -317,6 +319,8 @@ void updateTTable(
 
         if (!searchResult) {
             if (bestScore > -kInfiniteEval) {
+                MY_ASSERT(bestMove.pieceToMove != Piece::Invalid);
+
                 // If we fully evaluated any positions, update the ttable.
                 updateTTable(
                         bestScore,
@@ -326,6 +330,10 @@ void updateTTable(
                         bestMove,
                         depth,
                         gameState.getBoardHash());
+
+                if (recordBestMove) {
+                    gBestMove = bestMove;
+                }
             }
             return std::nullopt;
         }
@@ -398,6 +406,8 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
     StackVector<Move> pv = stack.makeStackVector();
 
+    MY_ASSERT(gBestMove.pieceToMove != Piece::Invalid);
+
     pv.push_back(gBestMove);
 
     (void)gameState.makeMove(gBestMove);
@@ -422,6 +432,7 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
         const EvalT beta,
         StackOfVectors<Move>& stack) {
     gRecordBestMove = true;
+    gBestMove       = {};
     return search(gameState, depth, alpha, beta, stack);
 }
 

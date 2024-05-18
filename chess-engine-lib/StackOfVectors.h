@@ -291,7 +291,6 @@ class StackVector {
     ~StackVector() {
         // Note: when moved-from, size() == 0
         if (size() > 0) {
-            MY_ASSERT((int)parent_.size() == endIdx_);
             parent_.items_.resize(startIdx_);
         }
     }
