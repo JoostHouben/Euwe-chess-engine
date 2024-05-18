@@ -45,3 +45,5 @@ enum class BoardPosition : std::uint8_t {
     const auto [file, rank] = fileRankFromPosition(position);
     return {(char)('a' + file), (char)('1' + rank)};
 }
+
+[[nodiscard]] BoardPosition getVerticalReflection(BoardPosition position);

@@ -113,5 +113,8 @@
     <ClCompile Include="BoardHash.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="BoardPosition.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
