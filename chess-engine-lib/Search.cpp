@@ -10,9 +10,8 @@
 
 namespace {
 
-bool gRecordBestMove = false;
-Move gBestMove;
 std::atomic<bool> gStopSearch;
+bool gWasInterrupted;
 
 constexpr int kTTableSizeInBytes   = 64 * 1024 * 1024;
 constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
@@ -43,14 +42,16 @@ SearchStatistics gSearchStatistics;
     return bestMove;
 }
 
-std::optional<EvalT> quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+EvalT quiesce(GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
 
+    EvalT bestScore = -kInfiniteEval;
+
     if (gStopSearch) {
-        return std::nullopt;
+        gWasInterrupted = true;
+        return bestScore;
     }
 
     ++gSearchStatistics.qNodesSearched;
@@ -60,8 +61,6 @@ std::optional<EvalT> quiesce(
 
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
-
-    EvalT bestScore = -kInfiniteEval;
 
     if (!isInCheck) {
         // Stand pat
@@ -99,15 +98,14 @@ std::optional<EvalT> quiesce(
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        const auto searchResult = quiesce(gameState, -beta, -alpha, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
-        if (!searchResult) {
-            return std::nullopt;
+        if (gWasInterrupted) {
+            return bestScore;
         }
 
-        EvalT score = -searchResult.value();
         if (isMate(score)) {
             score -= signum(score);
         }
@@ -132,11 +130,18 @@ void updateTTable(
         int depth,
         HashT hash) {
     ScoreType scoreType;
-    if (bestScore <= alphaOrig) {
+    if (stoppedEarly && bestScore <= alphaOrig) {
+        // Score is below original feasibility window, which implies an upper bound.
+        // But we haven't considered all moves yet, so we could still improve the score.
+        // Therefore the score is unusable.
+        return;
+    } else if (stoppedEarly) {
+        // If we stopped early, the score is a lower bound: we could still find a better move.
+        scoreType = ScoreType::LowerBound;
+    } else if (bestScore <= alphaOrig) {
         // Best score is below original feasibility window, so it's an upper bound.
         scoreType = ScoreType::UpperBound;
-    } else if (stoppedEarly || bestScore >= beta) {
-        // If we stopped early the score is a lower bound. Otherwise...
+    } else if (bestScore >= beta) {
         // A score above beta was obtained from a subcall that failed high, so that result is an
         // upper bound. This is true regardless of whether the score is above the original beta or
         // a tightened beta.
@@ -166,14 +171,16 @@ void updateTTable(
 // If s <= alpha, the value is an upper bound.
 // If beta <= s, the value is a lower bound.
 // If gStopSearch is true, returns std::nullopt
-[[nodiscard]] std::optional<EvalT> search(
+[[nodiscard]] EvalT search(
         GameState& gameState,
         const int depth,
+        const int ply,
         EvalT alpha,
         EvalT beta,
         StackOfVectors<Move>& stack) {
     if (gStopSearch) {
-        return std::nullopt;
+        gWasInterrupted = true;
+        return -kInfiniteEval;
     }
 
     ++gSearchStatistics.normalNodesSearched;
@@ -182,13 +189,10 @@ void updateTTable(
         return quiesce(gameState, alpha, beta, stack);
     }
 
-    const bool recordBestMove = gRecordBestMove;
-    gRecordBestMove           = false;
-
     // alphaOrig determines whether the value returned is an upper bound
     const EvalT alphaOrig = alpha;
 
-    if (!recordBestMove) {
+    if (ply > 0) {
         if (gameState.isRepetition(/* repetitionsForDraw = */ 1)) {
             // Exact value
             return 0;
@@ -206,8 +210,8 @@ void updateTTable(
         }
     }
 
-    Move bestMove{};
     EvalT bestScore = -kInfiniteEval;
+    Move bestMove{};
 
     // Probe the transposition table to update our score based on previous info.
     const auto ttHit = gTTable.probe(gameState.getBoardHash());
@@ -216,7 +220,7 @@ void updateTTable(
 
         gSearchStatistics.tTableHits++;
 
-        if (!recordBestMove && ttInfo.depth >= depth) {
+        if (ttInfo.depth >= depth) {
             if (ttInfo.scoreType == ScoreType::Exact) {
                 // Exact value
                 return ttInfo.score;
@@ -241,41 +245,40 @@ void updateTTable(
                 // So either way we return the tt entry score.
                 return ttInfo.score;
             }
+
+            // Only used if we don't complete the hash move search.
+            bestScore = ttInfo.score;
         }
 
         // Initialize best move to the hash move in case we don't get to complete the search of the
         // hash move.
-        if (recordBestMove) {
-            gBestMove = ttInfo.bestMove;
-        }
+        bestMove = ttInfo.bestMove;
 
         // Try hash move first.
         // TODO: do we need a legality check here for hash collisions?
         auto unmakeInfo = gameState.makeMove(ttInfo.bestMove);
 
-        const auto searchResult = search(gameState, depth - 1, -beta, -alpha, stack);
+        EvalT score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
 
         gameState.unmakeMove(ttInfo.bestMove, unmakeInfo);
 
-        if (!searchResult) {
-            return std::nullopt;
+        if (gWasInterrupted) {
+            return bestScore;
         }
-        EvalT score = -searchResult.value();
         if (isMate(score)) {
             score -= signum(score);
         }
 
         bestScore = score;
-        bestMove  = ttInfo.bestMove;
 
-        if (score >= beta) {
+        if (bestScore >= beta) {
             // Fail high
 
             updateTTable(
-                    score,
+                    bestScore,
                     alphaOrig,
                     beta,
-                    /* stoppedEarly = */ false,
+                    gWasInterrupted,
                     bestMove,
                     depth,
                     gameState.getBoardHash());
@@ -283,12 +286,12 @@ void updateTTable(
             // score was obtained from a subcall that failed high, so it was a lower bound for
             // that position. It is also a lower bound for the overall position because we're
             // maximizing.
-            return score;
+            return bestScore;
         }
 
         // If score is above alpha, it is either exact or a lower bound, so it is safe to raise
         // the lower bound of our feasibility window.
-        alpha = std::max(alpha, score);
+        alpha = std::max(alpha, bestScore);
     }
 
     auto moves = gameState.generateMoves(stack);
@@ -313,11 +316,11 @@ void updateTTable(
 
         auto unmakeInfo = gameState.makeMove(move);
 
-        const auto searchResult = search(gameState, depth - 1, -beta, -alpha, stack);
+        EvalT score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
-        if (!searchResult) {
+        if (gWasInterrupted) {
             if (bestScore > -kInfiniteEval) {
                 MY_ASSERT(bestMove.pieceToMove != Piece::Invalid);
 
@@ -326,19 +329,14 @@ void updateTTable(
                         bestScore,
                         alphaOrig,
                         beta,
-                        /* stoppedEarly = */ true,
+                        gWasInterrupted,
                         bestMove,
                         depth,
                         gameState.getBoardHash());
-
-                if (recordBestMove) {
-                    gBestMove = bestMove;
-                }
             }
-            return std::nullopt;
+            return bestScore;
         }
 
-        EvalT score = -searchResult.value();
         if (isMate(score)) {
             score -= signum(score);
         }
@@ -347,29 +345,19 @@ void updateTTable(
             bestScore = score;
             bestMove  = move;
 
-            if (score >= beta) {
+            if (bestScore >= beta) {
                 // Fail high; score is a lower bound for reasons described above
                 break;
             }
 
             // If score is above alpha, it is either exact or a lower bound, so it is safe to raise
             // the lower bound of our feasibility window.
-            alpha = std::max(alpha, score);
+            alpha = std::max(alpha, bestScore);
         }
     }
 
     updateTTable(
-            bestScore,
-            alphaOrig,
-            beta,
-            /* stoppedEarly = */ false,
-            bestMove,
-            depth,
-            gameState.getBoardHash());
-
-    if (recordBestMove) {
-        gBestMove = bestMove;
-    }
+            bestScore, alphaOrig, beta, gWasInterrupted, bestMove, depth, gameState.getBoardHash());
 
     // If bestScore <= alphaOrig, then all subcalls returned upper bounds and bestScore is the
     // maximum of these upper bounds, so an upper bound on the overall position. This is ok because
@@ -406,40 +394,22 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
     StackVector<Move> pv = stack.makeStackVector();
 
-    if (gBestMove.pieceToMove == Piece::Invalid) {
-        pv.lock();
-        return pv;
-    }
+    while (pv.size() < depth) {
+        const auto ttHit = gTTable.probe(gameState.getBoardHash());
 
-    pv.push_back(gBestMove);
+        if (!ttHit) {
+            break;
+        }
 
-    (void)gameState.makeMove(gBestMove);
-
-    auto ttHit = gTTable.probe(gameState.getBoardHash());
-    while (ttHit && pv.size() < depth) {
         pv.push_back(ttHit->payload.bestMove);
-
         (void)gameState.makeMove(ttHit->payload.bestMove);
-
-        ttHit = gTTable.probe(gameState.getBoardHash());
     }
 
     pv.lock();
     return pv;
 }
 
-[[nodiscard]] std::optional<EvalT> searchAndRecordBestMove(
-        GameState& gameState,
-        const int depth,
-        const EvalT alpha,
-        const EvalT beta,
-        StackOfVectors<Move>& stack) {
-    gRecordBestMove = true;
-    gBestMove       = {};
-    return search(gameState, depth, alpha, beta, stack);
-}
-
-[[nodiscard]] std::optional<EvalT> aspirationWindowSearch(
+[[nodiscard]] RootSearchResult aspirationWindowSearch(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -453,17 +423,36 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
     EvalT lowerBound = initialGuess - lowerTolerance;
     EvalT upperBound = initialGuess + upperTolerance;
 
+    bool everFailedLow = false;
+
     do {
-        const auto searchResult =
-                searchAndRecordBestMove(gameState, depth, lowerBound, upperBound, stack);
-        if (!searchResult) {
-            return std::nullopt;
+        const auto searchEval = search(gameState, depth, 0, lowerBound, upperBound, stack);
+
+        everFailedLow |= searchEval <= lowerBound;
+
+        if (gWasInterrupted) {
+            if (everFailedLow) {
+                // Don't trust the best move if we ever failed low and didn't complete the search.
+                // TODO: we should probably ask for more search time here.
+
+                std::print(std::cerr, "Partial search with failed low; not returning pv.\n");
+
+                StackVector<Move> principalVariation = stack.makeStackVector();
+                principalVariation.lock();
+                return {.principalVariation = std::move(principalVariation),
+                        .eval               = searchEval,
+                        .wasInterrupted     = true};
+            }
+
+            return {.principalVariation = extractPv(gameState, stack, depth),
+                    .eval               = searchEval,
+                    .wasInterrupted     = true};
         }
 
-        const EvalT searchEval = *searchResult;
-
         if (lowerBound < searchEval && searchEval < upperBound) {
-            return searchEval;
+            return {.principalVariation = extractPv(gameState, stack, depth),
+                    .eval               = searchEval,
+                    .wasInterrupted     = false};
         }
 
         if (searchEval <= lowerBound) {
@@ -488,24 +477,25 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
 }  // namespace
 
-SearchResult searchForBestMove(
+RootSearchResult searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
         std::optional<EvalT> evalGuess) {
-    std::optional<EvalT> eval;
     if (evalGuess) {
-        eval = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
+        return aspirationWindowSearch(gameState, depth, stack, *evalGuess);
     } else {
-        eval = searchAndRecordBestMove(gameState, depth, -kInfiniteEval, kInfiniteEval, stack);
+        const auto searchEval = search(gameState, depth, 0, -kInfiniteEval, kInfiniteEval, stack);
+        return {.principalVariation = extractPv(gameState, stack, depth),
+                .eval               = searchEval,
+                .wasInterrupted     = gWasInterrupted};
     }
-
-    return {.principalVariation = extractPv(gameState, stack, depth), .eval = eval};
 }
 
 void prepareForSearch() {
     gMoveScoreStack.reserve(1'000);
-    gStopSearch = false;
+    gStopSearch     = false;
+    gWasInterrupted = false;
 }
 
 void requestSearchStop() {

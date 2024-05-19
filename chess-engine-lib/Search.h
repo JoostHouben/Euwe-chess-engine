@@ -7,9 +7,10 @@
 
 #include <optional>
 
-struct SearchResult {
+struct RootSearchResult {
     StackVector<Move> principalVariation;
-    std::optional<EvalT> eval;
+    EvalT eval;
+    bool wasInterrupted = false;
 };
 
 struct SearchStatistics {
@@ -19,7 +20,7 @@ struct SearchStatistics {
     float ttableUtilization = 0.0f;
 };
 
-[[nodiscard]] SearchResult searchForBestMove(
+[[nodiscard]] RootSearchResult searchForBestMove(
         GameState& gameState,
         int depth,
         StackOfVectors<Move>& stack,

@@ -33,22 +33,27 @@ StackOfVectors<Move> gMoveStack;
             principalVariation = std::vector<Move>(
                     searchResult.principalVariation.begin(), searchResult.principalVariation.end());
         }
+        eval = searchResult.eval;
 
         std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
                              | std::views::join_with(' ') | std::ranges::to<std::string>();
 
-        if (!searchResult.eval.has_value()) {
-            // Search was stopped externally
-            std::print(std::cerr, "Partial search Depth {} - pv: {}\n", depth, pvString);
+        const auto timeNow = std::chrono::high_resolution_clock::now();
+        const auto millisecondsElapsed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - startTime).count();
+
+        if (searchResult.wasInterrupted) {
+            std::print(
+                    std::cerr,
+                    "Partial search Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
+                    depth,
+                    pvString,
+                    *eval,
+                    millisecondsElapsed);
 
             --depth;
             break;
         }
-        eval = searchResult.eval.value();
-
-        const auto timeNow = std::chrono::high_resolution_clock::now();
-        const auto millisecondsElapsed =
-                std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - startTime).count();
 
         std::print(
                 std::cerr,
