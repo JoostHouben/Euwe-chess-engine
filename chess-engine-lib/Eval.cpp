@@ -180,11 +180,10 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
 // clang-format on
 
 constexpr std::array kPassedPawnBonus = {0, 90, 60, 40, 25, 15, 15};
-
-constexpr int kDoubledPawnPenalty = 20;
+constexpr int kDoubledPawnPenalty     = 20;
+constexpr int kIsolatedPawnPenalty    = 30;
 
 constexpr int kBishopPairBonus = 50;
-
 // Penalty for having 0...8 own pawns on the same color as a bishop
 constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
 
@@ -286,12 +285,16 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
         const BitBoard passedPawnOpponentMask = getPassedPawnOpponentMask(position, side);
         const BitBoard forwardMask            = getPawnForwardMask(position, side);
+        const BitBoard neighborMask           = getPawnNeighborFileMask(position);
 
         const BitBoard opponentBlockers = intersection(enemyPawns, passedPawnOpponentMask);
         const BitBoard ownBlockers      = intersection(ownPawns, forwardMask);
+        const BitBoard ownNeighbors     = intersection(ownPawns, neighborMask);
 
         const bool isDoubledPawn = ownBlockers != BitBoard::Empty;
         const bool isPassedPawn  = !isDoubledPawn && opponentBlockers == BitBoard::Empty;
+        const bool isIsolated    = ownNeighbors == BitBoard::Empty;
+
         if (isDoubledPawn) {
             result.earlyGamePosition -= kDoubledPawnPenalty;
             result.endGamePosition -= kDoubledPawnPenalty;
@@ -301,6 +304,11 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
             result.earlyGamePosition += kPassedPawnBonus[distanceToPromotion];
             result.endGamePosition += kPassedPawnBonus[distanceToPromotion];
+        }
+
+        if (isIsolated) {
+            result.earlyGamePosition -= kIsolatedPawnPenalty;
+            result.endGamePosition -= kIsolatedPawnPenalty;
         }
     }
 

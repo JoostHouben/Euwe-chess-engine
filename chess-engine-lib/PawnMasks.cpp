@@ -96,6 +96,31 @@ constexpr std::array<std::array<BitBoard, kSquares>, kNumSides> kPassedPawnOppon
         computeBlackPassedPawnOpponentMasks(),
 };
 
+[[nodiscard]] constexpr BitBoard computePawnNeighborFileMask(BoardPosition position) {
+    const auto [file, _] = fileRankFromPosition(position);
+
+    std::uint64_t result = 0;
+
+    if (file > 0) {
+        result |= computeFileMask(file - 1);
+    }
+    if (file < 7) {
+        result |= computeFileMask(file + 1);
+    }
+
+    return (BitBoard)result;
+}
+
+[[nodiscard]] constexpr std::array<BitBoard, kSquares> computePawnNeighborFileMasks() {
+    std::array<BitBoard, kSquares> masks{};
+    for (int i = 0; i < kSquares; ++i) {
+        masks[i] = computePawnNeighborFileMask((BoardPosition)i);
+    }
+    return masks;
+}
+
+constexpr std::array<BitBoard, kSquares> kPawnNeighborFileMasks = computePawnNeighborFileMasks();
+
 }  // namespace
 
 BitBoard getPassedPawnOpponentMask(BoardPosition position, Side side) {
@@ -104,4 +129,8 @@ BitBoard getPassedPawnOpponentMask(BoardPosition position, Side side) {
 
 BitBoard getPawnForwardMask(BoardPosition position, Side side) {
     return kForwardMasks[(int)side][(int)position];
+}
+
+BitBoard getPawnNeighborFileMask(BoardPosition position) {
+    return kPawnNeighborFileMasks[(int)position];
 }

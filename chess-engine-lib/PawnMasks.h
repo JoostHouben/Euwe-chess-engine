@@ -8,3 +8,5 @@
 [[nodiscard]] BitBoard getPassedPawnOpponentMask(BoardPosition position, Side side);
 
 [[nodiscard]] BitBoard getPawnForwardMask(BoardPosition position, Side side);
+
+[[nodiscard]] BitBoard getPawnNeighborFileMask(BoardPosition position);
