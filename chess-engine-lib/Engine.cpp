@@ -33,7 +33,6 @@ StackOfVectors<Move> gMoveStack;
             principalVariation = std::vector<Move>(
                     searchResult.principalVariation.begin(), searchResult.principalVariation.end());
         }
-        eval = searchResult.eval;
 
         std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
                              | std::views::join_with(' ') | std::ranges::to<std::string>();
@@ -48,12 +47,14 @@ StackOfVectors<Move> gMoveStack;
                     "Partial search Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
                     depth,
                     pvString,
-                    *eval,
+                    searchResult.eval,
                     millisecondsElapsed);
 
             --depth;
             break;
         }
+
+        eval = searchResult.eval;
 
         std::print(
                 std::cerr,

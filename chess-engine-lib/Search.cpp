@@ -428,7 +428,10 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
     do {
         const auto searchEval = search(gameState, depth, 0, lowerBound, upperBound, stack);
 
-        everFailedLow |= searchEval <= lowerBound;
+        const bool noEval    = searchEval < -kMateEval;
+        const bool failedLow = !noEval && searchEval <= lowerBound;
+
+        everFailedLow |= failedLow;
 
         if (gWasInterrupted) {
             if (everFailedLow) {
