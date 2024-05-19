@@ -123,7 +123,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name fix-early-mate-stop\n");
+    std::print("id name rook-open-file\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

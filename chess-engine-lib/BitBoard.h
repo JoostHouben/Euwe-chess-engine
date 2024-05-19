@@ -82,3 +82,5 @@ inline constexpr std::array kSquareColorBitBoards = {
 [[nodiscard]] constexpr BitBoard getSquareColorBitBoard(int squareColor) {
     return kSquareColorBitBoards[squareColor];
 }
+
+[[nodiscard]] BitBoard getFileBitBoard(BoardPosition position);

@@ -186,6 +186,9 @@ constexpr int kIsolatedPawnPenalty    = 30;
 // Penalty for having 0...8 own pawns on the same color as a bishop
 constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
 
+constexpr int kRookSemiOpenFileBonus = 10;
+constexpr int kRookOpenFileBonus     = 20;
+
 struct PiecePositionEvaluation {
     int material          = 0;
     int phaseMaterial     = 0;
@@ -211,7 +214,9 @@ FORCE_INLINE void updatePiecePositionEvaluation(
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
-    const BitBoard ownPawns = gameState.getPieceBitBoard(side, Piece::Pawn);
+    const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
+    const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
+    const BitBoard anyPawn    = any(ownPawns, enemyPawns);
 
     PiecePositionEvaluation result{};
 
@@ -244,8 +249,30 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         }
     }
 
-    // Rooks, Queens, King
-    for (int pieceIdx = (int)Piece::Rook; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+    // Rooks
+    {
+        BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Rook);
+
+        while (pieceBitBoard != BitBoard::Empty) {
+            BoardPosition position = popFirstSetPosition(pieceBitBoard);
+            updatePiecePositionEvaluation((int)Piece::Rook, position, side, result);
+
+            const BitBoard fileBitBoard = getFileBitBoard(position);
+            const bool blockedByOwnPawn = intersection(ownPawns, fileBitBoard) != BitBoard::Empty;
+            const bool blockedByAnyPawn = intersection(anyPawn, fileBitBoard) != BitBoard::Empty;
+
+            if (!blockedByAnyPawn) {
+                result.earlyGamePosition += kRookOpenFileBonus;
+                result.endGamePosition += kRookOpenFileBonus;
+            } else if (!blockedByOwnPawn) {
+                result.earlyGamePosition += kRookSemiOpenFileBonus;
+                result.endGamePosition += kRookSemiOpenFileBonus;
+            }
+        }
+    }
+
+    // Queens, King
+    for (int pieceIdx = (int)Piece::Queen; pieceIdx < kNumPieceTypes; ++pieceIdx) {
         const Piece piece      = (Piece)pieceIdx;
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
 
@@ -458,11 +485,11 @@ StackVector<int> scoreMoves(
                 capturedPiece = getPiece(gameState.getPieceOnSquare(move.to));
             }
 
-            // Most valuable victim, least valuable aggressor (MVV-LVA)
+            // Most valuable victim, least valuable aggressor (MVV-LVA), but disfavoring captures
+            // with the king.
             // We achieve this by adding the value of the victim, and then subtracting the value of
             // the aggressor, but divided by a large enough factor so that the victim's value
-            // dominates. Right shifting by 5 is sufficient, since king value / 32 is less than one
-            // pawn.
+            // dominates for all but the king.
             moveScore += kPieceValues[(int)capturedPiece];
             moveScore -= (kPieceValues[(int)move.pieceToMove] >> 5);
 
