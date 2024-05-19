@@ -130,14 +130,9 @@ void updateTTable(
         int depth,
         HashT hash) {
     ScoreType scoreType;
-    if (stoppedEarly && bestScore <= alphaOrig) {
-        // Score is below original feasibility window, which implies an upper bound.
-        // But we haven't considered all moves yet, so we could still improve the score.
-        // Therefore the score is unusable.
-        return;
-    } else if (stoppedEarly) {
-        // If we stopped early, the score is a lower bound: we could still find a better move.
-        scoreType = ScoreType::LowerBound;
+    if (stoppedEarly) {
+        // Don't trust scores from partial search.
+        scoreType = ScoreType::NotSet;
     } else if (bestScore <= alphaOrig) {
         // Best score is below original feasibility window, so it's an upper bound.
         scoreType = ScoreType::UpperBound;
@@ -228,11 +223,12 @@ void updateTTable(
                 // Can safely raise the lower bound for our search window, because the true value
                 // is guaranteed to be above this bound.
                 alpha = max(alpha, ttInfo.score);
-            } else {
+            } else if (ttInfo.scoreType == ScoreType::UpperBound) {
                 // Can safely lower the upper bound for our search window, because the true value
                 // is guaranteed to be below this bound.
                 beta = min(beta, ttInfo.score);
             }
+            // Else: score type not set (result from interrupted search).
 
             // Check if we can return based on tighter bounds from the transposition table.
             if (alpha >= beta) {
