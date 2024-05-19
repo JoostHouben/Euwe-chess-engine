@@ -26,4 +26,4 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
         StackOfVectors<MoveEvalT>& stack);
 
 [[nodiscard]] bool isMate(EvalT eval);
-[[nodiscard]] int getMateDistance(EvalT eval);
+[[nodiscard]] int getMateDistanceInPly(EvalT eval);

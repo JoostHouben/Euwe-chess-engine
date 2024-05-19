@@ -1,4 +1,5 @@
 #include "chess-engine-lib/Engine.h"
+#include "chess-engine-lib/Math.h"
 #include "chess-engine-lib/Perft.h"
 
 #include <iostream>
@@ -101,8 +102,10 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 
     std::string scoreString = std::format("cp {}", searchInfo.score);
     if (isMate(searchInfo.score)) {
-        const int mateInMoves = getMateDistance(searchInfo.score);
-        scoreString           = std::format("mate {}", mateInMoves);
+        const int mateInPly           = getMateDistanceInPly(searchInfo.score);
+        const int mateInMoves         = (mateInPly + 1) / 2;
+        const int relativeMateInMoves = signum(searchInfo.score) * mateInMoves;
+        scoreString                   = std::format("mate {}", relativeMateInMoves);
     }
 
     const std::string pvString = searchInfo.principalVariation
@@ -120,7 +123,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::print("id name no-score-from-partial\n");
+    std::print("id name fix-early-mate-stop\n");
     std::print("id author Joost Houben\n");
     std::print("uciok\n");
 

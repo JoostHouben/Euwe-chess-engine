@@ -64,7 +64,7 @@ StackOfVectors<Move> gMoveStack;
                 *eval,
                 millisecondsElapsed);
 
-        if (isMate(*eval) && getMateDistance(*eval) <= depth) {
+        if (isMate(*eval) && getMateDistanceInPly(*eval) <= depth) {
             break;
         }
     }

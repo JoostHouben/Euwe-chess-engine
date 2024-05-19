@@ -493,11 +493,8 @@ bool isMate(EvalT eval) {
     return std::abs(eval) >= kMateEval - 1000;
 }
 
-int getMateDistance(EvalT eval) {
+int getMateDistanceInPly(EvalT eval) {
     MY_ASSERT(isMate(eval));
 
-    const int mateInPly   = kMateEval - std::abs(eval);
-    const int mateInMoves = (mateInPly + 1) / 2;
-
-    return signum(eval) * mateInMoves;
+    return kMateEval - std::abs(eval);
 }
