@@ -12,7 +12,7 @@ namespace {
 constexpr std::array<int, kNumPieceTypes> kPieceValues = {
         100,     // Pawn
         305,     // Knight
-        305,     // Bishop
+        333,     // Bishop
         563,     // Rook
         950,     // Queen
         20'000,  // King (for move ordering)
@@ -183,7 +183,6 @@ constexpr std::array kPassedPawnBonus = {0, 90, 60, 40, 25, 15, 15};
 constexpr int kDoubledPawnPenalty     = 20;
 constexpr int kIsolatedPawnPenalty    = 30;
 
-constexpr int kBishopPairBonus = 50;
 // Penalty for having 0...8 own pawns on the same color as a bishop
 constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
 
@@ -235,21 +234,13 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
                 popCount(intersection(ownPawns, kLightSquareBitBoard)),
         };
 
-        std::array haveBishopOfColor = {false, false};
-
         while (pieceBitBoard != BitBoard::Empty) {
             BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Bishop, position, side, result);
 
             const int squareColor = getSquareColor(position);
 
-            haveBishopOfColor[squareColor] = true;
-
             result.material -= kBadBishopPenalty[ownPawnsPerSquareColor[squareColor]];
-        }
-
-        if (haveBishopOfColor[0] && haveBishopOfColor[1]) {
-            result.material += kBishopPairBonus;
         }
     }
 
