@@ -463,16 +463,20 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
 
-StackVector<int> scoreMoves(
+[[nodiscard]] FORCE_INLINE StackVector<int> scoreMoves(
         const StackVector<Move>& moves,
         const GameState& gameState,
-        const std::array<Move, 2>& killerMoves,
+        std::optional<std::array<Move, 2>> killerMoves,
+        std::optional<Move> counterMove,
         StackOfVectors<int>& stack) {
     StackVector<int> scores = stack.makeStackVector();
 
-    static constexpr int kCaptureBonus    = 2'000;
-    static constexpr int kPromotionBonus  = 2'000;
-    static constexpr int kKillerMoveBonus = 1'000;
+    // Killer and counter bonuses can potentially both apply.
+    // Make sure that the combined bonus is less than the capture and promotion bonuses.
+    static constexpr int kCaptureBonus     = 3'000;
+    static constexpr int kPromotionBonus   = 3'000;
+    static constexpr int kKillerMoveBonus  = 1'000;
+    static constexpr int kCounterMoveBonus = 1'000;
 
     for (const Move& move : moves) {
         int moveScore = 0;
@@ -514,11 +518,17 @@ StackVector<int> scoreMoves(
         }
 
         if (!isCapture(move.flags) && !isPromotion(move.flags)) {
-            for (const Move& killerMove : killerMoves) {
-                if (move == killerMove) {
-                    moveScore += kKillerMoveBonus;
-                    break;
+            if (killerMoves) {
+                for (const Move& killerMove : *killerMoves) {
+                    if (move == killerMove) {
+                        moveScore += kKillerMoveBonus;
+                        break;
+                    }
                 }
+            }
+
+            if (counterMove && move == *counterMove) {
+                moveScore += kCounterMoveBonus;
             }
         }
 
@@ -527,6 +537,23 @@ StackVector<int> scoreMoves(
 
     scores.lock();
     return scores;
+}
+
+StackVector<MoveEvalT> scoreMoves(
+        const StackVector<Move>& moves,
+        const GameState& gameState,
+        const std::array<Move, 2>& killerMoves,
+        const Move& counterMove,
+        StackOfVectors<MoveEvalT>& stack) {
+    return scoreMoves(
+            moves, gameState, std::optional(killerMoves), std::optional(counterMove), stack);
+}
+
+StackVector<MoveEvalT> scoreMoves(
+        const StackVector<Move>& moves,
+        const GameState& gameState,
+        StackOfVectors<MoveEvalT>& stack) {
+    return scoreMoves(moves, gameState, std::nullopt, std::nullopt, stack);
 }
 
 bool isMate(EvalT eval) {

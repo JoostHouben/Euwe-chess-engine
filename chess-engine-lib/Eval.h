@@ -25,6 +25,13 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
         const StackVector<Move>& moves,
         const GameState& gameState,
         const std::array<Move, 2>& killerMoves,
+        const Move& counterMove,
+        StackOfVectors<MoveEvalT>& stack);
+
+// Variant for when we have no killer and counter moves available, like in quiescence search.
+[[nodiscard]] StackVector<MoveEvalT> scoreMoves(
+        const StackVector<Move>& moves,
+        const GameState& gameState,
         StackOfVectors<MoveEvalT>& stack);
 
 [[nodiscard]] bool isMate(EvalT eval);

@@ -25,6 +25,8 @@ SearchStatistics gSearchStatistics;
 constexpr int kMaxDepth = 100;
 std::array<std::array<Move, 2>, kMaxDepth> gKillerMoves{};
 
+std::array<std ::array<Move, kSquares>, kNumPieceTypes> gCounterMoves{};
+
 FORCE_INLINE std::array<Move, 2>& getKillerMoves(const int ply) {
     MY_ASSERT(ply < kMaxDepth);
     return gKillerMoves[ply];
@@ -46,6 +48,24 @@ FORCE_INLINE void storeKillerMove(const Move& move, const int ply) {
     // Shift killer moves down and store the new move at the front.
     plyKillerMoves[1] = plyKillerMoves[0];
     plyKillerMoves[0] = move;
+}
+
+FORCE_INLINE Move getCounterMove(const Move& move) {
+    if (move.pieceToMove == Piece::Invalid) {
+        return {};
+    }
+    return gCounterMoves[(int)move.pieceToMove][(int)move.to];
+}
+
+FORCE_INLINE void storeCounterMove(const Move& lastMove, const Move& counter) {
+    if (isCapture(counter.flags) || isPromotion(counter.flags)) {
+        // Only store 'quiet' moves as counter moves.
+        return;
+    }
+    if (lastMove.pieceToMove == Piece::Invalid) {
+        return;
+    }
+    gCounterMoves[(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
 }
 
 // Subroutine for search and quiescence search.
@@ -78,7 +98,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 [[nodiscard]] EvalT quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, int ply, StackOfVectors<Move>& stack) {
+        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
@@ -127,14 +147,14 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         return bestScore;
     }
 
-    auto moveScores = scoreMoves(moves, gameState, getKillerMoves(ply), gMoveScoreStack);
+    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
@@ -147,7 +167,6 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         }
 
         if (score >= beta) {
-            storeKillerMove(move, ply);
             return score;
         }
 
@@ -208,6 +227,7 @@ FORCE_INLINE void updateTTable(
         const int ply,
         EvalT alpha,
         EvalT beta,
+        Move lastMove,
         StackOfVectors<Move>& stack);
 
 enum class SearchMoveOutcome {
@@ -228,6 +248,7 @@ enum class SearchMoveOutcome {
         StackOfVectors<Move>& stack,
         EvalT& bestScore,
         Move& bestMove,
+        const Move& lastMove,
         const bool useScoutSearch) {
 
     auto unmakeInfo = gameState.makeMove(move);
@@ -235,14 +256,14 @@ enum class SearchMoveOutcome {
     EvalT score;
     if (useScoutSearch) {
         // Zero window (scout) search
-        score = -search(gameState, depth - 1, ply + 1, -alpha - 1, -alpha, stack);
+        score = -search(gameState, depth - 1, ply + 1, -alpha - 1, -alpha, move, stack);
 
         if (score > alpha && score < beta && !gWasInterrupted) {
             // If the score is within the window, do a full window search.
-            score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
+            score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, stack);
         }
     } else {
-        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
+        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, stack);
     }
 
     gameState.unmakeMove(move, unmakeInfo);
@@ -261,6 +282,7 @@ enum class SearchMoveOutcome {
 
         if (bestScore >= beta) {
             storeKillerMove(move, ply);
+            storeCounterMove(lastMove, move);
 
             // Fail high; score is a lower bound.
             return SearchMoveOutcome::Cutoff;
@@ -286,6 +308,7 @@ enum class SearchMoveOutcome {
         const int ply,
         EvalT alpha,
         EvalT beta,
+        Move lastMove,
         StackOfVectors<Move>& stack) {
     if (gStopSearch) {
         gWasInterrupted = true;
@@ -295,7 +318,7 @@ enum class SearchMoveOutcome {
     ++gSearchStatistics.normalNodesSearched;
 
     if (depth == 0) {
-        return quiesce(gameState, alpha, beta, ply, stack);
+        return quiesce(gameState, alpha, beta, stack);
     }
 
     // alphaOrig determines whether the value returned is an upper bound
@@ -370,6 +393,7 @@ enum class SearchMoveOutcome {
                 stack,
                 bestScore,
                 bestMove,
+                lastMove,
                 /*useScoutSearch =*/false);
 
         if (outcome == SearchMoveOutcome::Interrupted) {
@@ -412,7 +436,8 @@ enum class SearchMoveOutcome {
         }
     }
 
-    auto moveScores = scoreMoves(moves, gameState, getKillerMoves(ply), gMoveScoreStack);
+    auto moveScores = scoreMoves(
+            moves, gameState, getKillerMoves(ply), getCounterMove(lastMove), gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
@@ -427,6 +452,7 @@ enum class SearchMoveOutcome {
                 stack,
                 bestScore,
                 bestMove,
+                lastMove,
                 /*useScoutSearch =*/completedAnySearch);
 
         if (outcome != SearchMoveOutcome::Interrupted) {
@@ -523,7 +549,8 @@ enum class SearchMoveOutcome {
     EvalT lastCompletedEval = -kInfiniteEval;
 
     do {
-        const auto searchEval = search(gameState, depth, 0, lowerBound, upperBound, stack);
+        const auto searchEval =
+                search(gameState, depth, 0, lowerBound, upperBound, /*lastMove =*/{}, stack);
 
         const bool noEval = searchEval < -kMateEval;
         if (!noEval) {
@@ -606,7 +633,8 @@ RootSearchResult searchForBestMove(
     if (evalGuess) {
         return aspirationWindowSearch(gameState, depth, stack, *evalGuess);
     } else {
-        const auto searchEval = search(gameState, depth, 0, -kInfiniteEval, kInfiniteEval, stack);
+        const auto searchEval =
+                search(gameState, depth, 0, -kInfiniteEval, kInfiniteEval, /*lastMove =*/{}, stack);
         return {.principalVariation = extractPv(gameState, stack, depth),
                 .eval               = searchEval,
                 .wasInterrupted     = gWasInterrupted};
