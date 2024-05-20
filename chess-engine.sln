@@ -9,6 +9,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tests", "tests\tests.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "chess-engine-lib", "chess-engine-lib\chess-engine-lib.vcxproj", "{9D021FD4-5E92-4F62-806E-B2D1E963390B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7CBABEEE-70BB-4F22-B1F0-BB27084B3498}"
+	ProjectSection(SolutionItems) = preProject
+		.clang-format = .clang-format
+		ideas.txt = ideas.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
