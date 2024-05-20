@@ -2,9 +2,13 @@ param
 (
     [Parameter(Mandatory)]
     [String]$Engine1,
+
     [Parameter(Mandatory)]
     [String]$Engine2,
-    [switch]$sprt = $false
+
+    [switch]$sprt = $false,
+
+    [int]$concurrency = 4
 )
 
 $cuteChessCli = "C:\Program Files (x86)\Cute Chess\cutechess-cli.exe"
@@ -35,7 +39,7 @@ $pgnout = "$($pgnoutFolder)\$($pgnBaseName)_$($engine1Name)_vs_$($engine2Name).p
         book=$book `
         bookdepth=5 `
     -rounds $numRounds -games 2 -repeat 2 -maxmoves 150 `
-    -concurrency 4 `
+    -concurrency $concurrency `
     -ratinginterval 10 `
     -pgnout $pgnout `
     @sprtArgs
