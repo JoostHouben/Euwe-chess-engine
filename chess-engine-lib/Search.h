@@ -20,14 +20,21 @@ struct SearchStatistics {
     float ttableUtilization = 0.0f;
 };
 
+// Perform search and return the principal variation and evaluation.
 [[nodiscard]] RootSearchResult searchForBestMove(
         GameState& gameState,
         int depth,
         StackOfVectors<Move>& stack,
         std::optional<EvalT> evalGuess = std::nullopt);
 
+// Must be called before each invocation of searchForBestMove.
 void prepareForSearch();
+
+// Call this from a different thread to stop the search prematurely.
 void requestSearchStop();
 
+// Get statistics since the last call to getSearchStatistics.
 [[nodiscard]] SearchStatistics getSearchStatistics();
+
+// Reset the search statistics.
 void resetSearchStatistics();

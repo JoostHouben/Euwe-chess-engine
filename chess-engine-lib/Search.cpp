@@ -21,8 +21,13 @@ StackOfVectors<MoveEvalT> gMoveScoreStack;
 
 SearchStatistics gSearchStatistics;
 
-[[nodiscard]] Move selectBestMove(
-        StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int firstMoveIdx) {
+// Subroutine for search and quiescence search.
+// Select best move based on pre-calculated scores using a simple linear search.
+// Then do a 'destructive swap' with the first move in the list and return the best move.
+// This basically ends up doing a selection sort when called repeatedly, except that we don't
+// actually write the best moves to the front of the list.
+[[nodiscard]] FORCE_INLINE Move
+selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int firstMoveIdx) {
     int bestMoveIdx         = -1;
     MoveEvalT bestMoveScore = std::numeric_limits<MoveEvalT>::lowest();
 
@@ -35,14 +40,18 @@ SearchStatistics gSearchStatistics;
 
     const Move bestMove = moves[bestMoveIdx];
 
-    // Destructive 'swap'
+    // 'Destructive swap'
     moves[bestMoveIdx]      = moves[firstMoveIdx];
     moveScores[bestMoveIdx] = moveScores[firstMoveIdx];
 
     return bestMove;
 }
 
-EvalT quiesce(GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+// Quiescence search. When in check search all moves, when not in check only search captures.
+// Continue until no more capture are available or we get a beta cutoff.
+// When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
+[[nodiscard]] EvalT quiesce(
+        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
@@ -121,7 +130,9 @@ EvalT quiesce(GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move
     return bestScore;
 }
 
-void updateTTable(
+// Subroutine for search.
+// Write updated information to the ttable.
+FORCE_INLINE void updateTTable(
         EvalT bestScore,
         EvalT alphaOrig,
         EvalT beta,
@@ -162,12 +173,7 @@ void updateTTable(
     gTTable.store(entry, isMoreValuable);
 }
 
-enum class SearchMoveOutcome {
-    Continue,
-    Cutoff,
-    Interrupted,
-};
-
+// Forward declaration
 [[nodiscard]] EvalT search(
         GameState& gameState,
         const int depth,
@@ -176,6 +182,14 @@ enum class SearchMoveOutcome {
         EvalT beta,
         StackOfVectors<Move>& stack);
 
+enum class SearchMoveOutcome {
+    Continue,
+    Cutoff,
+    Interrupted,
+};
+
+// Subroutine for search.
+// Search a single move, updating alpha, bestScore and bestMove as necessary.
 [[nodiscard]] FORCE_INLINE SearchMoveOutcome searchMove(
         GameState& gameState,
         const Move& move,
@@ -218,6 +232,8 @@ enum class SearchMoveOutcome {
     return SearchMoveOutcome::Continue;
 }
 
+// Main search function: alpha-beta search with negamax and transposition table.
+//
 // If returned value s satisfies alpha < s < beta, the value is exact.
 // If s <= alpha, the value is an upper bound.
 // If beta <= s, the value is a lower bound.
@@ -397,8 +413,10 @@ enum class SearchMoveOutcome {
     return bestScore;
 }
 
-StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, const int depth) {
-    // Note: taking copy
+// Extract the principal variation from the transposition table.
+[[nodiscard]] StackVector<Move> extractPv(
+        GameState gameState, StackOfVectors<Move>& stack, const int depth) {
+    // Note: taking copy of gameState
     // TODO: would make+unmake be faster here?
 
     StackVector<Move> pv = stack.makeStackVector();
@@ -418,6 +436,7 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
     return pv;
 }
 
+// Perform an aspiration window search.
 [[nodiscard]] RootSearchResult aspirationWindowSearch(
         GameState& gameState,
         const int depth,
@@ -511,6 +530,7 @@ StackVector<Move> extractPv(GameState gameState, StackOfVectors<Move>& stack, co
 
 }  // namespace
 
+// Entry point: perform search and return the principal variation and evaluation.
 RootSearchResult searchForBestMove(
         GameState& gameState,
         const int depth,
@@ -527,12 +547,14 @@ RootSearchResult searchForBestMove(
 }
 
 void prepareForSearch() {
+    // Set global variables to prepare for search.
     gMoveScoreStack.reserve(1'000);
     gStopSearch     = false;
     gWasInterrupted = false;
 }
 
 void requestSearchStop() {
+    // Set stop flag to interrupt search.
     gStopSearch = true;
 }
 
