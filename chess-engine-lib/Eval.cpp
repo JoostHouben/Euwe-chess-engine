@@ -464,11 +464,15 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
 }
 
 StackVector<int> scoreMoves(
-        const StackVector<Move>& moves, const GameState& gameState, StackOfVectors<int>& stack) {
+        const StackVector<Move>& moves,
+        const GameState& gameState,
+        const std::array<Move, 2>& killerMoves,
+        StackOfVectors<int>& stack) {
     StackVector<int> scores = stack.makeStackVector();
 
-    static constexpr int kCaptureBonus   = 2'000;
-    static constexpr int kPromotionBonus = 2'000;
+    static constexpr int kCaptureBonus    = 2'000;
+    static constexpr int kPromotionBonus  = 2'000;
+    static constexpr int kKillerMoveBonus = 1'000;
 
     for (const Move& move : moves) {
         int moveScore = 0;
@@ -507,6 +511,15 @@ StackVector<int> scoreMoves(
             moveScore += kPieceSquareTablesEarly[(int)promotionPiece][(int)move.to];
         } else {
             moveScore += kPieceSquareTablesEarly[(int)move.pieceToMove][(int)move.to];
+        }
+
+        if (!isCapture(move.flags) && !isPromotion(move.flags)) {
+            for (const Move& killerMove : killerMoves) {
+                if (move == killerMove) {
+                    moveScore += kKillerMoveBonus;
+                    break;
+                }
+            }
         }
 
         scores.push_back(moveScore);

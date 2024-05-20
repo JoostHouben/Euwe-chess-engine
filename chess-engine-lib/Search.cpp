@@ -4,6 +4,7 @@
 #include "TTable.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <iostream>
 #include <print>
@@ -20,6 +21,32 @@ SearchTTable gTTable(kTTableSizeInEntries);
 StackOfVectors<MoveEvalT> gMoveScoreStack;
 
 SearchStatistics gSearchStatistics;
+
+constexpr int kMaxDepth = 100;
+std::array<std::array<Move, 2>, kMaxDepth> gKillerMoves{};
+
+FORCE_INLINE std::array<Move, 2>& getKillerMoves(const int ply) {
+    MY_ASSERT(ply < kMaxDepth);
+    return gKillerMoves[ply];
+}
+
+FORCE_INLINE void storeKillerMove(const Move& move, const int ply) {
+    if (isCapture(move.flags) || isPromotion(move.flags)) {
+        // Only store 'quiet' moves as killer moves.
+        return;
+    }
+
+    auto& plyKillerMoves = getKillerMoves(ply);
+
+    if (move == plyKillerMoves[0]) {
+        // Don't store the same move twice.
+        return;
+    }
+
+    // Shift killer moves down and store the new move at the front.
+    plyKillerMoves[1] = plyKillerMoves[0];
+    plyKillerMoves[0] = move;
+}
 
 // Subroutine for search and quiescence search.
 // Select best move based on pre-calculated scores using a simple linear search.
@@ -51,7 +78,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 [[nodiscard]] EvalT quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+        GameState& gameState, EvalT alpha, EvalT beta, int ply, StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
@@ -100,14 +127,14 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         return bestScore;
     }
 
-    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
+    auto moveScores = scoreMoves(moves, gameState, getKillerMoves(ply), gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
@@ -120,6 +147,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         }
 
         if (score >= beta) {
+            storeKillerMove(move, ply);
             return score;
         }
 
@@ -220,7 +248,9 @@ enum class SearchMoveOutcome {
         bestMove  = move;
 
         if (bestScore >= beta) {
-            // Fail high; score is a lower bound for reasons described above
+            storeKillerMove(move, ply);
+
+            // Fail high; score is a lower bound.
             return SearchMoveOutcome::Cutoff;
         }
 
@@ -253,7 +283,7 @@ enum class SearchMoveOutcome {
     ++gSearchStatistics.normalNodesSearched;
 
     if (depth == 0) {
-        return quiesce(gameState, alpha, beta, stack);
+        return quiesce(gameState, alpha, beta, ply, stack);
     }
 
     // alphaOrig determines whether the value returned is an upper bound
@@ -358,7 +388,7 @@ enum class SearchMoveOutcome {
         }
     }
 
-    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
+    auto moveScores = scoreMoves(moves, gameState, getKillerMoves(ply), gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);

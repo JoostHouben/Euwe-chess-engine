@@ -34,7 +34,6 @@ Evaluation:
 
 Search:
  - Move ordering:
-   - Killer moves
    - History heuristic
    - Counter move heuristic
    - Static exchange evaluation
@@ -70,7 +69,6 @@ Speed ups:
  - Do move legality check for hash moves
 
 Testing:
- - Write script for SPRT testing (with cute chess)
  - Add some mechanism to log important events during testing
  - Unit tests:
    - Evaluation testing:

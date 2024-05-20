@@ -4,6 +4,7 @@
 
 #include "GameState.h"
 
+#include <array>
 #include <numeric>
 #include <optional>
 
@@ -23,6 +24,7 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 [[nodiscard]] StackVector<MoveEvalT> scoreMoves(
         const StackVector<Move>& moves,
         const GameState& gameState,
+        const std::array<Move, 2>& killerMoves,
         StackOfVectors<MoveEvalT>& stack);
 
 [[nodiscard]] bool isMate(EvalT eval);
