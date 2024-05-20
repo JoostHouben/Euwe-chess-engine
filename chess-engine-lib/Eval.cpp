@@ -6,6 +6,7 @@
 
 #include <array>
 #include <optional>
+#include <utility>
 
 namespace {
 
@@ -439,9 +440,83 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     return evaluateNoLegalMoves(gameState);
 }
 
+[[nodiscard]] FORCE_INLINE std::pair<bool, bool> insufficientMaterialForSides(
+        const GameState& gameState) {
+    bool whiteInsufficientMaterial = false;
+    bool blackInsufficientMaterial = false;
+
+    const bool noWhitePawns =
+            gameState.getPieceBitBoard(Side::White, Piece::Pawn) == BitBoard::Empty;
+    const bool noWhiteRooks =
+            gameState.getPieceBitBoard(Side::White, Piece::Rook) == BitBoard::Empty;
+    const bool noWhiteQueens =
+            gameState.getPieceBitBoard(Side::White, Piece::Queen) == BitBoard::Empty;
+
+    const bool whiteOnlyHasMinorPieces = noWhitePawns && noWhiteRooks && noWhiteQueens;
+
+    const int numWhiteKnights = popCount(gameState.getPieceBitBoard(Side::White, Piece::Knight));
+    const int numWhiteBishops = popCount(gameState.getPieceBitBoard(Side::White, Piece::Bishop));
+
+    const bool whiteOnlyHasAKing =
+            whiteOnlyHasMinorPieces && numWhiteKnights == 0 && numWhiteBishops == 0;
+
+    const bool noBlackPawns =
+            gameState.getPieceBitBoard(Side::Black, Piece::Pawn) == BitBoard::Empty;
+    const bool noBlackRooks =
+            gameState.getPieceBitBoard(Side::Black, Piece::Rook) == BitBoard::Empty;
+    const bool noBlackQueens =
+            gameState.getPieceBitBoard(Side::Black, Piece::Queen) == BitBoard::Empty;
+
+    const bool blackOnlyHasMinorPieces = noBlackPawns && noBlackRooks && noBlackQueens;
+
+    const int numBlackKnights = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Knight));
+    const int numBlackBishops = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Bishop));
+
+    const bool blackOnlyHasAKing =
+            blackOnlyHasMinorPieces && numBlackKnights == 0 && numBlackBishops == 0;
+
+    if (whiteOnlyHasMinorPieces) {
+        if (numWhiteKnights == 0 && numWhiteBishops <= 1) {
+            whiteInsufficientMaterial = true;
+        } else if (numWhiteBishops == 0 && numWhiteKnights <= 1) {
+            whiteInsufficientMaterial = true;
+        }
+    }
+
+    if (blackOnlyHasMinorPieces) {
+        if (numBlackKnights == 0 && numBlackBishops <= 1) {
+            blackInsufficientMaterial = true;
+        } else if (numBlackBishops == 0 && numBlackKnights <= 1) {
+            blackInsufficientMaterial = true;
+        }
+    }
+
+    if (whiteOnlyHasAKing && blackOnlyHasMinorPieces && numBlackBishops == 0
+        && numBlackKnights == 2) {
+        blackInsufficientMaterial = true;
+    }
+
+    if (blackOnlyHasAKing && whiteOnlyHasMinorPieces && numWhiteBishops == 0
+        && numWhiteKnights == 2) {
+        whiteInsufficientMaterial = true;
+    }
+
+    return {whiteInsufficientMaterial, blackInsufficientMaterial};
+}
+
 }  // namespace
 
-FORCE_INLINE EvalT evaluateNoLegalMoves(const GameState& gameState) {
+FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
+    const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
+            insufficientMaterialForSides(gameState);
+
+    return whiteInsufficientMaterial && blackInsufficientMaterial;
+}
+
+[[nodiscard]]
+
+FORCE_INLINE EvalT
+evaluateNoLegalMoves(const GameState& gameState) {
     if (gameState.isInCheck()) {
         // We're in check and there are no legal moves so we're in checkmate.
         return -kMateEval;
@@ -459,7 +534,15 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
         }
     }
 
-    const EvalT whiteEval = evaluateForWhite(gameState);
+    const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
+            insufficientMaterialForSides(gameState);
+
+    if (whiteInsufficientMaterial && blackInsufficientMaterial) {
+        return 0;
+    }
+
+    EvalT whiteEval = evaluateForWhite(gameState);
+
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
 

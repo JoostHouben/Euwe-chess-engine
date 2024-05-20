@@ -340,6 +340,11 @@ enum class SearchMoveOutcome {
                 return 0;
             }
         }
+
+        if (isInsufficientMaterial(gameState)) {
+            // Exact value
+            return 0;
+        }
     }
 
     EvalT bestScore = -kInfiniteEval;

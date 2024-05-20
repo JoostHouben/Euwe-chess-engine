@@ -16,6 +16,8 @@ using MoveEvalT = int;
 inline constexpr EvalT kInfiniteEval = std::numeric_limits<EvalT>::max();
 inline constexpr EvalT kMateEval     = (EvalT)30'000;
 
+[[nodiscard]] bool isInsufficientMaterial(const GameState& gameState);
+
 [[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
 
 [[nodiscard]] EvalT evaluate(
