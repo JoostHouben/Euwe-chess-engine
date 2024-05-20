@@ -227,11 +227,23 @@ enum class SearchMoveOutcome {
         const EvalT beta,
         StackOfVectors<Move>& stack,
         EvalT& bestScore,
-        Move& bestMove) {
+        Move& bestMove,
+        const bool useScoutSearch) {
 
     auto unmakeInfo = gameState.makeMove(move);
 
-    EvalT score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
+    EvalT score;
+    if (useScoutSearch) {
+        // Zero window (scout) search
+        score = -search(gameState, depth - 1, ply + 1, -alpha - 1, -alpha, stack);
+
+        if (score > alpha && score < beta && !gWasInterrupted) {
+            // If the score is within the window, do a full window search.
+            score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
+        }
+    } else {
+        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, stack);
+    }
 
     gameState.unmakeMove(move, unmakeInfo);
 
@@ -309,6 +321,7 @@ enum class SearchMoveOutcome {
 
     EvalT bestScore = -kInfiniteEval;
     Move bestMove{};
+    bool completedAnySearch = false;
 
     // Probe the transposition table to update our score based on previous info.
     const auto ttHit = gTTable.probe(gameState.getBoardHash());
@@ -348,11 +361,22 @@ enum class SearchMoveOutcome {
         // Try hash move first.
         // TODO: do we need a legality check here for hash collisions?
         const auto outcome = searchMove(
-                gameState, ttInfo.bestMove, depth, ply, alpha, beta, stack, bestScore, bestMove);
+                gameState,
+                ttInfo.bestMove,
+                depth,
+                ply,
+                alpha,
+                beta,
+                stack,
+                bestScore,
+                bestMove,
+                /*useScoutSearch =*/false);
 
         if (outcome == SearchMoveOutcome::Interrupted) {
             return bestScore;
         }
+
+        completedAnySearch = true;
 
         if (outcome == SearchMoveOutcome::Cutoff) {
             // Fail high
@@ -393,15 +417,28 @@ enum class SearchMoveOutcome {
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
-        const auto outcome =
-                searchMove(gameState, move, depth, ply, alpha, beta, stack, bestScore, bestMove);
+        const auto outcome = searchMove(
+                gameState,
+                move,
+                depth,
+                ply,
+                alpha,
+                beta,
+                stack,
+                bestScore,
+                bestMove,
+                /*useScoutSearch =*/completedAnySearch);
+
+        if (outcome != SearchMoveOutcome::Interrupted) {
+            completedAnySearch = true;
+        }
 
         if (outcome != SearchMoveOutcome::Continue) {
             break;
         }
     }
 
-    if (bestScore > -kInfiniteEval) {
+    if (completedAnySearch) {
         // If we fully evaluated any positions, update the ttable.
         MY_ASSERT(bestMove.pieceToMove != Piece::Invalid);
         updateTTable(

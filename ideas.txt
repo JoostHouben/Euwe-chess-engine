@@ -29,7 +29,7 @@ Evaluation:
      - Pawn endgames
      - ...
    - Endgame tablebases
- - Tuning: TD(lambda) learning
+ - Tuning: TD(lambda) learning or Texel tuning
  - Neural nets
 
 Search:
@@ -39,7 +39,6 @@ Search:
    - Static exchange evaluation
    - Prioritize captures of last moved piece (over MVV/LVA)
 - Algorithmic improvements:
-   - Principal variation search / NegaScout
    - MTD(f)?
    - Keep track of (expected) node type for informing pruning decisions
  - Pruning techniques:
