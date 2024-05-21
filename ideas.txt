@@ -35,7 +35,6 @@ Evaluation:
 Search:
  - Move ordering:
    - History heuristic
-   - Counter move heuristic
    - Static exchange evaluation
    - Prioritize captures of last moved piece (over MVV/LVA)
 - Algorithmic improvements:

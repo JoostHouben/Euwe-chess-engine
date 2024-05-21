@@ -14,7 +14,7 @@ namespace {
 std::atomic<bool> gStopSearch;
 bool gWasInterrupted;
 
-constexpr int kTTableSizeInBytes   = 64 * 1024 * 1024;
+constexpr int kTTableSizeInBytes   = 512 * 1024 * 1024;
 constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
 SearchTTable gTTable(kTTableSizeInEntries);
 
