@@ -425,6 +425,10 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
         return 0;
     }
 
+    if (isInsufficientMaterial(gameState)) {
+        return 0;
+    }
+
     const auto moves = gameState.generateMoves(stack);
 
     if (moves.size() > 0) {
@@ -532,13 +536,6 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
         if (maybeEndEval) {
             return *maybeEndEval;
         }
-    }
-
-    const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
-            insufficientMaterialForSides(gameState);
-
-    if (whiteInsufficientMaterial && blackInsufficientMaterial) {
-        return 0;
     }
 
     EvalT whiteEval = evaluateForWhite(gameState);

@@ -115,6 +115,11 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     // No need to check for repetitions and 50 move rule: those are impossible when only doing
     // captures.
 
+    if (isInsufficientMaterial(gameState)) {
+        // Exact value
+        return 0;
+    }
+
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
 
