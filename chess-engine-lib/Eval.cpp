@@ -559,7 +559,7 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
     static constexpr int kCaptureBonus     = 3'000;
     static constexpr int kPromotionBonus   = 3'000;
     static constexpr int kKillerMoveBonus  = 1'000;
-    static constexpr int kCounterMoveBonus = 1'000;
+    static constexpr int kCounterMoveBonus = 500;
 
     for (const Move& move : moves) {
         int moveScore = 0;
