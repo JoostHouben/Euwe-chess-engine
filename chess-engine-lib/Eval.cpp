@@ -561,6 +561,15 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
     for (const Move& move : moves) {
         int moveScore = 0;
 
+        BoardPosition pieceSquareFrom = move.from;
+        BoardPosition pieceSquareTo   = move.to;
+
+        if (gameState.getSideToMove() == Side::Black) {
+            pieceSquareFrom = getVerticalReflection(pieceSquareFrom);
+            pieceSquareTo   = getVerticalReflection(pieceSquareTo);
+        }
+        moveScore -= kPieceSquareTablesEarly[(int)move.pieceToMove][(int)pieceSquareFrom];
+
         if (isCapture(move.flags)) {
             moveScore += kCaptureBonus;
 
@@ -581,20 +590,25 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
             moveScore += kPieceValues[(int)capturedPiece];
             moveScore -= (kPieceValues[(int)move.pieceToMove] >> 5);
 
+            if (gameState.getSideToMove() == Side::White) {
+                // If we're white, enemy is black, so need to reflect captureTarget to get the piece
+                // square value for the captured piece.
+                captureTarget = getVerticalReflection(captureTarget);
+            }
             moveScore += kPieceSquareTablesEarly[(int)capturedPiece][(int)captureTarget];
         }
 
-        moveScore -= kPieceSquareTablesEarly[(int)move.pieceToMove][(int)move.from];
-
-        if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {
+        // If promoting to a queen is not a good move, promoting to a knight, bishop, or rook is
+        // probably even worse. So only give an ordering bonus for promoting to a queen.
+        if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece == Piece::Queen) {
             moveScore += kPromotionBonus;
 
             moveScore += kPieceValues[(int)promotionPiece];
             moveScore -= kPieceValues[(int)Piece::Pawn];
 
-            moveScore += kPieceSquareTablesEarly[(int)promotionPiece][(int)move.to];
+            moveScore += kPieceSquareTablesEarly[(int)promotionPiece][(int)pieceSquareTo];
         } else {
-            moveScore += kPieceSquareTablesEarly[(int)move.pieceToMove][(int)move.to];
+            moveScore += kPieceSquareTablesEarly[(int)move.pieceToMove][(int)pieceSquareTo];
         }
 
         if (!isCapture(move.flags) && !isPromotion(move.flags)) {
