@@ -309,7 +309,7 @@ enum class SearchMoveOutcome {
 // If gStopSearch is true, returns std::nullopt
 [[nodiscard]] EvalT search(
         GameState& gameState,
-        const int depth,
+        int depth,
         const int ply,
         EvalT alpha,
         EvalT beta,
@@ -350,6 +350,14 @@ enum class SearchMoveOutcome {
             // Exact value
             return 0;
         }
+    }
+
+    const BitBoard enemyControl = gameState.getEnemyControl();
+    const bool isInCheck        = gameState.isInCheck(enemyControl);
+
+    if (isInCheck) {
+        // Check extension
+        depth += 1;
     }
 
     EvalT bestScore = -kInfiniteEval;
@@ -431,7 +439,7 @@ enum class SearchMoveOutcome {
         }
     }
 
-    auto moves = gameState.generateMoves(stack);
+    auto moves = gameState.generateMoves(stack, enemyControl);
     if (moves.size() == 0) {
         // Exact value
         return evaluateNoLegalMoves(gameState);
