@@ -114,7 +114,7 @@ void perftSplitPrint(const GameState& gameState, const int depth, const int spli
     const std::size_t nodes = perftSplit(gameState, depth, splitDepth, stack, splitMap);
 
     for (const auto& [moveString, nodes] : splitMap) {
-        std::print("{}: {}\n", moveString, nodes);
+        std::println("{}: {}", moveString, nodes);
     }
-    std::print("{} total nodes\n", nodes);
+    std::println("{} total nodes", nodes);
 }

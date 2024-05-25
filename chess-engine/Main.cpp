@@ -10,10 +10,10 @@
 void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings) {
     StackOfVectors<Move> stack;
 
-    std::print("Starting fen: {}\n", gameState.toFen());
+    std::println("Starting fen: {}", gameState.toFen());
     std::string movesAsString =
             moveStrings | std::views::join_with(std::string(", ")) | std::ranges::to<std::string>();
-    std::print("Moves: {}\n", movesAsString);
+    std::println("Moves: {}", movesAsString);
 
     for (const auto& moveString : moveStrings) {
         const auto moves = gameState.generateMoves(stack);
@@ -23,7 +23,7 @@ void playMoves(GameState& gameState, const std::vector<std::string>& moveStrings
                 break;
             }
         }
-        std::print("{}: {}\n", moveString, gameState.toFen());
+        std::println("{}: {}", moveString, gameState.toFen());
     }
 }
 
@@ -32,7 +32,7 @@ struct UciState {
 };
 
 void handleIsReady() {
-    std::print("readyok\n");
+    std::println("readyok");
 }
 
 void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
@@ -57,7 +57,7 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
     }
 
     if (token != "moves") {
-        std::print(std::cerr, "Unrecognized token '{}'. Expected 'moves'.\n", token);
+        std::println(std::cerr, "Unrecognized token '{}'. Expected 'moves'.", token);
         return;
     }
 
@@ -72,7 +72,7 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
         (void)gameState.makeMove(move);
     }
 
-    std::print(std::cerr, "Position:\n{}\n", gameState.toVisualString());
+    std::println(std::cerr, "Position:\n{}", gameState.toVisualString());
 }
 
 void handleGo(std::stringstream& lineSStream, UciState& uciState) {
@@ -112,20 +112,20 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
                                | std::views::transform(moveToUciString) | std::views::join_with(' ')
                                | std::ranges::to<std::string>();
 
-    std::print("info depth {}\n", searchInfo.depth);
-    std::print("info time {}\n", searchInfo.timeMs);
-    std::print("info nodes {}\n", searchInfo.numNodes);
-    std::print("info nps {}\n", searchInfo.nodesPerSecond);
-    std::print("info pv {}\n", pvString);
-    std::print("info score {}\n", scoreString);
+    std::println("info depth {}", searchInfo.depth);
+    std::println("info time {}", searchInfo.timeMs);
+    std::println("info nodes {}", searchInfo.numNodes);
+    std::println("info nps {}", searchInfo.nodesPerSecond);
+    std::println("info pv {}", pvString);
+    std::println("info score {}", scoreString);
 
-    std::print("bestmove {}\n", moveToUciString(searchInfo.principalVariation[0]));
+    std::println("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
 }
 
 void runUci() {
-    std::print("id name move-order-tweaks\n");
-    std::print("id author Joost Houben\n");
-    std::print("uciok\n");
+    std::println("id name move-order-tweaks");
+    std::println("id author Joost Houben");
+    std::println("uciok");
 
     UciState uciState{};
 
@@ -160,7 +160,7 @@ void runUci() {
 void runPerft() {
     GameState gameState = GameState::startingPosition();
 
-    std::print("\nMake + unmake:\n");
+    std::println("Make + unmake:");
     perftPrint(gameState, 7, true);
 }
 

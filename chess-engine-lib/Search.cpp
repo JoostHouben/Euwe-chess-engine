@@ -575,7 +575,7 @@ enum class SearchMoveOutcome {
                 // Don't trust the best move if we ever failed low and didn't complete the search.
                 // TODO: we should probably ask for more search time here.
 
-                std::print(std::cerr, "Partial search with failed low; not returning pv.\n");
+                std::println(std::cerr, "Partial search with failed low; not returning pv.");
 
                 StackVector<Move> principalVariation = stack.makeStackVector();
                 principalVariation.lock();
@@ -628,7 +628,7 @@ enum class SearchMoveOutcome {
             }
         }
 
-        std::print(std::cerr, "Re-searching with window [{}, {}]\n", lowerBound, upperBound);
+        std::println(std::cerr, "Re-searching with window [{}, {}]", lowerBound, upperBound);
     } while (true);
 }
 

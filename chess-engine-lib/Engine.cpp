@@ -79,9 +79,9 @@ StackOfVectors<Move> gMoveStack;
 
     const float nodesPerSecond = static_cast<float>(numNodes) / millisecondsElapsed * 1'000.0f;
 
-    std::print(std::cerr, "Normal nodes searched: {}\n", searchStatistics.normalNodesSearched);
-    std::print(std::cerr, "Quiescence nodes searched: {}\n", searchStatistics.qNodesSearched);
-    std::print(std::cerr, "TTable hits: {}\n", searchStatistics.tTableHits);
+    std::println(std::cerr, "Normal nodes searched: {}", searchStatistics.normalNodesSearched);
+    std::println(std::cerr, "Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
+    std::println(std::cerr, "TTable hits: {}", searchStatistics.tTableHits);
     std::print(
             std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 
