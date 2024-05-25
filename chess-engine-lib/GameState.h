@@ -84,6 +84,10 @@ class GameState {
         return pieceOnSquare_[(int)position];
     }
 
+    [[nodiscard]] ColoredPiece getPieceOnSquareConst(BoardPosition position) const {
+        return pieceOnSquare_[(int)position];
+    }
+
     [[nodiscard]] Side getSideToMove() const { return sideToMove_; }
 
     [[nodiscard]] bool canCastleKingSide(Side side) const {

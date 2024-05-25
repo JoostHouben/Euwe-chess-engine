@@ -98,7 +98,11 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 [[nodiscard]] EvalT quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+        GameState& gameState,
+        EvalT alpha,
+        EvalT beta,
+        StackOfVectors<Move>& stack,
+        const bool returnIfNotInCheck = false) {
     // TODO:
     //  - Can we use the TTable here?
     //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
@@ -123,10 +127,15 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
 
+    if (returnIfNotInCheck && !isInCheck) {
+        return kInfiniteEval;
+    }
+
+    EvalT standPat;
     if (!isInCheck) {
         // Stand pat
-        EvalT standPat = evaluate(gameState, stack, /*checkEndState =*/false);
-        bestScore      = standPat;
+        standPat  = evaluate(gameState, stack, /*checkEndState =*/false);
+        bestScore = standPat;
         if (bestScore >= beta) {
             return bestScore;
         }
@@ -136,7 +145,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         if (deltaPruningScore < alpha) {
             // Stand pat is so far below alpha that we have no hope of raising it even if we find a
             // good capture. Return the stand pat evaluation plus a large margin.
-            return deltaPruningScore;  // TODO: return alpha instead?
+            return deltaPruningScore;  // TODO: return alpha instead? (also in delta pruning below)
         }
 
         alpha = max(alpha, bestScore);
@@ -167,9 +176,40 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
+        bool shouldOnlyConsiderCheck = false;
+        if (!isInCheck) {
+            // Delta pruning
+            // TODO: this could be made more accurate with static exchange evaluation
+
+            MY_ASSERT(isCapture(move.flags));
+
+            Piece capturedPiece;
+            if (isEnPassant(move.flags)) {
+                capturedPiece = Piece::Pawn;
+            } else {
+                capturedPiece = getPiece(gameState.getPieceOnSquareConst(move.to));
+            }
+            // TODO: can we extract the expected eval change from the move score?
+            const EvalT capturedPieceValue = (EvalT)kPieceValues[(int)capturedPiece];
+
+            constexpr EvalT kDeltaPruningThreshold = 200;
+            const EvalT deltaPruningScore = standPat + capturedPieceValue + kDeltaPruningThreshold;
+            if (deltaPruningScore < alpha) {
+                // This move looks like it has no hope of raising alpha, even if the capture target
+                // is undefended. We should only consider it if it gives check.
+                shouldOnlyConsiderCheck = true;
+
+                // If our optimistic estimate of the score of this move is above bestScore, raise
+                // bestScore to match. This should mean that an upper bound returned from this
+                // function if we prune moves is still reliable. Note that this is definitely below
+                // alpha.
+                bestScore = max(bestScore, deltaPruningScore);
+            }
+        }
+
         const auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, stack, shouldOnlyConsiderCheck);
 
         gameState.unmakeMove(move, unmakeInfo);
 
