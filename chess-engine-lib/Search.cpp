@@ -125,11 +125,21 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
     if (!isInCheck) {
         // Stand pat
-        bestScore = evaluate(gameState, stack, /*checkEndState =*/false);
+        EvalT standPat = evaluate(gameState, stack, /*checkEndState =*/false);
+        bestScore      = standPat;
         if (bestScore >= beta) {
             return bestScore;
         }
-        alpha = std::max(alpha, bestScore);
+
+        static constexpr int kStandPatDeltaPruningThreshold = 1'000;
+        const EvalT deltaPruningScore = standPat + kStandPatDeltaPruningThreshold;
+        if (deltaPruningScore < alpha) {
+            // Stand pat is so far below alpha that we have no hope of raising it even if we find a
+            // good capture. Return the stand pat evaluation plus a large margin.
+            return deltaPruningScore;  // TODO: return alpha instead?
+        }
+
+        alpha = max(alpha, bestScore);
     }
 
     auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
