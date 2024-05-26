@@ -112,18 +112,20 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
                                | std::views::transform(moveToUciString) | std::views::join_with(' ')
                                | std::ranges::to<std::string>();
 
-    std::println("info depth {}", searchInfo.depth);
-    std::println("info time {}", searchInfo.timeMs);
-    std::println("info nodes {}", searchInfo.numNodes);
-    std::println("info nps {}", searchInfo.nodesPerSecond);
-    std::println("info pv {}", pvString);
-    std::println("info score {}", scoreString);
+    std::println(
+            "info depth {} time {} nodes {} nps {} score {} pv {}",
+            searchInfo.depth,
+            searchInfo.timeMs,
+            searchInfo.numNodes,
+            searchInfo.nodesPerSecond,
+            scoreString,
+            pvString);
 
     std::println("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
 }
 
 void runUci() {
-    std::println("id name order-heuristic-improvements");
+    std::println("id name null-move-pruning");
     std::println("id author Joost Houben");
     std::println("uciok");
 

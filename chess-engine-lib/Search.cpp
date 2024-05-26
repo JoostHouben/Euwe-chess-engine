@@ -284,6 +284,7 @@ FORCE_INLINE void updateTTable(
         EvalT alpha,
         EvalT beta,
         Move lastMove,
+        const int lastNullMovePly,
         StackOfVectors<Move>& stack);
 
 enum class SearchMoveOutcome {
@@ -305,6 +306,7 @@ enum class SearchMoveOutcome {
         EvalT& bestScore,
         Move& bestMove,
         const Move& lastMove,
+        const int lastNullMovePly,
         const bool useScoutSearch) {
 
     auto unmakeInfo = gameState.makeMove(move);
@@ -312,14 +314,16 @@ enum class SearchMoveOutcome {
     EvalT score;
     if (useScoutSearch) {
         // Zero window (scout) search
-        score = -search(gameState, depth - 1, ply + 1, -alpha - 1, -alpha, move, stack);
+        score = -search(
+                gameState, depth - 1, ply + 1, -alpha - 1, -alpha, move, lastNullMovePly, stack);
 
         if (score > alpha && score < beta && !gWasInterrupted) {
             // If the score is within the window, do a full window search.
-            score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, stack);
+            score = -search(
+                    gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
         }
     } else {
-        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, stack);
+        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
     }
 
     gameState.unmakeMove(move, unmakeInfo);
@@ -352,6 +356,31 @@ enum class SearchMoveOutcome {
     return SearchMoveOutcome::Continue;
 }
 
+[[nodiscard]] bool nullMovePruningAllowed(
+        const GameState& gameState,
+        const bool isInCheck,
+        const int depth,
+        const int ply,
+        const int nullMoveReduction,
+        const int lastNullMovePly) {
+    const bool basicConditions =
+            !isInCheck && ply > 0 && depth > (nullMoveReduction + 1) && ply != lastNullMovePly + 2;
+    if (!basicConditions) {
+        return false;
+    }
+
+    // Allow null move only if the side to move has any (non-pawn) pieces.
+    // Having pieces makes zugzwang less likely.
+    const Side sideToMove = gameState.getSideToMove();
+    const BitBoard piecesBitBoard =
+            any(gameState.getPieceBitBoard(sideToMove, Piece::Knight),
+                gameState.getPieceBitBoard(sideToMove, Piece::Bishop),
+                gameState.getPieceBitBoard(sideToMove, Piece::Rook),
+                gameState.getPieceBitBoard(sideToMove, Piece::Queen));
+
+    return piecesBitBoard != BitBoard::Empty;
+}
+
 // Main search function: alpha-beta search with negamax and transposition table.
 //
 // If returned value s satisfies alpha < s < beta, the value is exact.
@@ -365,6 +394,7 @@ enum class SearchMoveOutcome {
         EvalT alpha,
         EvalT beta,
         Move lastMove,
+        const int lastNullMovePly,
         StackOfVectors<Move>& stack) {
     if (gStopSearch) {
         gWasInterrupted = true;
@@ -409,6 +439,37 @@ enum class SearchMoveOutcome {
     if (isInCheck) {
         // Check extension
         depth += 1;
+    }
+
+    constexpr int kNullMoveReduction = 3;
+    if (nullMovePruningAllowed(
+                gameState, isInCheck, depth, ply, kNullMoveReduction, lastNullMovePly)) {
+        const auto unmakeInfo = gameState.makeNullMove();
+
+        const EvalT nullMoveScore =
+                -search(gameState,
+                        depth - kNullMoveReduction - 1,
+                        ply + 1,
+                        -beta,
+                        -beta + 1,
+                        {},
+                        lastNullMovePly,
+                        stack);
+
+        gameState.unmakeNullMove(unmakeInfo);
+
+        if (gWasInterrupted) {
+            return -kInfiniteEval;
+        }
+
+        if (nullMoveScore >= beta) {
+            // TODO: update ttable? We don't have a best move to store, but we can store a lower
+            // bound on the score.
+
+            // Null move failed high, don't bother searching other moves.
+            // Return a conservative lower bound.
+            return beta;
+        }
     }
 
     EvalT bestScore = -kInfiniteEval;
@@ -463,6 +524,7 @@ enum class SearchMoveOutcome {
                 bestScore,
                 bestMove,
                 lastMove,
+                lastNullMovePly,
                 /*useScoutSearch =*/false);
 
         if (outcome == SearchMoveOutcome::Interrupted) {
@@ -526,6 +588,7 @@ enum class SearchMoveOutcome {
                 bestScore,
                 bestMove,
                 lastMove,
+                lastNullMovePly,
                 /*useScoutSearch =*/completedAnySearch);
 
         if (outcome != SearchMoveOutcome::Interrupted) {
@@ -623,7 +686,14 @@ enum class SearchMoveOutcome {
 
     do {
         const auto searchEval =
-                search(gameState, depth, 0, lowerBound, upperBound, /*lastMove =*/{}, stack);
+                search(gameState,
+                       depth,
+                       0,
+                       lowerBound,
+                       upperBound,
+                       /*lastMove =*/{},
+                       /*lastNullMovePly =*/INT_MIN,
+                       stack);
 
         const bool noEval = searchEval < -kMateEval;
         if (!noEval) {
@@ -717,7 +787,14 @@ RootSearchResult searchForBestMove(
         return aspirationWindowSearch(gameState, depth, stack, *evalGuess);
     } else {
         const auto searchEval =
-                search(gameState, depth, 0, -kInfiniteEval, kInfiniteEval, /*lastMove =*/{}, stack);
+                search(gameState,
+                       depth,
+                       0,
+                       -kInfiniteEval,
+                       kInfiniteEval,
+                       /*lastMove =*/{},
+                       /*lastNullMovePly =*/INT_MIN,
+                       stack);
         return {.principalVariation = extractPv(gameState, stack, depth),
                 .eval               = searchEval,
                 .wasInterrupted     = gWasInterrupted};
