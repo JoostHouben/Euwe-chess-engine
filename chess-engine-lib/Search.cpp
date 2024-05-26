@@ -385,10 +385,8 @@ enum class SearchMoveOutcome {
         const bool isInCheck,
         const int depth,
         const int ply,
-        const int nullMoveReduction,
         const int lastNullMovePly) {
-    const bool basicConditions =
-            !isInCheck && ply > 0 && depth > (nullMoveReduction + 1) && ply != lastNullMovePly + 2;
+    const bool basicConditions = !isInCheck && ply > 0 && depth >= 3 && ply != lastNullMovePly + 2;
     if (!basicConditions) {
         return false;
     }
@@ -489,18 +487,19 @@ enum class SearchMoveOutcome {
     }
 
     constexpr int kNullMoveReduction = 3;
-    if (nullMovePruningAllowed(
-                gameState, isInCheck, depth, ply, kNullMoveReduction, lastNullMovePly)) {
+    if (nullMovePruningAllowed(gameState, isInCheck, depth, ply, lastNullMovePly)) {
+        const int nullMoveSearchDepth = max(1, depth - kNullMoveReduction - 1);
+
         const auto unmakeInfo = gameState.makeNullMove();
 
         const EvalT nullMoveScore =
                 -search(gameState,
-                        depth - kNullMoveReduction - 1,
+                        nullMoveSearchDepth,
                         ply + 1,
                         -beta,
                         -beta + 1,
-                        {},
-                        lastNullMovePly,
+                        /*lastMove =*/{},
+                        /*lastNullMovePly =*/ply,
                         stack);
 
         gameState.unmakeNullMove(unmakeInfo);
