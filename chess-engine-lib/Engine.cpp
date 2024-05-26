@@ -96,7 +96,7 @@ StackOfVectors<Move> gMoveStack;
 }  // namespace
 
 SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget) {
-    prepareForSearch();
+    prepareForSearch(gameState);
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
     (void)moveFuture.wait_for(timeBudget);

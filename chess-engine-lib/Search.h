@@ -28,7 +28,7 @@ struct SearchStatistics {
         std::optional<EvalT> evalGuess = std::nullopt);
 
 // Must be called before each invocation of searchForBestMove.
-void prepareForSearch();
+void prepareForSearch(const GameState& gameState);
 
 // Call this from a different thread to stop the search prematurely.
 void requestSearchStop();

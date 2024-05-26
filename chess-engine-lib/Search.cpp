@@ -22,10 +22,11 @@ StackOfVectors<MoveEvalT> gMoveScoreStack;
 
 SearchStatistics gSearchStatistics;
 
-constexpr int kMaxDepth = 100;
+int gMoveClockForKillerMoves = 0;
+constexpr int kMaxDepth      = 100;
 std::array<std::array<Move, 2>, kMaxDepth> gKillerMoves{};
 
-std::array<std ::array<Move, kSquares>, kNumPieceTypes> gCounterMoves{};
+std::array<std::array<std ::array<Move, kSquares>, kNumPieceTypes>, kNumSides> gCounterMoves{};
 
 FORCE_INLINE std::array<Move, 2>& getKillerMoves(const int ply) {
     MY_ASSERT(ply < kMaxDepth);
@@ -50,14 +51,14 @@ FORCE_INLINE void storeKillerMove(const Move& move, const int ply) {
     plyKillerMoves[0] = move;
 }
 
-FORCE_INLINE Move getCounterMove(const Move& move) {
+FORCE_INLINE Move getCounterMove(const Move& move, const Side side) {
     if (move.pieceToMove == Piece::Invalid) {
         return {};
     }
-    return gCounterMoves[(int)move.pieceToMove][(int)move.to];
+    return gCounterMoves[(int)side][(int)move.pieceToMove][(int)move.to];
 }
 
-FORCE_INLINE void storeCounterMove(const Move& lastMove, const Move& counter) {
+FORCE_INLINE void storeCounterMove(const Move& lastMove, const Move& counter, const Side side) {
     if (isCapture(counter.flags) || isPromotion(counter.flags)) {
         // Only store 'quiet' moves as counter moves.
         return;
@@ -65,7 +66,7 @@ FORCE_INLINE void storeCounterMove(const Move& lastMove, const Move& counter) {
     if (lastMove.pieceToMove == Piece::Invalid) {
         return;
     }
-    gCounterMoves[(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
+    gCounterMoves[(int)side][(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
 }
 
 // Subroutine for search and quiescence search.
@@ -337,7 +338,7 @@ enum class SearchMoveOutcome {
 
         if (bestScore >= beta) {
             storeKillerMove(move, ply);
-            storeCounterMove(lastMove, move);
+            storeCounterMove(lastMove, move, gameState.getSideToMove());
 
             // Fail high; score is a lower bound.
             return SearchMoveOutcome::Cutoff;
@@ -505,7 +506,11 @@ enum class SearchMoveOutcome {
     }
 
     auto moveScores = scoreMoves(
-            moves, gameState, getKillerMoves(ply), getCounterMove(lastMove), gMoveScoreStack);
+            moves,
+            gameState,
+            getKillerMoves(ply),
+            getCounterMove(lastMove, gameState.getSideToMove()),
+            gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
@@ -690,6 +695,16 @@ enum class SearchMoveOutcome {
     } while (true);
 }
 
+void shiftKillerMoves(const int halfMoveClock) {
+    const int shiftAmount = halfMoveClock - gMoveClockForKillerMoves;
+
+    for (int ply = 0; ply < kMaxDepth - shiftAmount; ++ply) {
+        gKillerMoves[ply] = gKillerMoves[ply + shiftAmount];
+    }
+
+    gMoveClockForKillerMoves = halfMoveClock;
+}
+
 }  // namespace
 
 // Entry point: perform search and return the principal variation and evaluation.
@@ -709,11 +724,13 @@ RootSearchResult searchForBestMove(
     }
 }
 
-void prepareForSearch() {
+void prepareForSearch(const GameState& gameState) {
     // Set global variables to prepare for search.
     gMoveScoreStack.reserve(1'000);
     gStopSearch     = false;
     gWasInterrupted = false;
+
+    shiftKillerMoves(gameState.getHalfMoveClock());
 }
 
 void requestSearchStop() {
