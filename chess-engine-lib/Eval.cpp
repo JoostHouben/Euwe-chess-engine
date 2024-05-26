@@ -10,6 +10,15 @@
 
 namespace {
 
+constexpr std::array<int, kNumPieceTypes> kPieceValues = {
+        100,     // Pawn
+        305,     // Knight
+        333,     // Bishop
+        563,     // Rook
+        950,     // Queen
+        20'000,  // King (for move ordering)
+};
+
 constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
         0,  // Pawn
         1,  // Knight
@@ -501,6 +510,17 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
 }  // namespace
 
+FORCE_INLINE int getPieceValue(const Piece piece) {
+    return kPieceValues[(int)piece];
+}
+
+FORCE_INLINE int getPieceSquareValue(const Piece piece, BoardPosition position, const Side side) {
+    if (side == Side::Black) {
+        position = getVerticalReflection(position);
+    }
+    return kPieceSquareTablesEarly[(int)piece][(int)position];
+}
+
 FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
             insufficientMaterialForSides(gameState);
@@ -532,113 +552,6 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
     EvalT whiteEval = evaluateForWhite(gameState);
 
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
-}
-
-[[nodiscard]] FORCE_INLINE StackVector<int> scoreMoves(
-        const StackVector<Move>& moves,
-        const GameState& gameState,
-        std::optional<std::array<Move, 2>> killerMoves,
-        std::optional<Move> counterMove,
-        StackOfVectors<int>& stack) {
-    StackVector<int> scores = stack.makeStackVector();
-
-    // Killer and counter bonuses can potentially both apply.
-    // Make sure that the combined bonus is less than the capture and promotion bonuses.
-    static constexpr int kCaptureBonus     = 3'000;
-    static constexpr int kPromotionBonus   = 3'000;
-    static constexpr int kKillerMoveBonus  = 1'000;
-    static constexpr int kCounterMoveBonus = 500;
-
-    for (const Move& move : moves) {
-        int moveScore = 0;
-
-        BoardPosition pieceSquareFrom = move.from;
-        BoardPosition pieceSquareTo   = move.to;
-
-        if (gameState.getSideToMove() == Side::Black) {
-            pieceSquareFrom = getVerticalReflection(pieceSquareFrom);
-            pieceSquareTo   = getVerticalReflection(pieceSquareTo);
-        }
-        moveScore -= kPieceSquareTablesEarly[(int)move.pieceToMove][(int)pieceSquareFrom];
-
-        if (isCapture(move.flags)) {
-            moveScore += kCaptureBonus;
-
-            Piece capturedPiece;
-            BoardPosition captureTarget = move.to;
-            if (isEnPassant(move.flags)) {
-                capturedPiece = Piece::Pawn;
-                captureTarget = gameState.getEnPassantTarget();
-            } else {
-                capturedPiece = getPiece(gameState.getPieceOnSquare(move.to));
-            }
-
-            // Most valuable victim, least valuable aggressor (MVV-LVA), but disfavoring captures
-            // with the king.
-            // We achieve this by adding the value of the victim, and then subtracting the value of
-            // the aggressor, but divided by a large enough factor so that the victim's value
-            // dominates for all but the king.
-            moveScore += kPieceValues[(int)capturedPiece];
-            moveScore -= (kPieceValues[(int)move.pieceToMove] >> 5);
-
-            if (gameState.getSideToMove() == Side::White) {
-                // If we're white, enemy is black, so need to reflect captureTarget to get the piece
-                // square value for the captured piece.
-                captureTarget = getVerticalReflection(captureTarget);
-            }
-            moveScore += kPieceSquareTablesEarly[(int)capturedPiece][(int)captureTarget];
-        }
-
-        // If promoting to a queen is not a good move, promoting to a knight, bishop, or rook is
-        // probably even worse. So only give an ordering bonus for promoting to a queen.
-        if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece == Piece::Queen) {
-            moveScore += kPromotionBonus;
-
-            moveScore += kPieceValues[(int)promotionPiece];
-            moveScore -= kPieceValues[(int)Piece::Pawn];
-
-            moveScore += kPieceSquareTablesEarly[(int)promotionPiece][(int)pieceSquareTo];
-        } else {
-            moveScore += kPieceSquareTablesEarly[(int)move.pieceToMove][(int)pieceSquareTo];
-        }
-
-        if (!isCapture(move.flags) && !isPromotion(move.flags)) {
-            if (killerMoves) {
-                for (const Move& killerMove : *killerMoves) {
-                    if (move == killerMove) {
-                        moveScore += kKillerMoveBonus;
-                        break;
-                    }
-                }
-            }
-
-            if (counterMove && move == *counterMove) {
-                moveScore += kCounterMoveBonus;
-            }
-        }
-
-        scores.push_back(moveScore);
-    }
-
-    scores.lock();
-    return scores;
-}
-
-StackVector<MoveEvalT> scoreMoves(
-        const StackVector<Move>& moves,
-        const GameState& gameState,
-        const std::array<Move, 2>& killerMoves,
-        const Move& counterMove,
-        StackOfVectors<MoveEvalT>& stack) {
-    return scoreMoves(
-            moves, gameState, std::optional(killerMoves), std::optional(counterMove), stack);
-}
-
-StackVector<MoveEvalT> scoreMoves(
-        const StackVector<Move>& moves,
-        const GameState& gameState,
-        StackOfVectors<MoveEvalT>& stack) {
-    return scoreMoves(moves, gameState, std::nullopt, std::nullopt, stack);
 }
 
 bool isMate(EvalT eval) {

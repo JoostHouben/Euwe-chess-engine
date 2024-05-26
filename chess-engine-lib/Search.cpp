@@ -1,6 +1,7 @@
 #include "Search.h"
 
 #include "Math.h"
+#include "MoveOrder.h"
 #include "TTable.h"
 
 #include <algorithm>
@@ -191,7 +192,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
                 capturedPiece = getPiece(gameState.getPieceOnSquareConst(move.to));
             }
             // TODO: can we extract the expected eval change from the move score?
-            const EvalT capturedPieceValue = (EvalT)kPieceValues[(int)capturedPiece];
+            const EvalT capturedPieceValue = (EvalT)getPieceValue(capturedPiece);
 
             constexpr EvalT kDeltaPruningThreshold = 200;
             const EvalT deltaPruningScore = standPat + capturedPieceValue + kDeltaPruningThreshold;

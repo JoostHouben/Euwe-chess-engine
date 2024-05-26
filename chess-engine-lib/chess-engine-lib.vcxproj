@@ -22,6 +22,7 @@
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />
     <ClInclude Include="Move.h" />
+    <ClInclude Include="MoveOrder.h" />
     <ClInclude Include="MyAssert.h" />
     <ClInclude Include="GameState.h" />
     <ClInclude Include="PawnMasks.h" />
@@ -41,6 +42,7 @@
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />
+    <ClCompile Include="MoveOrder.cpp" />
     <ClCompile Include="PawnMasks.cpp" />
     <ClCompile Include="Perft.cpp" />
     <ClCompile Include="Piece.cpp" />
