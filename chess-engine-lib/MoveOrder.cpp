@@ -4,6 +4,7 @@ namespace {
 
 [[nodiscard]] FORCE_INLINE StackVector<int> scoreMoves(
         const StackVector<Move>& moves,
+        const int firstMoveIdx,
         const GameState& gameState,
         std::optional<std::array<Move, 2>> killerMoves,
         std::optional<Move> counterMove,
@@ -17,7 +18,13 @@ namespace {
     static constexpr int kKillerMoveBonus  = 1'000;
     static constexpr int kCounterMoveBonus = 500;
 
-    for (const Move& move : moves) {
+    for (int i = 0; i < firstMoveIdx; ++i) {
+        scores.push_back(0);
+    }
+
+    for (int moveIdx = firstMoveIdx; moveIdx < moves.size(); ++moveIdx) {
+        const Move& move = moves[moveIdx];
+
         int moveScore = 0;
 
         moveScore -= getPieceSquareValue(move.pieceToMove, move.from, gameState.getSideToMove());
@@ -85,17 +92,24 @@ namespace {
 
 StackVector<MoveEvalT> scoreMoves(
         const StackVector<Move>& moves,
+        const int firstMoveIdx,
         const GameState& gameState,
         const std::array<Move, 2>& killerMoves,
         const Move& counterMove,
         StackOfVectors<MoveEvalT>& stack) {
     return scoreMoves(
-            moves, gameState, std::optional(killerMoves), std::optional(counterMove), stack);
+            moves,
+            firstMoveIdx,
+            gameState,
+            std::optional(killerMoves),
+            std::optional(counterMove),
+            stack);
 }
 
 StackVector<MoveEvalT> scoreMoves(
         const StackVector<Move>& moves,
+        const int firstMoveIdx,
         const GameState& gameState,
         StackOfVectors<MoveEvalT>& stack) {
-    return scoreMoves(moves, gameState, std::nullopt, std::nullopt, stack);
+    return scoreMoves(moves, firstMoveIdx, gameState, std::nullopt, std::nullopt, stack);
 }

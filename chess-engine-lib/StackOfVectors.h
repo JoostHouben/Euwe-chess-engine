@@ -291,6 +291,7 @@ class StackVector {
     ~StackVector() {
         // Note: when moved-from, size() == 0
         if (size() > 0) {
+            MY_ASSERT(endIdx_ == parent_.size());
             parent_.items_.resize(startIdx_);
         }
     }
@@ -325,11 +326,6 @@ class StackVector {
 #endif
         MY_ASSERT(endIdx_ > startIdx_);
         parent_.items_.pop_back();
-        --endIdx_;
-    }
-
-    void hide_back() {
-        MY_ASSERT(endIdx_ > startIdx_);
         --endIdx_;
     }
 

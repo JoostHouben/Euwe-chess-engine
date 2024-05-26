@@ -125,7 +125,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::println("id name null-move-pruning");
+    std::println("id name late-move-reduction");
     std::println("id author Joost Houben");
     std::println("uciok");
 

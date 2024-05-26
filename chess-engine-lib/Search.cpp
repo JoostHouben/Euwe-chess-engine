@@ -173,7 +173,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         return bestScore;
     }
 
-    auto moveScores = scoreMoves(moves, gameState, gMoveScoreStack);
+    auto moveScores = scoreMoves(moves, /*firstMoveIdx =*/0, gameState, gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
@@ -280,12 +280,12 @@ FORCE_INLINE void updateTTable(
 // Forward declaration
 [[nodiscard]] EvalT search(
         GameState& gameState,
-        const int depth,
-        const int ply,
+        int depth,
+        int ply,
         EvalT alpha,
         EvalT beta,
         Move lastMove,
-        const int lastNullMovePly,
+        int lastNullMovePly,
         StackOfVectors<Move>& stack);
 
 enum class SearchMoveOutcome {
@@ -300,6 +300,7 @@ enum class SearchMoveOutcome {
         GameState& gameState,
         const Move& move,
         const int depth,
+        const int reduction,
         const int ply,
         EvalT& alpha,
         const EvalT beta,
@@ -315,8 +316,28 @@ enum class SearchMoveOutcome {
     EvalT score;
     if (useScoutSearch) {
         // Zero window (scout) search
-        score = -search(
-                gameState, depth - 1, ply + 1, -alpha - 1, -alpha, move, lastNullMovePly, stack);
+        score =
+                -search(gameState,
+                        depth - reduction - 1,
+                        ply + 1,
+                        -alpha - 1,
+                        -alpha,
+                        move,
+                        lastNullMovePly,
+                        stack);
+
+        if (reduction > 0 && score > alpha && !gWasInterrupted) {
+            // Search again without reduction
+            score =
+                    -search(gameState,
+                            depth - 1,
+                            ply + 1,
+                            -alpha - 1,
+                            -alpha,
+                            move,
+                            lastNullMovePly,
+                            stack);
+        }
 
         if (score > alpha && score < beta && !gWasInterrupted) {
             // If the score is within the window, do a full window search.
@@ -324,6 +345,8 @@ enum class SearchMoveOutcome {
                     gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
         }
     } else {
+        MY_ASSERT(reduction == 0);
+
         score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
     }
 
@@ -357,7 +380,7 @@ enum class SearchMoveOutcome {
     return SearchMoveOutcome::Continue;
 }
 
-[[nodiscard]] bool nullMovePruningAllowed(
+[[nodiscard]] FORCE_INLINE bool nullMovePruningAllowed(
         const GameState& gameState,
         const bool isInCheck,
         const int depth,
@@ -380,6 +403,27 @@ enum class SearchMoveOutcome {
                 gameState.getPieceBitBoard(sideToMove, Piece::Queen));
 
     return piecesBitBoard != BitBoard::Empty;
+}
+
+[[nodiscard]] FORCE_INLINE int getDepthReduction(
+        const Move& move,
+        const int moveIdx,
+        const bool isPvNode,
+        const int depth,
+        const bool isInCheck) {
+    static constexpr int kMovesSearchedFullDepth = 4;
+    static constexpr int kMinDepthForReduction   = 3;
+
+    const Piece promotionPiece = getPromotionPiece(move.flags);
+    const bool moveIsTactical  = isCapture(move.flags) || promotionPiece == Piece::Queen;
+    const bool tooShallow      = depth < kMinDepthForReduction;
+
+    if (isInCheck || isPvNode || moveIdx < kMovesSearchedFullDepth || moveIsTactical
+        || tooShallow) {
+        return 0;
+    }
+
+    return 1;
 }
 
 // Main search function: alpha-beta search with negamax and transposition table.
@@ -436,6 +480,8 @@ enum class SearchMoveOutcome {
 
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
+
+    const bool isPvNode = beta - alpha > 1;
 
     if (isInCheck) {
         // Check extension
@@ -518,6 +564,7 @@ enum class SearchMoveOutcome {
                 gameState,
                 ttInfo.bestMove,
                 depth,
+                /*reduction =*/0,
                 ply,
                 alpha,
                 beta,
@@ -559,29 +606,34 @@ enum class SearchMoveOutcome {
         return evaluateNoLegalMoves(gameState);
     }
 
+    int moveIdx = 0;
     if (ttHit) {
         const auto& ttInfo    = ttHit->payload;
         const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttInfo.bestMove);
         if (hashMoveIt != moves.end()) {
-            std::iter_swap(moves.end() - 1, hashMoveIt);
-            moves.hide_back();
+            *hashMoveIt = moves.front();
+            ++moveIdx;
         }
     }
 
     auto moveScores = scoreMoves(
             moves,
+            moveIdx,
             gameState,
             getKillerMoves(ply),
             getCounterMove(lastMove, gameState.getSideToMove()),
             gMoveScoreStack);
 
-    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+    for (; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
+
+        const int reduction = getDepthReduction(move, moveIdx, isPvNode, depth, isInCheck);
 
         const auto outcome = searchMove(
                 gameState,
                 move,
                 depth,
+                reduction,
                 ply,
                 alpha,
                 beta,
