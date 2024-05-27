@@ -24,9 +24,21 @@ TEST_P(SEETests, TestStaticExchangeEvaluation) {
 
     GameState gameState = GameState::fromFen(config.fen);
 
-    const int see = staticExchangeEvaluation(gameState, config.move);
+    for (int threshold = -1000; threshold <= config.expectedScore; ++threshold) {
+        ASSERT_GE(config.expectedScore, threshold);
+        // seeBound should be a lower bound l such that s >= l >= t.
+        const int seeBound = staticExchangeEvaluationBound(gameState, config.move, threshold);
+        EXPECT_GE(config.expectedScore, seeBound);
+        EXPECT_GE(seeBound, threshold);
+    }
 
-    EXPECT_EQ(see, config.expectedScore);
+    for (int threshold = config.expectedScore + 1; threshold <= 1000; ++threshold) {
+        ASSERT_LT(config.expectedScore, threshold);
+        // seeBound should be an upper bound u such that s <= u < t.
+        const int seeBound = staticExchangeEvaluationBound(gameState, config.move, threshold);
+        EXPECT_LE(config.expectedScore, seeBound);
+        EXPECT_LT(seeBound, threshold);
+    }
 }
 
 auto testCases = ::testing::Values(

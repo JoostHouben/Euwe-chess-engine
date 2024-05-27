@@ -213,24 +213,29 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         bool shouldOnlyConsiderCheck = false;
         if (!isInCheck) {
             // Delta pruning
-            // TODO: this could be made more accurate with static exchange evaluation
 
             MY_ASSERT(isCapture(move.flags));
 
-            const int see = staticExchangeEvaluation(gameState, move);
-
             constexpr EvalT kDeltaPruningThreshold = 200;
-            const EvalT deltaPruningScore          = standPat + see + kDeltaPruningThreshold;
-            if (deltaPruningScore < alpha) {
-                // This move looks like it has no hope of raising alpha. We should only consider it
-                // if it gives check.
+
+            // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
+            // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
+            // So we need to check if SEE >= alpha - standPat - kDeltaPruningThreshold
+            const int seeThreshold = alpha - standPat - kDeltaPruningThreshold;
+
+            const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold);
+
+            if (seeBound < seeThreshold) {
+                // This move looks like it has no hope of raising alpha, even if the capture target
+                // is undefended. We should only consider it if it gives check.
                 shouldOnlyConsiderCheck = true;
 
                 // If our optimistic estimate of the score of this move is above bestScore, raise
                 // bestScore to match. This should mean that an upper bound returned from this
                 // function if we prune moves is still reliable. Note that this is definitely below
                 // alpha.
-                bestScore = max(bestScore, deltaPruningScore);
+                const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
+                bestScore                     = max(bestScore, deltaPruningScore);
             }
         }
 
