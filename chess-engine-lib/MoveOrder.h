@@ -15,8 +15,7 @@ using MoveEvalT = int;
         const Move& counterMove,
         StackOfVectors<MoveEvalT>& stack);
 
-// Variant for when we have no killer and counter moves available, like in quiescence search.
-[[nodiscard]] StackVector<MoveEvalT> scoreMoves(
+[[nodiscard]] StackVector<MoveEvalT> scoreMovesQuiesce(
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,

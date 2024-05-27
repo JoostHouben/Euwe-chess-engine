@@ -173,7 +173,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         return bestScore;
     }
 
-    auto moveScores = scoreMoves(moves, /*firstMoveIdx =*/0, gameState, gMoveScoreStack);
+    auto moveScores = scoreMovesQuiesce(moves, /*firstMoveIdx =*/0, gameState, gMoveScoreStack);
 
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);

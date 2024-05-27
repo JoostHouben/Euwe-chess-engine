@@ -41,16 +41,12 @@ Search:
    - MTD(f)?
    - Keep track of (expected) node type for informing pruning decisions
  - Pruning techniques:
-   - Null move pruning
    - Multi-cut pruning
    - Enhanced forward pruning
    - Futility pruning
-   - Delta pruning (quiescence search)
  - Reduction techniques:
-   - Late move reduction
    - Razoring
  - Extensions:
-   - Check extension
    - Mate threat extension
    - Passed pawn extension
 
