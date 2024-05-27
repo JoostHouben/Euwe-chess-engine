@@ -81,6 +81,9 @@
     <ClInclude Include="MoveOrder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SEE.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">
@@ -123,6 +126,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MoveOrder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SEE.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

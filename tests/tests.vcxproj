@@ -42,6 +42,7 @@
     <ClCompile Include="MoveGenerationTests.cpp" />
     <ClCompile Include="MoveTests.cpp" />
     <ClCompile Include="PieceTests.cpp" />
+    <ClCompile Include="SEETests.cpp" />
     <ClCompile Include="StackOfVectorsTests.cpp" />
   </ItemGroup>
   <ItemGroup>

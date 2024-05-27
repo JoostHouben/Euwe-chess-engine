@@ -22,6 +22,8 @@
     return "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 }
 
+using PieceBitBoards = std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides>;
+
 class GameState {
   public:
     enum class CastlingRights : uint8_t {
@@ -80,6 +82,8 @@ class GameState {
         return getPieceBitBoard(getSide(coloredPiece), getPiece(coloredPiece));
     }
 
+    [[nodiscard]] const PieceBitBoards& getPieceBitBoards() const { return pieceBitBoards_; }
+
     [[nodiscard]] ColoredPiece getPieceOnSquare(BoardPosition position) const {
         return pieceOnSquare_[(int)position];
     }
@@ -110,6 +114,8 @@ class GameState {
     [[nodiscard]] std::uint16_t getHalfMoveClock() const { return halfMoveClock_; }
 
     [[nodiscard]] HashT getBoardHash() const { return boardHash_; }
+
+    [[nodiscard]] const PieceOccupancyBitBoards& getOccupancy() const { return occupancy_; }
 
   private:
     struct PieceIdentifier {
@@ -169,8 +175,7 @@ class GameState {
 
     std::array<ColoredPiece, kSquares> pieceOnSquare_ = {};
 
-    // TODO: should we store the king as a position instead of a bitboard?
-    std::array<std::array<BitBoard, kNumPieceTypes>, kNumSides> pieceBitBoards_ = {};
+    PieceBitBoards pieceBitBoards_ = {};
 
     PieceOccupancyBitBoards occupancy_ = {};
 

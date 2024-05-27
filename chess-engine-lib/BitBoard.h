@@ -55,6 +55,10 @@ template <typename... BitBoardTs>
     return position;
 }
 
+[[nodiscard]] constexpr BitBoard getFirstSetBitBoard(BitBoard bitBoard) {
+    return (BitBoard)std::bit_floor((std::uint64_t)bitBoard);
+}
+
 [[nodiscard]] constexpr int popCount(const BitBoard bitBoard) {
     return std::popcount((std::uint64_t)bitBoard);
 }
