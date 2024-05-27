@@ -42,9 +42,6 @@ scoreQueenPromotion(const Move& move, const GameState& gameState) {
     moveScore += getPieceValue(Piece::Queen);
     moveScore -= getPieceValue(Piece::Pawn);
 
-    moveScore += getPieceSquareValue(Piece::Queen, move.to, gameState.getSideToMove());
-    moveScore -= getPieceSquareValue(Piece::Pawn, move.to, gameState.getSideToMove());
-
     return moveScore;
 }
 
@@ -56,6 +53,8 @@ StackVector<MoveEvalT> scoreMoves(
         const GameState& gameState,
         const std::array<Move, 2>& killerMoves,
         const Move& counterMove,
+        const std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>& historyCutOffs,
+        const std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>& historyUsed,
         StackOfVectors<MoveEvalT>& stack) {
     StackVector<MoveEvalT> scores = stack.makeStackVector();
 
@@ -68,8 +67,10 @@ StackVector<MoveEvalT> scoreMoves(
 
         MoveEvalT moveScore = 0;
 
-        moveScore -= getPieceSquareValue(move.pieceToMove, move.from, gameState.getSideToMove());
-        moveScore += getPieceSquareValue(move.pieceToMove, move.to, gameState.getSideToMove());
+        const int cutOffScore = historyCutOffs[(int)move.pieceToMove][(int)move.to];
+        const int usedScore   = historyUsed[(int)move.pieceToMove][(int)move.to];
+
+        moveScore += (cutOffScore << 5) / usedScore;
 
         if (isCapture(move.flags)) {
             moveScore += scoreCapture(move, gameState);

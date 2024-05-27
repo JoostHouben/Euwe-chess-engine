@@ -27,6 +27,9 @@ struct SearchStatistics {
         StackOfVectors<Move>& stack,
         std::optional<EvalT> evalGuess = std::nullopt);
 
+// Must be called before the first invocation of searchForBestMove.
+void initializeSearch();
+
 // Must be called before each invocation of searchForBestMove.
 void prepareForSearch(const GameState& gameState);
 

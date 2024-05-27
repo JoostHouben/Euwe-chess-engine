@@ -29,6 +29,9 @@ std::array<std::array<Move, 2>, kMaxDepth> gKillerMoves{};
 
 std::array<std::array<std ::array<Move, kSquares>, kNumPieceTypes>, kNumSides> gCounterMoves{};
 
+std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides> gHistoryCutOff{};
+std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides> gHistoryUsed{};
+
 FORCE_INLINE std::array<Move, 2>& getKillerMoves(const int ply) {
     MY_ASSERT(ply < kMaxDepth);
     return gKillerMoves[ply];
@@ -68,6 +71,34 @@ FORCE_INLINE void storeCounterMove(const Move& lastMove, const Move& counter, co
         return;
     }
     gCounterMoves[(int)side][(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
+}
+
+FORCE_INLINE int getHistoryWeight(const int depth) {
+    return depth * depth;
+}
+
+FORCE_INLINE void updateHistoryForCutoff(const Move& move, const int depth, const Side side) {
+    if (isCapture(move.flags) || isPromotion(move.flags)) {
+        // Only update history for 'quiet' moves.
+        return;
+    }
+
+    const int square = (int)move.to;
+    const int piece  = (int)move.pieceToMove;
+
+    gHistoryCutOff[(int)side][piece][square] += getHistoryWeight(depth);
+}
+
+FORCE_INLINE void updateHistoryForUse(const Move& move, const int depth, const Side side) {
+    if (isCapture(move.flags) || isPromotion(move.flags)) {
+        // Only update history for 'quiet' moves.
+        return;
+    }
+
+    const int square = (int)move.to;
+    const int piece  = (int)move.pieceToMove;
+
+    gHistoryUsed[(int)side][piece][square] += getHistoryWeight(depth);
 }
 
 // Subroutine for search and quiescence search.
@@ -360,6 +391,7 @@ enum class SearchMoveOutcome {
         score -= signum(score);
     }
 
+    updateHistoryForUse(move, depth, gameState.getSideToMove());
     if (score > bestScore) {
         bestScore = score;
         bestMove  = move;
@@ -367,6 +399,7 @@ enum class SearchMoveOutcome {
         if (bestScore >= beta) {
             storeKillerMove(move, ply);
             storeCounterMove(lastMove, move, gameState.getSideToMove());
+            updateHistoryForCutoff(move, depth, gameState.getSideToMove());
 
             // Fail high; score is a lower bound.
             return SearchMoveOutcome::Cutoff;
@@ -621,6 +654,8 @@ enum class SearchMoveOutcome {
             gameState,
             getKillerMoves(ply),
             getCounterMove(lastMove, gameState.getSideToMove()),
+            gHistoryCutOff[(int)gameState.getSideToMove()],
+            gHistoryUsed[(int)gameState.getSideToMove()],
             gMoveScoreStack);
 
     for (; moveIdx < moves.size(); ++moveIdx) {
@@ -827,6 +862,46 @@ void shiftKillerMoves(const int halfMoveClock) {
     gMoveClockForKillerMoves = halfMoveClock;
 }
 
+void initializeHistoryFromPieceSquare() {
+    static constexpr int kNumScaleBits        = 7;   // 128
+    static constexpr int kPieceSquareBiasBits = 16;  // ~65k
+
+    for (int side = 0; side < kNumSides; ++side) {
+        for (int piece = 0; piece < kNumPieceTypes; ++piece) {
+            for (int square = 0; square < kSquares; ++square) {
+                int pieceSquareValue =
+                        getPieceSquareValue((Piece)piece, (BoardPosition)square, (Side)side);
+                pieceSquareValue += 50;  // Get rid of negative values
+
+                gHistoryCutOff[side][piece][square] = pieceSquareValue
+                                                   << (kPieceSquareBiasBits - kNumScaleBits);
+
+                gHistoryUsed[side][piece][square] = 1 << kPieceSquareBiasBits;
+            }
+        }
+    }
+}
+
+void scaleDownHistory() {
+    static constexpr int kScaleDownBits = 4;   // 16
+    static constexpr int kTargetBits    = 10;  // 1024
+    static constexpr int kCountlTarget  = 32 - kTargetBits;
+
+    for (int side = 0; side < kNumSides; ++side) {
+        for (int piece = 0; piece < kNumPieceTypes; ++piece) {
+            for (int square = 0; square < kSquares; ++square) {
+                unsigned& historyUsed       = gHistoryUsed[side][piece][square];
+                const int historyCountlZero = std::countl_zero(historyUsed);
+
+                const int shiftAmount = clamp(historyCountlZero - kCountlTarget, 0, kScaleDownBits);
+
+                historyUsed >>= shiftAmount;
+                gHistoryCutOff[side][piece][square] >>= shiftAmount;
+            }
+        }
+    }
+}
+
 }  // namespace
 
 // Entry point: perform search and return the principal variation and evaluation.
@@ -853,6 +928,10 @@ RootSearchResult searchForBestMove(
     }
 }
 
+void initializeSearch() {
+    initializeHistoryFromPieceSquare();
+}
+
 void prepareForSearch(const GameState& gameState) {
     // Set global variables to prepare for search.
     gMoveScoreStack.reserve(1'000);
@@ -860,6 +939,7 @@ void prepareForSearch(const GameState& gameState) {
     gWasInterrupted = false;
 
     shiftKillerMoves(gameState.getHalfMoveClock());
+    scaleDownHistory();
 }
 
 void requestSearchStop() {
@@ -868,6 +948,18 @@ void requestSearchStop() {
 }
 
 SearchStatistics getSearchStatistics() {
+
+    //for (int side = 0; side < kNumSides; ++side) {
+    //    for (int piece = 0; piece < kNumPieceTypes; ++piece) {
+    //        for (int square = 0; square < kSquares; ++square) {
+    //            const int historyCutOff = gHistoryCutOff[side][piece][square];
+    //            const int historyUsed   = gHistoryUsed[side][piece][square];
+
+    //            std::println("{};{};{}: {} / {}", side, piece, square, historyCutOff, historyUsed);
+    //        }
+    //    }
+    //}
+
     gSearchStatistics.ttableUtilization = gTTable.getUtilization();
 
     return gSearchStatistics;

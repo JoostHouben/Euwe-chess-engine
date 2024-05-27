@@ -125,11 +125,13 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::println("id name shallow-null-move");
+    std::println("id name history-heuristic");
     std::println("id author Joost Houben");
     std::println("uciok");
 
     UciState uciState{};
+
+    initializeEngine();
 
     while (true) {
         std::string inputLine;
