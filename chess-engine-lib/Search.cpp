@@ -2,6 +2,7 @@
 
 #include "Math.h"
 #include "MoveOrder.h"
+#include "SEE.h"
 #include "TTable.h"
 
 #include <algorithm>
@@ -216,20 +217,13 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
             MY_ASSERT(isCapture(move.flags));
 
-            Piece capturedPiece;
-            if (isEnPassant(move.flags)) {
-                capturedPiece = Piece::Pawn;
-            } else {
-                capturedPiece = getPiece(gameState.getPieceOnSquareConst(move.to));
-            }
-            // TODO: can we extract the expected eval change from the move score?
-            const EvalT capturedPieceValue = (EvalT)getPieceValue(capturedPiece);
+            const int see = staticExchangeEvaluation(gameState, move);
 
             constexpr EvalT kDeltaPruningThreshold = 200;
-            const EvalT deltaPruningScore = standPat + capturedPieceValue + kDeltaPruningThreshold;
+            const EvalT deltaPruningScore          = standPat + see + kDeltaPruningThreshold;
             if (deltaPruningScore < alpha) {
-                // This move looks like it has no hope of raising alpha, even if the capture target
-                // is undefended. We should only consider it if it gives check.
+                // This move looks like it has no hope of raising alpha. We should only consider it
+                // if it gives check.
                 shouldOnlyConsiderCheck = true;
 
                 // If our optimistic estimate of the score of this move is above bestScore, raise
