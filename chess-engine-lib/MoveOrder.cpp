@@ -85,7 +85,6 @@ StackVector<MoveEvalT> scoreMoves(
             for (const Move& killerMove : killerMoves) {
                 if (move == killerMove) {
                     moveScore += kKillerMoveBonus;
-                    break;
                 }
             }
 

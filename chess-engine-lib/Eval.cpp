@@ -30,10 +30,13 @@ constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
 
 constexpr int kMaxPhaseMaterial = 24;
 
+using SquareTable       = std::array<int, kSquares>;
+using PieceSquareTables = std::array<SquareTable, kNumPieceTypes>;
+
 // clang-format off
-constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTablesEarly = {
+constexpr PieceSquareTables kPieceSquareTablesWhiteEarly = {
     // Pawns - stand in front of king and promote
-    std::array<int, kSquares> {
+    SquareTable {
          0,  0,  0,  0,  0,  0,  0,  0,
          5, 10, 10,-20,-20, 10, 10,  5,
          5, -5,-10,  0,  0,-10, -5,  5,
@@ -45,7 +48,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Knights
-    std::array<int, kSquares> {
+    SquareTable {
         -50,-40,-30,-30,-30,-30,-40,-50,
         -40,-20,  0,  5,  5,  0,-20,-40,
         -30,  5, 10, 15, 15, 10,  5,-30,
@@ -57,7 +60,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Bishops 
-    std::array<int, kSquares> {
+    SquareTable {
         -20,-10,-10,-10,-10,-10,-10,-20,
         -10,  5,  0,  0,  0,  0,  5,-10,
         -10, 10, 10, 10, 10, 10, 10,-10,
@@ -69,7 +72,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Rooks
-    std::array<int, kSquares> {
+    SquareTable {
           0,  0,  0,  5,  5,  0,  0,  0,
          -5,  0,  0,  0,  0,  0,  0, -5,
          -5,  0,  0,  0,  0,  0,  0, -5,
@@ -81,7 +84,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Queens
-    std::array<int, kSquares> {
+    SquareTable {
         -20,-10,-10, -5, -5,-10,-10,-20,
         -10,  0,  5,  0,  0,  0,  0,-10,
         -10,  5,  5,  5,  5,  5,  0,-10,
@@ -93,7 +96,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // King - encourage hiding behind pawns
-    std::array<int, kSquares> {
+    SquareTable {
          20, 30, 10,  0,  0, 10, 30, 20,
          20, 20,  0,  0,  0,  0, 20, 20,
         -10,-20,-20,-20,-20,-20,-20,-10,
@@ -105,9 +108,9 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     }
 };
 
-constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTablesLate = {
+constexpr PieceSquareTables kPieceSquareTablesWhiteLate = {
     // Pawns - promote
-    std::array<int, kSquares> {
+    SquareTable {
          0,  0,  0,  0,  0,  0,  0,  0,
         10, 10, 10, 10, 10, 10, 10, 10,
         10, 10, 10, 10, 10, 10, 10, 10,
@@ -119,7 +122,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Knights
-    std::array<int, kSquares> {
+    SquareTable {
         -50,-40,-30,-30,-30,-30,-40,-50,
         -40,-20,  0,  5,  5,  0,-20,-40,
         -30,  5, 10, 15, 15, 10,  5,-30,
@@ -131,7 +134,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Bishops 
-    std::array<int, kSquares> {
+    SquareTable {
         -20,-10,-10,-10,-10,-10,-10,-20,
         -10,  5,  0,  0,  0,  0,  5,-10,
         -10, 10, 10, 10, 10, 10, 10,-10,
@@ -143,7 +146,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Rooks
-    std::array<int, kSquares> {
+    SquareTable {
           0,  0,  0,  5,  5,  0,  0,  0,
          -5,  0,  0,  0,  0,  0,  0, -5,
          -5,  0,  0,  0,  0,  0,  0, -5,
@@ -155,7 +158,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // Queens
-    std::array<int, kSquares> {
+    SquareTable {
         -20,-10,-10, -5, -5,-10,-10,-20,
         -10,  0,  5,  0,  0,  0,  0,-10,
         -10,  5,  5,  5,  5,  5,  0,-10,
@@ -167,7 +170,7 @@ constexpr std::array<std::array<int, kSquares>, kNumPieceTypes> kPieceSquareTabl
     },
 
     // King - encourage center
-    std::array<int, kSquares> {
+    SquareTable {
         -50,-30,-30,-30,-30,-30,-30,-50,
         -30,-30,  0,  0,  0,  0,-30,-30,
         -30,-10, 20, 30, 30, 20,-10,-30,
@@ -190,6 +193,39 @@ constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20,
 constexpr int kRookSemiOpenFileBonus = 10;
 constexpr int kRookOpenFileBonus     = 20;
 
+constexpr SquareTable getReflectedSquareTable(const SquareTable& table) {
+    SquareTable result{};
+
+    for (int i = 0; i < kSquares; ++i) {
+        const BoardPosition position          = (BoardPosition)i;
+        const BoardPosition reflectedPosition = getVerticalReflection(position);
+
+        result[i] = table[(int)reflectedPosition];
+    }
+
+    return result;
+}
+
+constexpr PieceSquareTables getReflectedPieceSquareTables(const PieceSquareTables& tables) {
+    PieceSquareTables result{};
+
+    for (int i = 0; i < kNumPieceTypes; ++i) {
+        result[i] = getReflectedSquareTable(tables[i]);
+    }
+
+    return result;
+}
+
+constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesEarly = {
+        kPieceSquareTablesWhiteEarly,
+        getReflectedPieceSquareTables(kPieceSquareTablesWhiteEarly),
+};
+
+constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesLate = {
+        kPieceSquareTablesWhiteLate,
+        getReflectedPieceSquareTables(kPieceSquareTablesWhiteLate),
+};
+
 struct PiecePositionEvaluation {
     int material          = 0;
     int phaseMaterial     = 0;
@@ -202,15 +238,12 @@ FORCE_INLINE void updatePiecePositionEvaluation(
         BoardPosition position,
         const Side side,
         PiecePositionEvaluation& result) {
-    if (side == Side::Black) {
-        position = getVerticalReflection(position);
-    }
 
     result.material += kPieceValues[pieceIdx];
     result.phaseMaterial += kPhaseMaterialValues[pieceIdx];
 
-    result.earlyGamePosition += kPieceSquareTablesEarly[pieceIdx][(int)position];
-    result.endGamePosition += kPieceSquareTablesLate[pieceIdx][(int)position];
+    result.earlyGamePosition += kPieceSquareTablesEarly[(int)side][pieceIdx][(int)position];
+    result.endGamePosition += kPieceSquareTablesLate[(int)side][pieceIdx][(int)position];
 }
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
@@ -515,10 +548,7 @@ FORCE_INLINE int getPieceValue(const Piece piece) {
 }
 
 FORCE_INLINE int getPieceSquareValue(const Piece piece, BoardPosition position, const Side side) {
-    if (side == Side::Black) {
-        position = getVerticalReflection(position);
-    }
-    return kPieceSquareTablesEarly[(int)piece][(int)position];
+    return kPieceSquareTablesEarly[(int)side][(int)piece][(int)position];
 }
 
 FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
