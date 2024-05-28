@@ -226,8 +226,8 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
             const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold);
 
             if (seeBound < seeThreshold) {
-                // This move looks like it has no hope of raising alpha, even if the capture target
-                // is undefended. We should only consider it if it gives check.
+                // Delta pruning: this move looks like it has no hope of raising alpha. We should
+                // only consider it if it gives check.
                 shouldOnlyConsiderCheck = true;
 
                 // If our optimistic estimate of the score of this move is above bestScore, raise

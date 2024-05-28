@@ -9,7 +9,7 @@
 
 namespace {
 
-FORCE_INLINE BitBoard getSlidingPiecesControllingSquare(
+[[nodiscard]] FORCE_INLINE BitBoard getSlidingPiecesControllingSquare(
         const BoardPosition targetSquare,
         const BitBoard anyPiece,
         const PieceBitBoards& pieceBitBoards) {
@@ -33,7 +33,7 @@ FORCE_INLINE BitBoard getSlidingPiecesControllingSquare(
             intersection(bishopControlFromTarget, bishopMovePieces));
 }
 
-FORCE_INLINE BitBoard getAllPiecesControllingSquare(
+[[nodiscard]] FORCE_INLINE BitBoard getAllPiecesControllingSquare(
         const BoardPosition targetSquare,
         const PieceBitBoards& pieceBitBoards,
         const BitBoard anyPiece) {
@@ -77,7 +77,7 @@ FORCE_INLINE BitBoard getAllPiecesControllingSquare(
     return controllingPieces;
 }
 
-FORCE_INLINE std::pair<Piece, BitBoard> getLeastValuableAttacker(
+[[nodiscard]] FORCE_INLINE std::pair<Piece, BitBoard> getLeastValuableAttacker(
         const BitBoard controllingPieces,
         const PieceBitBoards& pieceBitBoards,
         const int minimumAttackerIdx,
@@ -95,11 +95,22 @@ FORCE_INLINE std::pair<Piece, BitBoard> getLeastValuableAttacker(
     return {Piece::Invalid, BitBoard::Empty};
 }
 
-}  // namespace
+[[nodiscard]] FORCE_INLINE BitBoard getPiecesThatCanTakeAlongXRay(const GameState& gameState) {
+    // Don't need to consider kings, because an exchagne sequence always ends once the king has been
+    // captured
+    return any(
+            gameState.getPieceBitBoard(Side::White, Piece::Pawn),
+            gameState.getPieceBitBoard(Side::White, Piece::Bishop),
+            gameState.getPieceBitBoard(Side::White, Piece::Rook),
+            gameState.getPieceBitBoard(Side::White, Piece::Queen),
+            gameState.getPieceBitBoard(Side::Black, Piece::Pawn),
+            gameState.getPieceBitBoard(Side::Black, Piece::Bishop),
+            gameState.getPieceBitBoard(Side::Black, Piece::Rook),
+            gameState.getPieceBitBoard(Side::Black, Piece::Queen));
+}
 
-int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, int threshold) {
-    // TODO: consider promotions? Pins?
-
+[[nodiscard]] FORCE_INLINE std::pair<BitBoard, Piece> getAnyPieceAndTargetPiece(
+        const GameState& gameState, const Move& move) {
     const BoardPosition targetSquare = move.to;
 
     BitBoard anyPiece = any(gameState.getOccupancy().ownPiece, gameState.getOccupancy().enemyPiece);
@@ -116,27 +127,61 @@ int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, 
         targetPiece = Piece::Pawn;
     }
 
+    return {anyPiece, targetPiece};
+}
+
+FORCE_INLINE void updateForXRay(
+        const BitBoard piecesThatCanTakeAlongXray,
+        const BitBoard vacatedSquare,
+        const BoardPosition targetSquare,
+        const BitBoard anyPiece,
+        const PieceBitBoards& pieceBitBoards,
+        BitBoard& controllingPieces,
+        std::array<int, kNumSides>& minimumAttackerIdx) {
+    if (intersection(piecesThatCanTakeAlongXray, vacatedSquare) != BitBoard::Empty) {
+        // Re-calculate sliding piece attacks to account for x-rays
+        const BitBoard controllingSlidingPieces =
+                getSlidingPiecesControllingSquare(targetSquare, anyPiece, pieceBitBoards);
+
+        // We need to intersect with anyPiece so that we ignore sliding pieces that already
+        // entered the exchange.
+        controllingPieces =
+                any(controllingPieces, intersection(controllingSlidingPieces, anyPiece));
+
+        minimumAttackerIdx[0] = min(minimumAttackerIdx[0], (int)Piece::Bishop);
+        minimumAttackerIdx[1] = min(minimumAttackerIdx[1], (int)Piece::Bishop);
+    }
+}
+
+template <bool ReturnBound, bool ReturnMeets>
+[[nodiscard]] FORCE_INLINE auto staticExchangeEvaluationImpl(
+        const GameState& gameState, const Move& move, const int threshold) {
+    // TODO: consider promotions? Pins?
+
+    static_assert(!(ReturnBound && ReturnMeets));
+
+    const BoardPosition targetSquare = move.to;
+
+    auto [anyPiece, targetPiece] = getAnyPieceAndTargetPiece(gameState, move);
+
     std::array<int, kNumTotalPieces> gain;
     int exchangeIdx     = 0;
     gain[exchangeIdx++] = getPieceValue(targetPiece);
 
-    if (gain[0] < threshold) {
-        return gain[0];
+    if constexpr (ReturnBound) {
+        if (gain[0] < threshold) {
+            return gain[0];
+        }
+    } else if constexpr (ReturnMeets) {
+        ASSUME(gain[0] > 0);  // if we pass threshold = 0, compiler can remove this branch
+        if (gain[0] < threshold) {
+            return false;
+        }
     }
 
     const PieceBitBoards& pieceBitBoards = gameState.getPieceBitBoards();
 
-    // Don't need to consider kings, because an exchagne sequence always ends once the king has been
-    // captured
-    const BitBoard piecesThatCanTakeAlongXray =
-            any(gameState.getPieceBitBoard(Side::White, Piece::Pawn),
-                gameState.getPieceBitBoard(Side::White, Piece::Bishop),
-                gameState.getPieceBitBoard(Side::White, Piece::Rook),
-                gameState.getPieceBitBoard(Side::White, Piece::Queen),
-                gameState.getPieceBitBoard(Side::Black, Piece::Pawn),
-                gameState.getPieceBitBoard(Side::Black, Piece::Bishop),
-                gameState.getPieceBitBoard(Side::Black, Piece::Rook),
-                gameState.getPieceBitBoard(Side::Black, Piece::Queen));
+    const BitBoard piecesThatCanTakeAlongXray = getPiecesThatCanTakeAlongXRay(gameState);
 
     std::array<int, kNumSides> minimumAttackerIdx = {0, 0};
 
@@ -147,10 +192,6 @@ int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, 
     BitBoard controllingPieces =
             getAllPiecesControllingSquare(targetSquare, pieceBitBoards, anyPiece);
 
-    if (isEnPassant(move.flags)) {
-        controllingPieces = intersection(controllingPieces, anyPiece);
-    }
-
     const Side sideToMove = gameState.getSideToMove();
     for (;; ++exchangeIdx) {
         // Gain from the perspective of current side to move if the target piece is taken
@@ -158,23 +199,37 @@ int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, 
 
         const Side side = (Side)((exchangeIdx + (int)sideToMove) & 1);
 
+        if constexpr (ReturnMeets) {
+            if (side == sideToMove) {
+                if (gain[exchangeIdx] < threshold) {
+                    // Even if we take the target piece, we're still below the threshold.
+                    // If the exchange gets to this point it will never rise above the threshold again,
+                    // so we don't need to consider this capture or what happens after this point.
+                    break;
+                }
+            } else {
+                if (-gain[exchangeIdx] >= threshold) {
+                    // Even if we take the target piece, the gain for the opponent is still above the
+                    // threshold. So if the exchange gets to this point it will never drop below the
+                    // threshold again, so we don't need to consider this capture what happens after
+                    // this point.
+                    break;
+                }
+            }
+        }
+
         // Deferred update of controllingPieces and anyPiece
         controllingPieces = subtract(controllingPieces, vacatedSquare);
         anyPiece          = subtract(anyPiece, vacatedSquare);
 
-        if (intersection(piecesThatCanTakeAlongXray, vacatedSquare) != BitBoard::Empty) {
-            // Re-calculate sliding piece attacks to account for x-rays
-            const BitBoard controllingSlidingPieces =
-                    getSlidingPiecesControllingSquare(targetSquare, anyPiece, pieceBitBoards);
-
-            // We need to intersect with anyPiece so that we ignore sliding pieces that already
-            // entered the exchange.
-            controllingPieces =
-                    any(controllingPieces, intersection(controllingSlidingPieces, anyPiece));
-
-            minimumAttackerIdx[0] = min(minimumAttackerIdx[0], (int)Piece::Bishop);
-            minimumAttackerIdx[1] = min(minimumAttackerIdx[1], (int)Piece::Bishop);
-        }
+        updateForXRay(
+                piecesThatCanTakeAlongXray,
+                vacatedSquare,
+                targetSquare,
+                anyPiece,
+                pieceBitBoards,
+                controllingPieces,
+                minimumAttackerIdx);
 
         auto [attacker, attackerSquare] = getLeastValuableAttacker(
                 controllingPieces, pieceBitBoards, minimumAttackerIdx[(int)side], side);
@@ -184,21 +239,23 @@ int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, 
             break;
         }
 
-        if (side == sideToMove) {
-            if (gain[exchangeIdx] < threshold) {
-                // Even after taking the target piece, we're still below the threshold.
-                // If the exchange gets to this point it will never rise above the threshold again,
-                // so we don't need to consider what happens after this point.
-                ++exchangeIdx;
-                break;
-            }
-        } else {
-            if (-gain[exchangeIdx] >= threshold) {
-                // Even after taking the target piece, the gain for the opponent is still above the
-                // threshold. So if the exchange gets to this point it will never drop below the
-                // threshold again, so we don't need to consider what happens after this point.
-                ++exchangeIdx;
-                break;
+        if constexpr (ReturnBound) {
+            if (side == sideToMove) {
+                if (gain[exchangeIdx] < threshold) {
+                    // Even after taking the target piece, we're still below the threshold.
+                    // If the exchange gets to this point it will never rise above the threshold again,
+                    // so we don't need to consider what happens after this point.
+                    ++exchangeIdx;  // We do need to consider the last capture to get an accurate bound.
+                    break;
+                }
+            } else {
+                if (-gain[exchangeIdx] >= threshold) {
+                    // Even after taking the target piece, the gain for the opponent is still above the
+                    // threshold. So if the exchange gets to this point it will never drop below the
+                    // threshold again, so we don't need to consider what happens after this point.
+                    ++exchangeIdx;  // We do need to consider the last capture to get an accurate bound.
+                    break;
+                }
             }
         }
 
@@ -220,5 +277,27 @@ int staticExchangeEvaluationBound(const GameState& gameState, const Move& move, 
         gain[i - 1] = -max(-gain[i - 1], gain[i]);
     }
 
-    return gain[0];
+    if constexpr (ReturnMeets) {
+        return gain[0] >= threshold;
+    } else {
+        return gain[0];
+    }
+}
+
+}  // namespace
+
+int staticExchangeEvaluation(const GameState& gameState, const Move& move) {
+    return staticExchangeEvaluationImpl</*ReturnBound =*/false, /*ReturnMeets =*/false>(
+            gameState, move, /*unused*/ 0);
+}
+
+int staticExchangeEvaluationBound(
+        const GameState& gameState, const Move& move, const int threshold) {
+    return staticExchangeEvaluationImpl</*ReturnBound =*/true, /*ReturnMeets =*/false>(
+            gameState, move, threshold);
+}
+
+bool staticExchangeEvaluationNonLosing(const GameState& gameState, const Move& move) {
+    return staticExchangeEvaluationImpl</*ReturnBound =*/false, /*ReturnMeets =*/true>(
+            gameState, move, /*threshold*/ 0);
 }

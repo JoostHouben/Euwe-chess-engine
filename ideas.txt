@@ -35,6 +35,8 @@ Evaluation:
 Search:
  - Move ordering:
    - Static exchange evaluation
+     - Order all captures using SEE
+     - Use SEE to postpone evaluation of bad captures
    - Improvements to history heuristic?
 - Algorithmic improvements:
    - MTD(f)?

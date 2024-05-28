@@ -24,8 +24,10 @@ TEST_P(SEETests, TestStaticExchangeEvaluation) {
 
     GameState gameState = GameState::fromFen(config.fen);
 
+    EXPECT_EQ(config.expectedScore, staticExchangeEvaluation(gameState, config.move));
+    EXPECT_EQ(config.expectedScore >= 0, staticExchangeEvaluationNonLosing(gameState, config.move));
+
     for (int threshold = -1000; threshold <= config.expectedScore; ++threshold) {
-        ASSERT_GE(config.expectedScore, threshold);
         // seeBound should be a lower bound l such that s >= l >= t.
         const int seeBound = staticExchangeEvaluationBound(gameState, config.move, threshold);
         EXPECT_GE(config.expectedScore, seeBound);
@@ -33,7 +35,6 @@ TEST_P(SEETests, TestStaticExchangeEvaluation) {
     }
 
     for (int threshold = config.expectedScore + 1; threshold <= 1000; ++threshold) {
-        ASSERT_LT(config.expectedScore, threshold);
         // seeBound should be an upper bound u such that s <= u < t.
         const int seeBound = staticExchangeEvaluationBound(gameState, config.move, threshold);
         EXPECT_LE(config.expectedScore, seeBound);
