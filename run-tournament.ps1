@@ -37,7 +37,7 @@ $pgnout = "$($pgnoutFolder)\$($pgnBaseName)_$($engine1Name)_vs_$($engine2Name).p
     -engine cmd=$Engine1 proto=uci `
     -engine cmd=$Engine2 proto=uci `
     -each `
-        tc="inf/5+$($timePerMove)" `
+        tc="inf/3+$($timePerMove)" `
         book=$book `
         bookdepth=5 `
     -rounds $numRounds -games 2 -repeat 2 -maxmoves 150 `

@@ -554,7 +554,7 @@ enum class SearchMoveOutcome {
     Move bestMove{};
     bool completedAnySearch = false;
 
-    // Probe the transposition table to update our score based on previous info.
+    // Probe the transposition table and use the stored score and/or move if we get a hit.
     const auto ttHit = gTTable.probe(gameState.getBoardHash());
     if (ttHit) {
         const auto& ttInfo = ttHit->payload;
