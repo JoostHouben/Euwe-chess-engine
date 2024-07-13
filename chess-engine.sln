@@ -12,7 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7CBABEEE-70BB-4F22-B1F0-BB27084B3498}"
 	ProjectSection(SolutionItems) = preProject
 		.clang-format = .clang-format
-		ideas.txt = ideas.txt
+		.gitignore = .gitignore
 		run-tournament.ps1 = run-tournament.ps1
 	EndProjectSection
 EndProject
