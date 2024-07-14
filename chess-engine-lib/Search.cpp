@@ -21,7 +21,7 @@ class MoveSearcherImpl {
             StackOfVectors<Move>& stack,
             std::optional<EvalT> evalGuess = std::nullopt);
 
-    void prepareForNewMove(const GameState& gameState);
+    void prepareForNewSearch(const GameState& gameState);
 
     void interruptSearch();
 
@@ -226,6 +226,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 }  // namespace
 
 MoveSearcherImpl::MoveSearcherImpl() {
+    moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
 }
 
@@ -1026,9 +1027,8 @@ RootSearchResult MoveSearcherImpl::searchForBestMove(
     }
 }
 
-void MoveSearcherImpl::prepareForNewMove(const GameState& gameState) {
-    // Set global variables to prepare for search.
-    moveScoreStack_.reserve(1'000);
+void MoveSearcherImpl::prepareForNewSearch(const GameState& gameState) {
+    // Set state variables to prepare for search.
     stopSearch_     = false;
     wasInterrupted_ = false;
 
@@ -1077,8 +1077,8 @@ RootSearchResult MoveSearcher::searchForBestMove(
     return impl_->searchForBestMove(gameState, depth, stack, evalGuess);
 }
 
-void MoveSearcher::prepareForNewMove(const GameState& gameState) {
-    impl_->prepareForNewMove(gameState);
+void MoveSearcher::prepareForNewSearch(const GameState& gameState) {
+    impl_->prepareForNewSearch(gameState);
 }
 
 void MoveSearcher::interruptSearch() {

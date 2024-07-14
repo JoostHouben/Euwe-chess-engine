@@ -11,7 +11,7 @@
 
 class EngineImpl {
   public:
-    EngineImpl() = default;
+    EngineImpl();
 
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
@@ -23,9 +23,11 @@ class EngineImpl {
     MoveSearcher moveSearcher_;
 };
 
-SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
+EngineImpl::EngineImpl() {
     moveStack_.reserve(1'000);
+}
 
+SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
     GameState copySate(gameState);
 
     moveSearcher_.resetSearchStatistics();
@@ -106,7 +108,7 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
 
 SearchInfo EngineImpl::findMove(
         const GameState& gameState, const std::chrono::milliseconds timeBudget) {
-    moveSearcher_.prepareForNewMove(gameState);
+    moveSearcher_.prepareForNewSearch(gameState);
     auto moveFuture = std::async(std::launch::async, &EngineImpl::findMoveWorker, this, gameState);
 
     (void)moveFuture.wait_for(timeBudget);

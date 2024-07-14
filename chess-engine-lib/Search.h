@@ -35,8 +35,9 @@ class MoveSearcher {
             StackOfVectors<Move>& stack,
             std::optional<EvalT> evalGuess = std::nullopt);
 
-    // Must be called before calling searchForBestMove from a new position.
-    void prepareForNewMove(const GameState& gameState);
+    // Must be called before calling searchForBestMove from a new position or after
+    // interruptSearch().
+    void prepareForNewSearch(const GameState& gameState);
 
     // Call this from a different thread to stop the search prematurely.
     void interruptSearch();
