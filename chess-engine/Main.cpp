@@ -131,8 +131,6 @@ void runUci() {
 
     UciState uciState{};
 
-    initializeEngine();
-
     while (true) {
         std::string inputLine;
         std::getline(std::cin, inputLine);

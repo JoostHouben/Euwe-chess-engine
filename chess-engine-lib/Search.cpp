@@ -13,7 +13,7 @@
 
 class MoveSearcherImpl {
   public:
-    MoveSearcherImpl() = default;
+    MoveSearcherImpl();
 
     [[nodiscard]] RootSearchResult searchForBestMove(
             GameState& gameState,
@@ -21,11 +21,9 @@ class MoveSearcherImpl {
             StackOfVectors<Move>& stack,
             std::optional<EvalT> evalGuess = std::nullopt);
 
-    void initializeSearch();
+    void prepareForNewMove(const GameState& gameState);
 
-    void prepareForSearch(const GameState& gameState);
-
-    void requestSearchStop();
+    void interruptSearch();
 
     [[nodiscard]] SearchStatistics getSearchStatistics();
 
@@ -226,6 +224,10 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 }
 
 }  // namespace
+
+MoveSearcherImpl::MoveSearcherImpl() {
+    initializeHistoryFromPieceSquare();
+}
 
 FORCE_INLINE std::array<Move, 2>& MoveSearcherImpl::getKillerMoves(const int ply) {
     MY_ASSERT(ply < kMaxDepth);
@@ -1024,11 +1026,7 @@ RootSearchResult MoveSearcherImpl::searchForBestMove(
     }
 }
 
-void MoveSearcherImpl::initializeSearch() {
-    initializeHistoryFromPieceSquare();
-}
-
-void MoveSearcherImpl::prepareForSearch(const GameState& gameState) {
+void MoveSearcherImpl::prepareForNewMove(const GameState& gameState) {
     // Set global variables to prepare for search.
     moveScoreStack_.reserve(1'000);
     stopSearch_     = false;
@@ -1038,7 +1036,7 @@ void MoveSearcherImpl::prepareForSearch(const GameState& gameState) {
     scaleDownHistory();
 }
 
-void MoveSearcherImpl::requestSearchStop() {
+void MoveSearcherImpl::interruptSearch() {
     // Set stop flag to interrupt search.
     stopSearch_ = true;
 }
@@ -1079,16 +1077,12 @@ RootSearchResult MoveSearcher::searchForBestMove(
     return impl_->searchForBestMove(gameState, depth, stack, evalGuess);
 }
 
-void MoveSearcher::initializeSearch() {
-    impl_->initializeSearch();
+void MoveSearcher::prepareForNewMove(const GameState& gameState) {
+    impl_->prepareForNewMove(gameState);
 }
 
-void MoveSearcher::prepareForSearch(const GameState& gameState) {
-    impl_->prepareForSearch(gameState);
-}
-
-void MoveSearcher::requestSearchStop() {
-    impl_->requestSearchStop();
+void MoveSearcher::interruptSearch() {
+    impl_->interruptSearch();
 }
 
 SearchStatistics MoveSearcher::getSearchStatistics() {

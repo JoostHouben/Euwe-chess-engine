@@ -97,16 +97,12 @@ MoveSearcher gMoveSearcher;
 
 }  // namespace
 
-void initializeEngine() {
-    gMoveSearcher.initializeSearch();
-}
-
 SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget) {
-    gMoveSearcher.prepareForSearch(gameState);
+    gMoveSearcher.prepareForNewMove(gameState);
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
     (void)moveFuture.wait_for(timeBudget);
-    gMoveSearcher.requestSearchStop();
+    gMoveSearcher.interruptSearch();
 
     return moveFuture.get();
 }

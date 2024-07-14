@@ -17,6 +17,4 @@ struct SearchInfo {
     int nodesPerSecond;
 };
 
-void initializeEngine();
-
 [[nodiscard]] SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget);

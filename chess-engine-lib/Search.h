@@ -35,14 +35,11 @@ class MoveSearcher {
             StackOfVectors<Move>& stack,
             std::optional<EvalT> evalGuess = std::nullopt);
 
-    // Must be called before the first invocation of searchForBestMove.
-    void initializeSearch();
-
-    // Must be called before each invocation of searchForBestMove.
-    void prepareForSearch(const GameState& gameState);
+    // Must be called before calling searchForBestMove from a new position.
+    void prepareForNewMove(const GameState& gameState);
 
     // Call this from a different thread to stop the search prematurely.
-    void requestSearchStop();
+    void interruptSearch();
 
     // Get statistics since the last call to getSearchStatistics.
     [[nodiscard]] SearchStatistics getSearchStatistics();
