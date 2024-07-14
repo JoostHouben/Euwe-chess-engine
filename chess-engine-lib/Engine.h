@@ -6,6 +6,7 @@
 #include "GameState.h"
 
 #include <chrono>
+#include <memory>
 #include <vector>
 
 struct SearchInfo {
@@ -17,4 +18,16 @@ struct SearchInfo {
     int nodesPerSecond;
 };
 
-[[nodiscard]] SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget);
+class EngineImpl;
+
+class Engine {
+  public:
+    Engine();
+    ~Engine();
+
+    [[nodiscard]] SearchInfo findMove(
+            const GameState& gameState, std::chrono::milliseconds timeBudget);
+
+  private:
+    std::unique_ptr<EngineImpl> impl_;
+};

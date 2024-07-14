@@ -75,7 +75,7 @@ void handlePosition(std::stringstream& lineSStream, UciState& uciState) {
     std::println(std::cerr, "Position:\n{}", gameState.toVisualString());
 }
 
-void handleGo(std::stringstream& lineSStream, UciState& uciState) {
+void handleGo(Engine& engine, std::stringstream& lineSStream, UciState& uciState) {
     // Most sub-commands not supported
 
     auto timeBudget = std::chrono::milliseconds(1000);
@@ -98,7 +98,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
         }
     }
 
-    const auto searchInfo = findMove(uciState.gameState, timeBudget);
+    const auto searchInfo = engine.findMove(uciState.gameState, timeBudget);
 
     std::string scoreString = std::format("cp {}", searchInfo.score);
     if (isMate(searchInfo.score)) {
@@ -130,6 +130,7 @@ void runUci() {
     std::println("uciok");
 
     UciState uciState{};
+    Engine engine{};
 
     while (true) {
         std::string inputLine;
@@ -152,7 +153,7 @@ void runUci() {
         } else if (command == "position") {
             handlePosition(lineSStream, uciState);
         } else if (command == "go") {
-            handleGo(lineSStream, uciState);
+            handleGo(engine, lineSStream, uciState);
         } else if (command == "quit") {
             return;
         }

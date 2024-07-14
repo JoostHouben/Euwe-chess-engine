@@ -9,17 +9,26 @@
 #include <random>
 #include <ranges>
 
-namespace {
+class EngineImpl {
+  public:
+    EngineImpl() = default;
 
-StackOfVectors<Move> gMoveStack;
-MoveSearcher gMoveSearcher;
+    [[nodiscard]] SearchInfo findMove(
+            const GameState& gameState, std::chrono::milliseconds timeBudget);
 
-[[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState) {
-    gMoveStack.reserve(1'000);
+  private:
+    [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState);
+
+    StackOfVectors<Move> moveStack_;
+    MoveSearcher moveSearcher_;
+};
+
+SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
+    moveStack_.reserve(1'000);
 
     GameState copySate(gameState);
 
-    gMoveSearcher.resetSearchStatistics();
+    moveSearcher_.resetSearchStatistics();
 
     std::vector<Move> principalVariation;
     std::optional<EvalT> eval = std::nullopt;
@@ -29,7 +38,7 @@ MoveSearcher gMoveSearcher;
     int depth;
     for (depth = 1; depth < 40; ++depth) {
         const auto searchResult =
-                gMoveSearcher.searchForBestMove(copySate, depth, gMoveStack, eval);
+                moveSearcher_.searchForBestMove(copySate, depth, moveStack_, eval);
 
         if (searchResult.principalVariation.size() > 0) {
             principalVariation = std::vector<Move>(
@@ -75,7 +84,7 @@ MoveSearcher gMoveSearcher;
     const auto millisecondsElapsed =
             std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    const auto searchStatistics = gMoveSearcher.getSearchStatistics();
+    const auto searchStatistics = moveSearcher_.getSearchStatistics();
 
     const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
 
@@ -95,14 +104,22 @@ MoveSearcher gMoveSearcher;
             .nodesPerSecond     = (int)nodesPerSecond};
 }
 
-}  // namespace
-
-SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget) {
-    gMoveSearcher.prepareForNewMove(gameState);
-    auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
+SearchInfo EngineImpl::findMove(
+        const GameState& gameState, const std::chrono::milliseconds timeBudget) {
+    moveSearcher_.prepareForNewMove(gameState);
+    auto moveFuture = std::async(std::launch::async, &EngineImpl::findMoveWorker, this, gameState);
 
     (void)moveFuture.wait_for(timeBudget);
-    gMoveSearcher.interruptSearch();
+    moveSearcher_.interruptSearch();
 
     return moveFuture.get();
+}
+
+Engine::Engine() : impl_(std::make_unique<EngineImpl>()) {}
+
+Engine::~Engine() = default;
+
+SearchInfo Engine::findMove(
+        const GameState& gameState, const std::chrono::milliseconds timeBudget) {
+    return impl_->findMove(gameState, timeBudget);
 }
