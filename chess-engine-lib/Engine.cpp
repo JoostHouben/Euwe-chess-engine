@@ -99,7 +99,7 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
             std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 
     return {.principalVariation = principalVariation,
-            .score              = *eval,
+            .score              = eval.value_or(-kInfiniteEval),
             .depth              = depth,
             .timeMs             = (int)millisecondsElapsed,
             .numNodes           = numNodes,
