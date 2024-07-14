@@ -125,7 +125,7 @@ void handleGo(std::stringstream& lineSStream, UciState& uciState) {
 }
 
 void runUci() {
-    std::println("id name see-ge-delta-pruning");
+    std::println("id name pimpl");
     std::println("id author Joost Houben");
     std::println("uciok");
 

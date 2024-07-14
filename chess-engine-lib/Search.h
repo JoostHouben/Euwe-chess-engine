@@ -5,6 +5,7 @@
 #include "Eval.h"
 #include "GameState.h"
 
+#include <memory>
 #include <optional>
 
 struct RootSearchResult {
@@ -20,24 +21,35 @@ struct SearchStatistics {
     float ttableUtilization = 0.0f;
 };
 
-// Perform search and return the principal variation and evaluation.
-[[nodiscard]] RootSearchResult searchForBestMove(
-        GameState& gameState,
-        int depth,
-        StackOfVectors<Move>& stack,
-        std::optional<EvalT> evalGuess = std::nullopt);
+class MoveSearcherImpl;
 
-// Must be called before the first invocation of searchForBestMove.
-void initializeSearch();
+class MoveSearcher {
+  public:
+    MoveSearcher();
+    ~MoveSearcher();
 
-// Must be called before each invocation of searchForBestMove.
-void prepareForSearch(const GameState& gameState);
+    // Perform search and return the principal variation and evaluation.
+    [[nodiscard]] RootSearchResult searchForBestMove(
+            GameState& gameState,
+            int depth,
+            StackOfVectors<Move>& stack,
+            std::optional<EvalT> evalGuess = std::nullopt);
 
-// Call this from a different thread to stop the search prematurely.
-void requestSearchStop();
+    // Must be called before the first invocation of searchForBestMove.
+    void initializeSearch();
 
-// Get statistics since the last call to getSearchStatistics.
-[[nodiscard]] SearchStatistics getSearchStatistics();
+    // Must be called before each invocation of searchForBestMove.
+    void prepareForSearch(const GameState& gameState);
 
-// Reset the search statistics.
-void resetSearchStatistics();
+    // Call this from a different thread to stop the search prematurely.
+    void requestSearchStop();
+
+    // Get statistics since the last call to getSearchStatistics.
+    [[nodiscard]] SearchStatistics getSearchStatistics();
+
+    // Reset the search statistics.
+    void resetSearchStatistics();
+
+  private:
+    std::unique_ptr<MoveSearcherImpl> impl_;
+};

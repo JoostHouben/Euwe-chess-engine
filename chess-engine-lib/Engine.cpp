@@ -12,13 +12,14 @@
 namespace {
 
 StackOfVectors<Move> gMoveStack;
+MoveSearcher gMoveSearcher;
 
 [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState) {
     gMoveStack.reserve(1'000);
 
     GameState copySate(gameState);
 
-    resetSearchStatistics();
+    gMoveSearcher.resetSearchStatistics();
 
     std::vector<Move> principalVariation;
     std::optional<EvalT> eval = std::nullopt;
@@ -27,7 +28,8 @@ StackOfVectors<Move> gMoveStack;
 
     int depth;
     for (depth = 1; depth < 40; ++depth) {
-        const auto searchResult = searchForBestMove(copySate, depth, gMoveStack, eval);
+        const auto searchResult =
+                gMoveSearcher.searchForBestMove(copySate, depth, gMoveStack, eval);
 
         if (searchResult.principalVariation.size() > 0) {
             principalVariation = std::vector<Move>(
@@ -73,7 +75,7 @@ StackOfVectors<Move> gMoveStack;
     const auto millisecondsElapsed =
             std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
 
-    const auto searchStatistics = getSearchStatistics();
+    const auto searchStatistics = gMoveSearcher.getSearchStatistics();
 
     const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
 
@@ -96,15 +98,15 @@ StackOfVectors<Move> gMoveStack;
 }  // namespace
 
 void initializeEngine() {
-    initializeSearch();
+    gMoveSearcher.initializeSearch();
 }
 
 SearchInfo findMove(const GameState& gameState, std::chrono::milliseconds timeBudget) {
-    prepareForSearch(gameState);
+    gMoveSearcher.prepareForSearch(gameState);
     auto moveFuture = std::async(std::launch::async, findMoveWorker, gameState);
 
     (void)moveFuture.wait_for(timeBudget);
-    requestSearchStop();
+    gMoveSearcher.requestSearchStop();
 
     return moveFuture.get();
 }
