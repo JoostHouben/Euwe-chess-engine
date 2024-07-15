@@ -4,6 +4,7 @@
 
 #include "BoardHash.h"
 #include "Eval.h"
+#include "Intrinsics.h"
 
 #include <bit>
 #include <optional>
@@ -37,6 +38,8 @@ class TTable {
 
     [[nodiscard]] std::optional<EntryT> probe(HashT hash) const;
 
+    void prefetch(HashT hash) const;
+
     template <typename FuncT>
     void store(const EntryT& entry, FuncT&& isMoreValuable);
 
@@ -44,6 +47,8 @@ class TTable {
     [[nodiscard]] float getUtilization() const { return static_cast<float>(numInUse_) / size_; }
 
   private:
+    [[nodiscard]] std::size_t computeIndex(HashT hash) const;
+
     EntryT* data_;
     std::size_t size_;
     std::size_t mask_;
@@ -54,9 +59,14 @@ class TTable {
 using SearchTTable = TTable<SearchTTPayload>;
 
 template <typename PayloadT>
-TTable<PayloadT>::TTable(std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
+TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
     data_ = new EntryT[size_];
-    mask_ = size_ - 1;
+
+    // size_ is a power of 2, so size_ - 1 is all 1s in binary.
+    // size_ - 2 is all 1s except the least significant bit.
+    // So by setting the mask to size_ - 2, `hash & mask_` will give us an even index in the range
+    // [0, size_).
+    mask_ = size_ - 2;
 }
 
 template <typename PayloadT>
@@ -65,9 +75,9 @@ TTable<PayloadT>::~TTable() {
 }
 
 template <typename PayloadT>
-std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(HashT hash) const {
-    const std::size_t index         = hash & mask_;
-    const std::size_t valuableIndex = index & ~1;
+std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(const HashT hash) const {
+    const std::size_t index         = computeIndex(hash);
+    const std::size_t valuableIndex = index;
     const std::size_t recentIndex   = index | 1;
 
     const EntryT& recentEntry = data_[recentIndex];
@@ -86,8 +96,8 @@ std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(HashT hash) const {
 template <typename PayloadT>
 template <typename FuncT>
 void TTable<PayloadT>::store(const TTEntry<PayloadT>& entryToStore, FuncT&& isMoreValuable) {
-    const std::size_t index         = entryToStore.hash & mask_;
-    const std::size_t valuableIndex = index & ~1;
+    const std::size_t index         = computeIndex(entryToStore.hash);
+    const std::size_t valuableIndex = index;
     const std::size_t recentIndex   = index | 1;
 
     EntryT& valuableEntry = data_[valuableIndex];
@@ -125,4 +135,15 @@ void TTable<PayloadT>::store(const TTEntry<PayloadT>& entryToStore, FuncT&& isMo
         }
         recentEntry = entryToStore;
     }
+}
+
+template <typename PayloadT>
+FORCE_INLINE void TTable<PayloadT>::prefetch(const HashT hash) const {
+    const std::size_t index = computeIndex(hash);
+    ::prefetch(&data_[index]);
+}
+
+template <typename PayloadT>
+FORCE_INLINE std::size_t TTable<PayloadT>::computeIndex(const HashT hash) const {
+    return hash & mask_;
 }

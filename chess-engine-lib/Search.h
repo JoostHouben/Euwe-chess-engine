@@ -42,7 +42,7 @@ class MoveSearcher {
     // Call this from a different thread to stop the search prematurely.
     void interruptSearch();
 
-    // Get statistics since the last call to getSearchStatistics.
+    // Get statistics since the last call to resetSearchStatistics.
     [[nodiscard]] SearchStatistics getSearchStatistics();
 
     // Reset the search statistics.

@@ -39,35 +39,6 @@ class MoveSearcherImpl {
         Interrupted,
     };
 
-    // == Constants ==
-
-    static constexpr int kMaxDepth = 100;
-
-    static constexpr int kTTableSizeInBytes   = 512 * 1024 * 1024;
-    static constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
-
-    // == Data ==
-
-    std::atomic<bool> stopSearch_ = false;
-    bool wasInterrupted_          = false;
-
-    SearchTTable tTable_ = SearchTTable(kTTableSizeInEntries);
-
-    StackOfVectors<MoveEvalT> moveScoreStack_ = {};
-
-    SearchStatistics searchStatistics_ = {};
-
-    int moveClockForKillerMoves_                            = 0;
-    std::array<std::array<Move, 2>, kMaxDepth> killerMoves_ = {};
-
-    std::array<std::array<std ::array<Move, kSquares>, kNumPieceTypes>, kNumSides> counterMoves_ =
-            {};
-
-    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
-            historyCutOff_ = {};
-    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
-            historyUsed_ = {};
-
     // == Helper functions ==
 
     [[nodiscard]] std::array<Move, 2>& getKillerMoves(int ply);
@@ -149,6 +120,35 @@ class MoveSearcherImpl {
             const int depth,
             StackOfVectors<Move>& stack,
             const EvalT initialGuess);
+
+    // == Constants ==
+
+    static constexpr int kMaxDepth = 100;
+
+    static constexpr int kTTableSizeInBytes   = 512 * 1024 * 1024;
+    static constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
+
+    // == Data ==
+
+    std::atomic<bool> stopSearch_ = false;
+    bool wasInterrupted_          = false;
+
+    SearchTTable tTable_ = SearchTTable(kTTableSizeInEntries);
+
+    StackOfVectors<MoveEvalT> moveScoreStack_ = {};
+
+    SearchStatistics searchStatistics_ = {};
+
+    int moveClockForKillerMoves_                            = 0;
+    std::array<std::array<Move, 2>, kMaxDepth> killerMoves_ = {};
+
+    std::array<std::array<std ::array<Move, kSquares>, kNumPieceTypes>, kNumSides> counterMoves_ =
+            {};
+
+    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
+            historyCutOff_ = {};
+    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
+            historyUsed_ = {};
 };
 
 namespace {
@@ -834,24 +834,30 @@ FORCE_INLINE MoveSearcherImpl::SearchMoveOutcome MoveSearcherImpl::searchMove(
 
     auto unmakeInfo = gameState.makeMove(move);
 
+    const int reducedDepth = depth - reduction - 1;
+    const int fullDepth    = depth - 1;
+    if (reducedDepth > 0) {
+        const bool likelyNullMoveAllowed = nullMovePruningAllowed(
+                gameState, /*isInCheck =*/false, reducedDepth, ply + 1, lastNullMovePly);
+
+        HashT hashToPrefetch = gameState.getBoardHash();
+        if (likelyNullMoveAllowed) {
+            updateHashForSideToMove(hashToPrefetch);
+        }
+        tTable_.prefetch(hashToPrefetch);
+    }
+
     EvalT score;
     if (useScoutSearch) {
         // Zero window (scout) search
-        score =
-                -search(gameState,
-                        depth - reduction - 1,
-                        ply + 1,
-                        -alpha - 1,
-                        -alpha,
-                        move,
-                        lastNullMovePly,
-                        stack);
+        score = -search(
+                gameState, reducedDepth, ply + 1, -alpha - 1, -alpha, move, lastNullMovePly, stack);
 
         if (reduction > 0 && score > alpha && !wasInterrupted_) {
             // Search again without reduction
             score =
                     -search(gameState,
-                            depth - 1,
+                            fullDepth,
                             ply + 1,
                             -alpha - 1,
                             -alpha,
@@ -863,12 +869,13 @@ FORCE_INLINE MoveSearcherImpl::SearchMoveOutcome MoveSearcherImpl::searchMove(
         if (score > alpha && score < beta && !wasInterrupted_) {
             // If the score is within the window, do a full window search.
             score = -search(
-                    gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
+                    gameState, fullDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
         }
     } else {
         MY_ASSERT(reduction == 0);
 
-        score = -search(gameState, depth - 1, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
+        score = -search(
+                gameState, reducedDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
     }
 
     gameState.unmakeMove(move, unmakeInfo);
