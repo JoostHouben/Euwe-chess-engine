@@ -3,7 +3,7 @@
 #pragma once
 
 #include "BoardHash.h"
-#include "Eval.h"
+#include "EvalT.h"
 #include "Intrinsics.h"
 
 #include <bit>

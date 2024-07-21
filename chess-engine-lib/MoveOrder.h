@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Eval.h"
 #include "GameState.h"
 
 using MoveEvalT = int;

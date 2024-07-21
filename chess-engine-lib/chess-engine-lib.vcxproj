@@ -18,6 +18,7 @@
     <ClInclude Include="ClangDiagnosticIgnore.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Eval.h" />
+    <ClInclude Include="EvalT.h" />
     <ClInclude Include="Math.h" />
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />
@@ -43,6 +44,7 @@
     <ClCompile Include="BoardHash.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Eval.cpp" />
+    <ClCompile Include="EvalT.cpp" />
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />

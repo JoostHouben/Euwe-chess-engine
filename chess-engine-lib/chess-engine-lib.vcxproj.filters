@@ -93,6 +93,9 @@
     <ClInclude Include="SearchStatistics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EvalT.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">
@@ -141,6 +144,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UciFrontEnd.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="EvalT.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

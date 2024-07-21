@@ -583,17 +583,3 @@ EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool che
 
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
-
-bool isMate(const EvalT eval) {
-    return std::abs(eval) >= kMateEval - 1000;
-}
-
-bool isValid(const EvalT eval) {
-    return -kMateEval <= eval && eval <= kMateEval;
-}
-
-int getMateDistanceInPly(EvalT eval) {
-    MY_ASSERT(isMate(eval));
-
-    return kMateEval - std::abs(eval);
-}

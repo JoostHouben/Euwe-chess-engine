@@ -1,5 +1,7 @@
 #include "MoveOrder.h"
 
+#include "Eval.h"
+
 namespace {
 
 // Killer and counter bonuses can potentially both apply.

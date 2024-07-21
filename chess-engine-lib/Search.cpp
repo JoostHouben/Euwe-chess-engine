@@ -1,5 +1,6 @@
 #include "Search.h"
 
+#include "Eval.h"
 #include "Math.h"
 #include "MoveOrder.h"
 #include "SEE.h"
