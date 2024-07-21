@@ -34,6 +34,7 @@
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
     <ClInclude Include="TTable.h" />
+    <ClInclude Include="UciFrontEnd.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BitBoard.cpp" />
@@ -51,6 +52,7 @@
     <ClCompile Include="Search.cpp" />
     <ClCompile Include="SEE.cpp" />
     <ClCompile Include="Side.cpp" />
+    <ClCompile Include="UciFrontEnd.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
