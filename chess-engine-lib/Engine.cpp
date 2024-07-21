@@ -23,7 +23,8 @@ class EngineImpl {
     const UciFrontEnd* uciFrontEnd_;
 };
 
-EngineImpl::EngineImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
+EngineImpl::EngineImpl(const UciFrontEnd* uciFrontEnd)
+    : moveSearcher_(uciFrontEnd), uciFrontEnd_(uciFrontEnd) {
     moveStack_.reserve(1'000);
 }
 

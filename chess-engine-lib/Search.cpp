@@ -5,16 +5,16 @@
 #include "MoveOrder.h"
 #include "SEE.h"
 #include "TTable.h"
+#include "UciFrontEnd.h"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <iostream>
-#include <print>
 
 class MoveSearcherImpl {
   public:
-    MoveSearcherImpl();
+    explicit MoveSearcherImpl(const UciFrontEnd* uciFrontEnd);
 
     [[nodiscard]] RootSearchResult searchForBestMove(
             GameState& gameState,
@@ -150,6 +150,8 @@ class MoveSearcherImpl {
             historyCutOff_ = {};
     std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
             historyUsed_ = {};
+
+    const UciFrontEnd* uciFrontEnd_;
 };
 
 namespace {
@@ -226,7 +228,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
 }  // namespace
 
-MoveSearcherImpl::MoveSearcherImpl() {
+MoveSearcherImpl::MoveSearcherImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
 }
@@ -954,7 +956,9 @@ RootSearchResult MoveSearcherImpl::aspirationWindowSearch(
                 // Don't trust the best move if we ever failed low and didn't complete the search.
                 // TODO: we should probably ask for more search time here.
 
-                std::println(std::cerr, "Partial search with failed low; not returning pv.");
+                if (uciFrontEnd_) {
+                    uciFrontEnd_->reportDiscardedPv("partial aspiration search with failed low");
+                }
 
                 StackVector<Move> principalVariation = stack.makeStackVector();
                 principalVariation.lock();
@@ -978,6 +982,9 @@ RootSearchResult MoveSearcherImpl::aspirationWindowSearch(
                     .eval               = searchEval,
                     .wasInterrupted     = false};
         }
+
+        const EvalT previousLowerBound = lowerBound;
+        const EvalT previousUpperBound = upperBound;
 
         if (searchEval <= lowerBound) {
             // Failed low
@@ -1007,7 +1014,10 @@ RootSearchResult MoveSearcherImpl::aspirationWindowSearch(
             }
         }
 
-        std::println(std::cerr, "Re-searching with window [{}, {}]", lowerBound, upperBound);
+        if (uciFrontEnd_) {
+            uciFrontEnd_->reportAspirationWindowReSearch(
+                    previousLowerBound, previousUpperBound, searchEval, lowerBound, upperBound);
+        }
     } while (true);
 }
 
@@ -1073,7 +1083,8 @@ void MoveSearcherImpl::resetSearchStatistics() {
 
 // Implementation of interface: forward to implementation
 
-MoveSearcher::MoveSearcher() : impl_(std::make_unique<MoveSearcherImpl>()) {}
+MoveSearcher::MoveSearcher(const UciFrontEnd* uciFrontEnd)
+    : impl_(std::make_unique<MoveSearcherImpl>(uciFrontEnd)) {}
 
 MoveSearcher::~MoveSearcher() = default;
 

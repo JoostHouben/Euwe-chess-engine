@@ -16,10 +16,11 @@ struct RootSearchResult {
 };
 
 class MoveSearcherImpl;
+class UciFrontEnd;
 
 class MoveSearcher {
   public:
-    MoveSearcher();
+    explicit MoveSearcher(const UciFrontEnd* uciFrontEnd = nullptr);
     ~MoveSearcher();
 
     // Perform search and return the principal variation and evaluation.

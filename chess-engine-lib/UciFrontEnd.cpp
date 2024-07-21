@@ -112,6 +112,27 @@ void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistic
             std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 }
 
+void UciFrontEnd::reportAspirationWindowReSearch(
+        const EvalT previousLowerBound,
+        const EvalT previousUpperBound,
+        const EvalT searchEval,
+        const EvalT newLowerBound,
+        const EvalT newUpperBound) const {
+    std::println(
+            std::cerr,
+            "Aspiration window [{}, {}] failed (search returned {}); re-searching with window [{}, "
+            "{}]",
+            previousLowerBound,
+            previousUpperBound,
+            searchEval,
+            newLowerBound,
+            newUpperBound);
+}
+
+void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
+    std::println(std::cerr, "Discarded PV: {}", reason);
+}
+
 void UciFrontEnd::handleIsReady() const {
     std::println("readyok");
 }
