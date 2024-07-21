@@ -26,14 +26,24 @@ std::string scoreToString(const EvalT score) {
     return std::format("cp {}", score);
 }
 
+template <typename... Args>
+void writeUci(std::format_string<Args...> fmt, Args&&... args) {
+    std::println(fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
+void writeDebug(std::format_string<Args...> fmt, Args&&... args) {
+    std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
+}
+
 }  // namespace
 
 UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {}
 
 void UciFrontEnd::run() {
-    std::println("id name prefetch");
-    std::println("id author Joost Houben");
-    std::println("uciok");
+    writeUci("id name prefetch");
+    writeUci("id author Joost Houben");
+    writeUci("uciok");
 
     while (true) {
         std::string inputLine;
@@ -62,7 +72,7 @@ void UciFrontEnd::run() {
         } else if (command.empty()) {
             continue;
         } else {
-            std::println(std::cerr, "Ignoring unknown command: '{}'", command);
+            writeDebug("Ignoring unknown command: '{}'", command);
         }
     }
 }
@@ -72,7 +82,7 @@ void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
 
     const std::string pvString = pvToString(searchInfo.principalVariation);
 
-    std::println(
+    writeUci(
             "info depth {} time {} nodes {} nps {} score {} pv {}",
             searchInfo.depth,
             searchInfo.timeMs,
@@ -83,7 +93,7 @@ void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
 }
 
 void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
-    std::println(std::cerr, "Completed partial search of depth {}", searchInfo.depth);
+    writeDebug("Completed partial search of depth {}", searchInfo.depth);
 
     const int completedDepth = searchInfo.depth - 1;
 
@@ -94,7 +104,7 @@ void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
 
     const std::string pvString = pvToString(searchInfo.principalVariation);
 
-    std::println(
+    writeUci(
             "info depth {} time {} nodes {} nps {}{} pv {}",
             completedDepth,
             searchInfo.timeMs,
@@ -105,11 +115,10 @@ void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
 }
 
 void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
-    std::println(std::cerr, "Normal nodes searched: {}", searchStatistics.normalNodesSearched);
-    std::println(std::cerr, "Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
-    std::println(std::cerr, "TTable hits: {}", searchStatistics.tTableHits);
-    std::print(
-            std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
+    writeDebug("Normal nodes searched: {}", searchStatistics.normalNodesSearched);
+    writeDebug("Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
+    writeDebug("TTable hits: {}", searchStatistics.tTableHits);
+    writeDebug("TTable utilization: {:.1f}%", searchStatistics.ttableUtilization * 100.f);
 }
 
 void UciFrontEnd::reportAspirationWindowReSearch(
@@ -118,8 +127,7 @@ void UciFrontEnd::reportAspirationWindowReSearch(
         const EvalT searchEval,
         const EvalT newLowerBound,
         const EvalT newUpperBound) const {
-    std::println(
-            std::cerr,
+    writeDebug(
             "Aspiration window [{}, {}] failed (search returned {}); re-searching with window [{}, "
             "{}]",
             previousLowerBound,
@@ -130,11 +138,11 @@ void UciFrontEnd::reportAspirationWindowReSearch(
 }
 
 void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
-    std::println(std::cerr, "Discarded PV: {}", reason);
+    writeDebug("Discarded PV: {}", reason);
 }
 
 void UciFrontEnd::handleIsReady() const {
-    std::println("readyok");
+    writeUci("readyok");
 }
 
 void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
@@ -157,7 +165,7 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
     }
 
     if (token != "moves") {
-        std::println(std::cerr, "Unrecognized token '{}'. Expected 'moves'.", token);
+        writeDebug("Unrecognized token '{}'. Expected 'moves'.", token);
         return;
     }
 
@@ -172,7 +180,7 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
         (void)gameState_.makeMove(move);
     }
 
-    std::println(std::cerr, "Position:\n{}", gameState_.toVisualString());
+    writeDebug("Position:\n{}", gameState_.toVisualString());
 }
 
 void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
@@ -200,5 +208,5 @@ void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
 
     const auto searchInfo = engine_.findMove(gameState_, timeBudget);
 
-    std::println("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
+    writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
 }
