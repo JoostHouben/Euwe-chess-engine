@@ -87,6 +87,12 @@
     <ClInclude Include="UciFrontEnd.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SearchInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SearchStatistics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">

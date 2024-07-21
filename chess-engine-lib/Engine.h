@@ -2,27 +2,19 @@
 
 #pragma once
 
-#include "Eval.h"
 #include "GameState.h"
+#include "SearchInfo.h"
 
 #include <chrono>
 #include <memory>
 #include <vector>
 
-struct SearchInfo {
-    std::vector<Move> principalVariation;
-    EvalT score;
-    int depth;
-    int timeMs;
-    int numNodes;
-    int nodesPerSecond;
-};
-
 class EngineImpl;
+class UciFrontEnd;
 
 class Engine {
   public:
-    Engine();
+    explicit Engine(const UciFrontEnd* uciFrontEnd = nullptr);
     ~Engine();
 
     [[nodiscard]] SearchInfo findMove(

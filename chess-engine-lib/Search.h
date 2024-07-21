@@ -4,6 +4,7 @@
 
 #include "Eval.h"
 #include "GameState.h"
+#include "SearchStatistics.h"
 
 #include <memory>
 #include <optional>
@@ -12,13 +13,6 @@ struct RootSearchResult {
     StackVector<Move> principalVariation;
     EvalT eval;
     bool wasInterrupted = false;
-};
-
-struct SearchStatistics {
-    int normalNodesSearched = 0;
-    int qNodesSearched      = 0;
-    int tTableHits          = 0;
-    float ttableUtilization = 0.0f;
 };
 
 class MoveSearcherImpl;

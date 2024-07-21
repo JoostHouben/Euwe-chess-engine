@@ -30,6 +30,8 @@
     <ClInclude Include="Piece.h" />
     <ClInclude Include="PieceControl.h" />
     <ClInclude Include="Search.h" />
+    <ClInclude Include="SearchInfo.h" />
+    <ClInclude Include="SearchStatistics.h" />
     <ClInclude Include="SEE.h" />
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />

@@ -27,4 +27,6 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
         const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState = true);
 
 [[nodiscard]] bool isMate(EvalT eval);
+[[nodiscard]] bool isValid(EvalT eval);
+
 [[nodiscard]] int getMateDistanceInPly(EvalT eval);

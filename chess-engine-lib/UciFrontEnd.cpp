@@ -6,7 +6,29 @@
 #include <print>
 #include <ranges>
 
-UciFrontEnd::UciFrontEnd() : engine_(), gameState_(GameState::startingPosition()) {}
+namespace {
+
+std::string pvToString(const std::vector<Move>& principalVariation) {
+    return principalVariation | std::views::transform(moveToUciString) | std::views::join_with(' ')
+         | std::ranges::to<std::string>();
+}
+
+std::string scoreToString(const EvalT score) {
+    MY_ASSERT(isValid(score));
+
+    if (isMate(score)) {
+        const int mateInPly           = getMateDistanceInPly(score);
+        const int mateInMoves         = (mateInPly + 1) / 2;
+        const int relativeMateInMoves = signum(score) * mateInMoves;
+        return std::format("mate {}", relativeMateInMoves);
+    }
+
+    return std::format("cp {}", score);
+}
+
+}  // namespace
+
+UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {}
 
 void UciFrontEnd::run() {
     std::println("id name prefetch");
@@ -37,8 +59,57 @@ void UciFrontEnd::run() {
             handleGo(lineSStream);
         } else if (command == "quit") {
             return;
+        } else if (command.empty()) {
+            continue;
+        } else {
+            std::println(std::cerr, "Ignoring unknown command: '{}'", command);
         }
     }
+}
+
+void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
+    const std::string scoreString = scoreToString(searchInfo.score);
+
+    const std::string pvString = pvToString(searchInfo.principalVariation);
+
+    std::println(
+            "info depth {} time {} nodes {} nps {} score {} pv {}",
+            searchInfo.depth,
+            searchInfo.timeMs,
+            searchInfo.numNodes,
+            searchInfo.nodesPerSecond,
+            scoreString,
+            pvString);
+}
+
+void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
+    std::println(std::cerr, "Completed partial search of depth {}", searchInfo.depth);
+
+    const int completedDepth = searchInfo.depth - 1;
+
+    std::string optionalScoreString = "";
+    if (isValid(searchInfo.score)) {
+        optionalScoreString = std::format(" score {}", scoreToString(searchInfo.score));
+    }
+
+    const std::string pvString = pvToString(searchInfo.principalVariation);
+
+    std::println(
+            "info depth {} time {} nodes {} nps {}{} pv {}",
+            completedDepth,
+            searchInfo.timeMs,
+            searchInfo.numNodes,
+            searchInfo.nodesPerSecond,
+            optionalScoreString,
+            pvString);
+}
+
+void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
+    std::println(std::cerr, "Normal nodes searched: {}", searchStatistics.normalNodesSearched);
+    std::println(std::cerr, "Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
+    std::println(std::cerr, "TTable hits: {}", searchStatistics.tTableHits);
+    std::print(
+            std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
 }
 
 void UciFrontEnd::handleIsReady() const {
@@ -107,27 +178,6 @@ void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
     }
 
     const auto searchInfo = engine_.findMove(gameState_, timeBudget);
-
-    std::string scoreString = std::format("cp {}", searchInfo.score);
-    if (isMate(searchInfo.score)) {
-        const int mateInPly           = getMateDistanceInPly(searchInfo.score);
-        const int mateInMoves         = (mateInPly + 1) / 2;
-        const int relativeMateInMoves = signum(searchInfo.score) * mateInMoves;
-        scoreString                   = std::format("mate {}", relativeMateInMoves);
-    }
-
-    const std::string pvString = searchInfo.principalVariation
-                               | std::views::transform(moveToUciString) | std::views::join_with(' ')
-                               | std::ranges::to<std::string>();
-
-    std::println(
-            "info depth {} time {} nodes {} nps {} score {} pv {}",
-            searchInfo.depth,
-            searchInfo.timeMs,
-            searchInfo.numNodes,
-            searchInfo.nodesPerSecond,
-            scoreString,
-            pvString);
 
     std::println("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
 }

@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #include "Search.h"
+#include "UciFrontEnd.h"
 
 #include <future>
 #include <iostream>
@@ -9,7 +10,7 @@
 
 class EngineImpl {
   public:
-    EngineImpl();
+    EngineImpl(const UciFrontEnd* uciFrontEnd);
 
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
@@ -19,9 +20,10 @@ class EngineImpl {
 
     StackOfVectors<Move> moveStack_;
     MoveSearcher moveSearcher_;
+    const UciFrontEnd* uciFrontEnd_;
 };
 
-EngineImpl::EngineImpl() {
+EngineImpl::EngineImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
     moveStack_.reserve(1'000);
 }
 
@@ -30,78 +32,60 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
 
     moveSearcher_.resetSearchStatistics();
 
-    std::vector<Move> principalVariation;
-    std::optional<EvalT> eval = std::nullopt;
+    std::optional<EvalT> evalGuess = std::nullopt;
+    SearchInfo searchInfo;
 
     auto startTime = std::chrono::high_resolution_clock::now();
 
     int depth;
     for (depth = 1; depth < 40; ++depth) {
         const auto searchResult =
-                moveSearcher_.searchForBestMove(copySate, depth, moveStack_, eval);
+                moveSearcher_.searchForBestMove(copySate, depth, moveStack_, evalGuess);
+
+        evalGuess = searchResult.eval;
 
         if (searchResult.principalVariation.size() > 0) {
-            principalVariation = std::vector<Move>(
+            searchInfo.principalVariation = std::vector<Move>(
                     searchResult.principalVariation.begin(), searchResult.principalVariation.end());
         }
-
-        std::string pvString = principalVariation | std::views::transform(moveToExtendedString)
-                             | std::views::join_with(' ') | std::ranges::to<std::string>();
 
         const auto timeNow = std::chrono::high_resolution_clock::now();
         const auto millisecondsElapsed =
                 std::chrono::duration_cast<std::chrono::milliseconds>(timeNow - startTime).count();
 
-        if (searchResult.wasInterrupted) {
-            std::print(
-                    std::cerr,
-                    "Partial search Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
-                    depth,
-                    pvString,
-                    searchResult.eval,
-                    millisecondsElapsed);
+        const auto searchStatistics = moveSearcher_.getSearchStatistics();
 
-            --depth;
+        const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
+        const float nodesPerSecond = static_cast<float>(numNodes) / millisecondsElapsed * 1'000.0f;
+
+        searchInfo.score          = searchResult.eval;
+        searchInfo.depth          = depth;
+        searchInfo.timeMs         = (int)millisecondsElapsed;
+        searchInfo.numNodes       = numNodes;
+        searchInfo.nodesPerSecond = (int)nodesPerSecond;
+
+        if (searchResult.wasInterrupted) {
+            if (uciFrontEnd_) {
+                uciFrontEnd_->reportPartialSearch(searchInfo);
+            }
+            searchInfo.depth -= 1;
             break;
         }
 
-        eval = searchResult.eval;
+        if (uciFrontEnd_) {
+            uciFrontEnd_->reportFullSearch(searchInfo);
+        }
 
-        std::print(
-                std::cerr,
-                "Depth {} - pv: {} (eval: {}; time elapsed: {} ms)\n",
-                depth,
-                pvString,
-                *eval,
-                millisecondsElapsed);
-
-        if (isMate(*eval) && getMateDistanceInPly(*eval) <= depth) {
+        if (isMate(searchResult.eval) && getMateDistanceInPly(searchResult.eval) <= depth) {
             break;
         }
     }
 
-    const auto endTime = std::chrono::high_resolution_clock::now();
-    const auto millisecondsElapsed =
-            std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
+    if (uciFrontEnd_) {
+        uciFrontEnd_->reportSearchStatistics(moveSearcher_.getSearchStatistics());
+    }
 
-    const auto searchStatistics = moveSearcher_.getSearchStatistics();
-
-    const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
-
-    const float nodesPerSecond = static_cast<float>(numNodes) / millisecondsElapsed * 1'000.0f;
-
-    std::println(std::cerr, "Normal nodes searched: {}", searchStatistics.normalNodesSearched);
-    std::println(std::cerr, "Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
-    std::println(std::cerr, "TTable hits: {}", searchStatistics.tTableHits);
-    std::print(
-            std::cerr, "TTable utilization: {:.1f}%\n", searchStatistics.ttableUtilization * 100.f);
-
-    return {.principalVariation = principalVariation,
-            .score              = eval.value_or(-kInfiniteEval),
-            .depth              = depth,
-            .timeMs             = (int)millisecondsElapsed,
-            .numNodes           = numNodes,
-            .nodesPerSecond     = (int)nodesPerSecond};
+    return searchInfo;
 }
 
 SearchInfo EngineImpl::findMove(
@@ -115,7 +99,7 @@ SearchInfo EngineImpl::findMove(
     return moveFuture.get();
 }
 
-Engine::Engine() : impl_(std::make_unique<EngineImpl>()) {}
+Engine::Engine(const UciFrontEnd* uciFrontEnd) : impl_(std::make_unique<EngineImpl>(uciFrontEnd)) {}
 
 Engine::~Engine() = default;
 
