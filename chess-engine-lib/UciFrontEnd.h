@@ -49,6 +49,7 @@ class UciFrontEnd {
     void handleGo(std::stringstream& lineSStream);
     void handleStop();
     void handleDebug(std::stringstream& lineSStream);
+    void handleRegister() const;
 
     void waitForGoToComplete();
 

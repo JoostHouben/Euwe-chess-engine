@@ -71,7 +71,6 @@ void UciFrontEnd::run() {
 
         // Not implemented:
         //  setoption
-        //  register
         //  ponderhit
 
         if (command == "isready") {
@@ -89,6 +88,8 @@ void UciFrontEnd::run() {
         } else if (command == "quit") {
             waitForGoToComplete();
             return;
+        } else if (command == "register") {
+            handleRegister();
         } else if (command.empty()) {
             continue;
         } else {
@@ -275,6 +276,13 @@ void UciFrontEnd::handleDebug(std::stringstream& lineSStream) {
     std::stringstream debugModeSS;
     debugModeSS << std::boolalpha << debugMode_;
     writeDebug(debugMode_, "Debug mode enabled: {}", debugModeSS.str());
+}
+
+void UciFrontEnd::handleRegister() const {
+    writeUci("info string No registration is needed!");
+    writeUci("registration checking");
+    writeUci("registration ok");
+    std::flush(std::cout);
 }
 
 void UciFrontEnd::waitForGoToComplete() {
