@@ -95,8 +95,9 @@ void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
     const std::string pvString = pvToString(searchInfo.principalVariation);
 
     writeUci(
-            "info depth {} time {} nodes {} nps {} score {} pv {}",
+            "info depth {} seldepth {} time {} nodes {} nps {} score {} pv {}",
             searchInfo.depth,
+            searchInfo.selectiveDepth,
             searchInfo.timeMs,
             searchInfo.numNodes,
             searchInfo.nodesPerSecond,
@@ -117,8 +118,9 @@ void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
     const std::string pvString = pvToString(searchInfo.principalVariation);
 
     writeUci(
-            "info depth {} time {} nodes {} nps {}{} pv {}",
+            "info depth {} seldepth {} time {} nodes {} nps {}{} pv {}",
             completedDepth,
+            searchInfo.selectiveDepth,
             searchInfo.timeMs,
             searchInfo.numNodes,
             searchInfo.nodesPerSecond,

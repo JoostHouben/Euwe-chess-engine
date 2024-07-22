@@ -63,6 +63,7 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
 
         searchInfo.score          = searchResult.eval;
         searchInfo.depth          = depth;
+        searchInfo.selectiveDepth = searchStatistics.selectiveDepth;
         searchInfo.timeMs         = (int)millisecondsElapsed;
         searchInfo.numNodes       = numNodes;
         searchInfo.nodesPerSecond = (int)nodesPerSecond;

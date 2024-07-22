@@ -433,6 +433,7 @@ EvalT MoveSearcherImpl::search(
     }
 
     ++searchStatistics_.normalNodesSearched;
+    searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
 
     if (depth == 0) {
         return quiesce(gameState, alpha, beta, stack);
