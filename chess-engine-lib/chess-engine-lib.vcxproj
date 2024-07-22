@@ -16,6 +16,7 @@
     <ClInclude Include="BoardHash.h" />
     <ClInclude Include="BoardPosition.h" />
     <ClInclude Include="ClangDiagnosticIgnore.h" />
+    <ClInclude Include="ConsoleColor.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Eval.h" />
     <ClInclude Include="EvalT.h" />
@@ -53,6 +54,7 @@
     <ClCompile Include="Perft.cpp" />
     <ClCompile Include="Piece.cpp" />
     <ClCompile Include="PieceControl.cpp" />
+    <ClCompile Include="ConsoleColor.cpp" />
     <ClCompile Include="Search.cpp" />
     <ClCompile Include="SEE.cpp" />
     <ClCompile Include="Side.cpp" />

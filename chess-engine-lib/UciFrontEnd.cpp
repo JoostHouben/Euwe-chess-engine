@@ -1,5 +1,6 @@
 #include "UciFrontEnd.h"
 
+#include "ConsoleColor.h"
 #include "Math.h"
 
 #include <iostream>
@@ -28,11 +29,15 @@ std::string scoreToString(const EvalT score) {
 
 template <typename... Args>
 void writeUci(std::format_string<Args...> fmt, Args&&... args) {
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Green);
+
     std::println(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 void writeDebug(std::format_string<Args...> fmt, Args&&... args) {
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
+
     std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
 }
 
