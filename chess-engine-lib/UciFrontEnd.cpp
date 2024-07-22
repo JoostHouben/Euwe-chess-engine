@@ -51,7 +51,7 @@ UciFrontEnd::~UciFrontEnd() {
 }
 
 void UciFrontEnd::run() {
-    writeUci("id name prefetch");
+    writeUci("id name refactor");
     writeUci("id author Joost Houben");
     writeUci("uciok");
 
@@ -230,6 +230,7 @@ void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
         const auto searchInfo = engine_.findMove(gameState_, timeBudget);
 
         writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
+        std::flush(std::cout);
     });
 }
 
