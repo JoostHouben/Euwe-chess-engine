@@ -54,6 +54,7 @@ void UciFrontEnd::run() {
     writeUci("id name refactor");
     writeUci("id author Joost Houben");
     writeUci("uciok");
+    std::flush(std::cout);
 
     while (true) {
         std::string inputLine;
@@ -158,6 +159,7 @@ void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
 void UciFrontEnd::handleIsReady() {
     waitForGoToComplete();
     writeUci("readyok");
+    std::flush(std::cout);
 }
 
 void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
