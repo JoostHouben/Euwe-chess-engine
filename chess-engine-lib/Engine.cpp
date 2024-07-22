@@ -15,6 +15,8 @@ class EngineImpl {
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
 
+    void interruptSearch();
+
   private:
     [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState);
 
@@ -100,6 +102,10 @@ SearchInfo EngineImpl::findMove(
     return moveFuture.get();
 }
 
+void EngineImpl::interruptSearch() {
+    moveSearcher_.interruptSearch();
+}
+
 Engine::Engine(const UciFrontEnd* uciFrontEnd) : impl_(std::make_unique<EngineImpl>(uciFrontEnd)) {}
 
 Engine::~Engine() = default;
@@ -107,4 +113,8 @@ Engine::~Engine() = default;
 SearchInfo Engine::findMove(
         const GameState& gameState, const std::chrono::milliseconds timeBudget) {
     return impl_->findMove(gameState, timeBudget);
+}
+
+void Engine::interruptSearch() {
+    impl_->interruptSearch();
 }

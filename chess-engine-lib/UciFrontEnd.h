@@ -7,12 +7,14 @@
 #include "SearchInfo.h"
 #include "SearchStatistics.h"
 
+#include <future>
 #include <sstream>
 #include <string_view>
 
 class UciFrontEnd {
   public:
     UciFrontEnd();
+    ~UciFrontEnd();
 
     // Run in a loop, handling UCI commands.
     void run();
@@ -41,10 +43,15 @@ class UciFrontEnd {
     void reportDiscardedPv(std::string_view reason) const;
 
   private:
-    void handleIsReady() const;
+    void handleIsReady();
     void handlePosition(std::stringstream& lineSStream);
     void handleGo(std::stringstream& lineSStream);
+    void handleStop();
+
+    void waitForGoToComplete();
 
     Engine engine_;
     GameState gameState_;
+
+    std::future<void> goFuture;
 };

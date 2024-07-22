@@ -20,6 +20,8 @@ class Engine {
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
 
+    void interruptSearch();
+
   private:
     std::unique_ptr<EngineImpl> impl_;
 };

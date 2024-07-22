@@ -2,6 +2,7 @@
 
 #include "ConsoleColor.h"
 #include "Math.h"
+#include "MyAssert.h"
 
 #include <iostream>
 #include <print>
@@ -45,6 +46,10 @@ void writeDebug(std::format_string<Args...> fmt, Args&&... args) {
 
 UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {}
 
+UciFrontEnd::~UciFrontEnd() {
+    MY_ASSERT(!goFuture.valid());
+}
+
 void UciFrontEnd::run() {
     writeUci("id name prefetch");
     writeUci("id author Joost Houben");
@@ -63,7 +68,6 @@ void UciFrontEnd::run() {
         //  debug
         //  setoption
         //  register
-        //  stop
         //  ponderhit
 
         if (command == "isready") {
@@ -72,7 +76,10 @@ void UciFrontEnd::run() {
             handlePosition(lineSStream);
         } else if (command == "go") {
             handleGo(lineSStream);
+        } else if (command == "stop") {
+            handleStop();
         } else if (command == "quit") {
+            waitForGoToComplete();
             return;
         } else if (command.empty()) {
             continue;
@@ -146,11 +153,14 @@ void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
     writeDebug("Discarded PV: {}", reason);
 }
 
-void UciFrontEnd::handleIsReady() const {
+void UciFrontEnd::handleIsReady() {
+    waitForGoToComplete();
     writeUci("readyok");
 }
 
 void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
+    waitForGoToComplete();
+
     std::string token;
     lineSStream >> token;
 
@@ -211,7 +221,25 @@ void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
         }
     }
 
-    const auto searchInfo = engine_.findMove(gameState_, timeBudget);
+    waitForGoToComplete();
+    MY_ASSERT(!goFuture.valid());
 
-    writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
+    goFuture = std::async(std::launch::async, [=, this] {
+        const auto searchInfo = engine_.findMove(gameState_, timeBudget);
+
+        writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
+    });
+}
+
+void UciFrontEnd::handleStop() {
+    if (goFuture.valid()) {
+        engine_.interruptSearch();
+        goFuture.get();
+    }
+}
+
+void UciFrontEnd::waitForGoToComplete() {
+    if (goFuture.valid()) {
+        goFuture.get();
+    }
 }
