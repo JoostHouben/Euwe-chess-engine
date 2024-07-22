@@ -29,17 +29,21 @@ std::string scoreToString(const EvalT score) {
 }
 
 template <typename... Args>
-void writeUci(std::format_string<Args...> fmt, Args&&... args) {
+void writeUci(const std::format_string<Args...> fmt, Args&&... args) {
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Green);
 
     std::println(fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
-void writeDebug(std::format_string<Args...> fmt, Args&&... args) {
+void writeDebug(const bool debugToUci, const std::format_string<Args...> fmt, Args&&... args) {
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
 
-    std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
+    if (debugToUci) {
+        std::println("info string {}", std::format(fmt, std::forward<Args>(args)...));
+    } else {
+        std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
+    }
 }
 
 }  // namespace
@@ -66,7 +70,6 @@ void UciFrontEnd::run() {
         lineSStream >> command;
 
         // Not implemented:
-        //  debug
         //  setoption
         //  register
         //  ponderhit
@@ -79,13 +82,15 @@ void UciFrontEnd::run() {
             handleGo(lineSStream);
         } else if (command == "stop") {
             handleStop();
+        } else if (command == "debug") {
+            handleDebug(lineSStream);
         } else if (command == "quit") {
             waitForGoToComplete();
             return;
         } else if (command.empty()) {
             continue;
         } else {
-            writeDebug("Ignoring unknown command: '{}'", command);
+            writeDebug(debugMode_, "Ignoring unknown command: '{}'", command);
         }
     }
 }
@@ -107,7 +112,7 @@ void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
 }
 
 void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
-    writeDebug("Completed partial search of depth {}", searchInfo.depth);
+    writeDebug(debugMode_, "Completed partial search of depth {}", searchInfo.depth);
 
     const int completedDepth = searchInfo.depth - 1;
 
@@ -130,10 +135,11 @@ void UciFrontEnd::reportPartialSearch(const SearchInfo& searchInfo) const {
 }
 
 void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
-    writeDebug("Normal nodes searched: {}", searchStatistics.normalNodesSearched);
-    writeDebug("Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
-    writeDebug("TTable hits: {}", searchStatistics.tTableHits);
-    writeDebug("TTable utilization: {:.1f}%", searchStatistics.ttableUtilization * 100.f);
+    writeDebug(debugMode_, "Normal nodes searched: {}", searchStatistics.normalNodesSearched);
+    writeDebug(debugMode_, "Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
+    writeDebug(debugMode_, "TTable hits: {}", searchStatistics.tTableHits);
+    writeDebug(
+            debugMode_, "TTable utilization: {:.1f}%", searchStatistics.ttableUtilization * 100.f);
 }
 
 void UciFrontEnd::reportAspirationWindowReSearch(
@@ -143,6 +149,7 @@ void UciFrontEnd::reportAspirationWindowReSearch(
         const EvalT newLowerBound,
         const EvalT newUpperBound) const {
     writeDebug(
+            debugMode_,
             "Aspiration window [{}, {}] failed (search returned {}); re-searching with window [{}, "
             "{}]",
             previousLowerBound,
@@ -153,7 +160,7 @@ void UciFrontEnd::reportAspirationWindowReSearch(
 }
 
 void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
-    writeDebug("Discarded PV: {}", reason);
+    writeDebug(debugMode_, "Discarded PV: {}", reason);
 }
 
 void UciFrontEnd::handleIsReady() {
@@ -184,7 +191,7 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
     }
 
     if (token != "moves") {
-        writeDebug("Unrecognized token '{}'. Expected 'moves'.", token);
+        writeDebug(debugMode_, "Unrecognized token '{}'. Expected 'moves'.", token);
         return;
     }
 
@@ -199,7 +206,7 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
         (void)gameState_.makeMove(move);
     }
 
-    writeDebug("Position:\n{}", gameState_.toVisualString());
+    writeDebug(/*debugToUci =*/false, "Position:\n{}", gameState_.toVisualString());
 }
 
 void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
@@ -241,6 +248,26 @@ void UciFrontEnd::handleStop() {
         engine_.interruptSearch();
         goFuture.get();
     }
+}
+
+void UciFrontEnd::handleDebug(std::stringstream& lineSStream) {
+    std::string debugSettingString;
+    lineSStream >> debugSettingString;
+
+    if (debugSettingString == "on") {
+        debugMode_ = true;
+    } else if (debugSettingString == "off") {
+        debugMode_ = false;
+    } else {
+        writeDebug(
+                debugMode_,
+                "Unknown debug setting '{}'. Expected 'on' or 'off'.",
+                debugSettingString);
+    }
+
+    std::stringstream debugModeSS;
+    debugModeSS << std::boolalpha << debugMode_;
+    writeDebug(debugMode_, "Debug mode enabled: {}", debugModeSS.str());
 }
 
 void UciFrontEnd::waitForGoToComplete() {

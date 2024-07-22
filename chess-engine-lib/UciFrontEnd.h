@@ -47,11 +47,14 @@ class UciFrontEnd {
     void handlePosition(std::stringstream& lineSStream);
     void handleGo(std::stringstream& lineSStream);
     void handleStop();
+    void handleDebug(std::stringstream& lineSStream);
 
     void waitForGoToComplete();
 
     Engine engine_;
     GameState gameState_;
+
+    bool debugMode_ = false;
 
     std::future<void> goFuture;
 };
