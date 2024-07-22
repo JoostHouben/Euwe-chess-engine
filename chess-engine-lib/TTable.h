@@ -5,6 +5,7 @@
 #include "BoardHash.h"
 #include "EvalT.h"
 #include "Intrinsics.h"
+#include "Move.h"
 
 #include <bit>
 #include <optional>
@@ -23,7 +24,7 @@ struct SearchTTPayload {
     std::uint8_t depth  = 0;
     ScoreType scoreType = ScoreType::NotSet;
     EvalT score         = 0;
-    Move bestMove;  // TODO: could store smaller move representation
+    Move bestMove       = kUninitializedMove;  // TODO: could store smaller move representation
 };
 
 using SearchTTEntry = TTEntry<SearchTTPayload>;
@@ -35,6 +36,8 @@ class TTable {
 
     TTable(std::size_t requestedSize);
     ~TTable();
+
+    void clear();
 
     [[nodiscard]] std::optional<EntryT> probe(HashT hash) const;
 
@@ -72,6 +75,14 @@ TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor
 template <typename PayloadT>
 TTable<PayloadT>::~TTable() {
     delete[] data_;
+}
+
+template <typename PayloadT>
+void TTable<PayloadT>::clear() {
+    for (std::size_t i = 0; i < size_; ++i) {
+        data_[i] = EntryT{};
+    }
+    numInUse_ = 0;
 }
 
 template <typename PayloadT>

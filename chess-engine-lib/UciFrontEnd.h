@@ -44,6 +44,7 @@ class UciFrontEnd {
 
   private:
     void handleIsReady();
+    void handleNewGame();
     void handlePosition(std::stringstream& lineSStream);
     void handleGo(std::stringstream& lineSStream);
     void handleStop();

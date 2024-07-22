@@ -16,6 +16,8 @@ class MoveSearcherImpl {
   public:
     explicit MoveSearcherImpl(const UciFrontEnd* uciFrontEnd);
 
+    void newGame();
+
     [[nodiscard]] RootSearchResult searchForBestMove(
             GameState& gameState,
             int depth,
@@ -231,6 +233,17 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 MoveSearcherImpl::MoveSearcherImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
+}
+
+void MoveSearcherImpl::newGame() {
+    // Reset internal state for the sake of consistency
+    tTable_.clear();
+    resetSearchStatistics();
+    moveClockForKillerMoves_ = 0;
+    killerMoves_             = {};
+    counterMoves_            = {};
+    historyCutOff_           = {};
+    historyUsed_             = {};
 }
 
 FORCE_INLINE std::array<Move, 2>& MoveSearcherImpl::getKillerMoves(const int ply) {
@@ -1088,6 +1101,10 @@ MoveSearcher::MoveSearcher(const UciFrontEnd* uciFrontEnd)
     : impl_(std::make_unique<MoveSearcherImpl>(uciFrontEnd)) {}
 
 MoveSearcher::~MoveSearcher() = default;
+
+void MoveSearcher::newGame() {
+    impl_->newGame();
+}
 
 RootSearchResult MoveSearcher::searchForBestMove(
         GameState& gameState,

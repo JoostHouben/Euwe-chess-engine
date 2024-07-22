@@ -23,6 +23,8 @@ class MoveSearcher {
     explicit MoveSearcher(const UciFrontEnd* uciFrontEnd = nullptr);
     ~MoveSearcher();
 
+    void newGame();
+
     // Perform search and return the principal variation and evaluation.
     [[nodiscard]] RootSearchResult searchForBestMove(
             GameState& gameState,

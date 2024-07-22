@@ -17,6 +17,8 @@ class Engine {
     explicit Engine(const UciFrontEnd* uciFrontEnd = nullptr);
     ~Engine();
 
+    void newGame();
+
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
 

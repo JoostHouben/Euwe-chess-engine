@@ -12,6 +12,8 @@ class EngineImpl {
   public:
     EngineImpl(const UciFrontEnd* uciFrontEnd);
 
+    void newGame();
+
     [[nodiscard]] SearchInfo findMove(
             const GameState& gameState, std::chrono::milliseconds timeBudget);
 
@@ -28,6 +30,10 @@ class EngineImpl {
 EngineImpl::EngineImpl(const UciFrontEnd* uciFrontEnd)
     : moveSearcher_(uciFrontEnd), uciFrontEnd_(uciFrontEnd) {
     moveStack_.reserve(1'000);
+}
+
+void EngineImpl::newGame() {
+    moveSearcher_.newGame();
 }
 
 SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
@@ -110,6 +116,10 @@ void EngineImpl::interruptSearch() {
 Engine::Engine(const UciFrontEnd* uciFrontEnd) : impl_(std::make_unique<EngineImpl>(uciFrontEnd)) {}
 
 Engine::~Engine() = default;
+
+void Engine::newGame() {
+    impl_->newGame();
+}
 
 SearchInfo Engine::findMove(
         const GameState& gameState, const std::chrono::milliseconds timeBudget) {

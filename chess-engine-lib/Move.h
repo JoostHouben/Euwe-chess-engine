@@ -52,6 +52,13 @@ struct Move {
     bool operator==(const Move& other) const = default;
 };
 
+// For fast initialization
+inline constexpr Move kUninitializedMove =
+        Move{.pieceToMove = (Piece)0,
+             .from        = (BoardPosition)0,
+             .to          = (BoardPosition)0,
+             .flags       = MoveFlags::None};
+
 class GameState;
 
 [[nodiscard]] Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState);

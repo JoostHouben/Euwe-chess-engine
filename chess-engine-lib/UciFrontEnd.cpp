@@ -76,6 +76,8 @@ void UciFrontEnd::run() {
 
         if (command == "isready") {
             handleIsReady();
+        } else if (command == "ucinewgame") {
+            handleNewGame();
         } else if (command == "position") {
             handlePosition(lineSStream);
         } else if (command == "go") {
@@ -167,6 +169,11 @@ void UciFrontEnd::handleIsReady() {
     waitForGoToComplete();
     writeUci("readyok");
     std::flush(std::cout);
+}
+
+void UciFrontEnd::handleNewGame() {
+    engine_.newGame();
+    gameState_ = GameState::startingPosition();
 }
 
 void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
