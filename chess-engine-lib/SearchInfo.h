@@ -11,7 +11,6 @@ struct SearchInfo {
     std::vector<Move> principalVariation;
     EvalT score;
     int depth;
-    int selectiveDepth;
     int timeMs;
     int numNodes;
     int nodesPerSecond;

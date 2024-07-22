@@ -69,21 +69,20 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
 
         searchInfo.score          = searchResult.eval;
         searchInfo.depth          = depth;
-        searchInfo.selectiveDepth = searchStatistics.selectiveDepth;
         searchInfo.timeMs         = (int)millisecondsElapsed;
         searchInfo.numNodes       = numNodes;
         searchInfo.nodesPerSecond = (int)nodesPerSecond;
 
         if (searchResult.wasInterrupted) {
             if (uciFrontEnd_) {
-                uciFrontEnd_->reportPartialSearch(searchInfo);
+                uciFrontEnd_->reportPartialSearch(searchInfo, searchStatistics);
             }
             searchInfo.depth -= 1;
             break;
         }
 
         if (uciFrontEnd_) {
-            uciFrontEnd_->reportFullSearch(searchInfo);
+            uciFrontEnd_->reportFullSearch(searchInfo, searchStatistics);
         }
 
         if (isMate(searchResult.eval) && getMateDistanceInPly(searchResult.eval) <= depth) {

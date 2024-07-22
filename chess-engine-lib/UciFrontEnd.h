@@ -20,11 +20,13 @@ class UciFrontEnd {
     void run();
 
     // Can be used by engine to report that a search to a certain depth has been fully completed.
-    void reportFullSearch(const SearchInfo& searchInfo) const;
+    void reportFullSearch(
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
 
     // Can be used by engine to report that a search to a certain depth has been partially
     // completed. Normally this happens if the engine runs out of time while searching.
-    void reportPartialSearch(const SearchInfo& searchInfo) const;
+    void reportPartialSearch(
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
 
     // Can be used by engine to report statistics after ending the search.
     void reportSearchStatistics(const SearchStatistics& searchStatistics) const;
