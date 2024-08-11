@@ -237,13 +237,19 @@ MoveSearcherImpl::MoveSearcherImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd
 
 void MoveSearcherImpl::newGame() {
     // Reset internal state for the sake of consistency
+
+    stopSearch_     = false;
+    wasInterrupted_ = false;
+
     tTable_.clear();
+
     resetSearchStatistics();
+
     moveClockForKillerMoves_ = 0;
     killerMoves_             = {};
     counterMoves_            = {};
-    historyCutOff_           = {};
-    historyUsed_             = {};
+
+    initializeHistoryFromPieceSquare();
 }
 
 FORCE_INLINE std::array<Move, 2>& MoveSearcherImpl::getKillerMoves(const int ply) {
