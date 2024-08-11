@@ -4,6 +4,7 @@
 
 #include <charconv>
 #include <format>
+#include <stdexcept>
 #include <system_error>
 
 namespace {
@@ -93,8 +94,15 @@ FrontEndOption FrontEndOption::createInteger(
     option.defaultValue_ = std::to_string(defaultValue);
     option.minValue_     = minValue;
     option.maxValue_     = maxValue;
-    option.onSet_        = [onSet = std::move(onSet)](std::string_view valueString) {
-        onSet(stringViewToInt(valueString));
+    option.onSet_        = [=, onSet = std::move(onSet)](std::string_view valueString) {
+        const int value = stringViewToInt(valueString);
+
+        if (value < minValue || value > maxValue) {
+            throw std::invalid_argument(std::format(
+                    "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
+        }
+
+        onSet(value);
     };
     return option;
 }
@@ -114,6 +122,9 @@ void FrontEndOption::set(std::string_view valueString) {
 }
 
 void FrontEndOption::trigger() {
-    MY_ASSERT(type_ == Type::Action);
+    if (type_ != Type::Action) {
+        throw std::logic_error("Cannot set value for action option");
+    }
+
     onSet_("");
 }

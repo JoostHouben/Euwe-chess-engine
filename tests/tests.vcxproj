@@ -35,6 +35,7 @@
   <ItemGroup>
     <ClCompile Include="BitBoardTests.cpp" />
     <ClCompile Include="BoardPositionTests.cpp" />
+    <ClCompile Include="FrontEndOptionTests.cpp" />
     <ClCompile Include="GameStateHelpersTests.cpp" />
     <ClCompile Include="FenParsingTests.cpp" />
     <ClCompile Include="GameStateTests.cpp" />
