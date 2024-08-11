@@ -63,7 +63,7 @@
     <ClInclude Include="Eval.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Search.h">
+    <ClInclude Include="MoveSearcher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="BoardHash.h">
@@ -134,7 +134,7 @@
     <ClCompile Include="Eval.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Search.cpp">
+    <ClCompile Include="MoveSearcher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BoardHash.cpp">

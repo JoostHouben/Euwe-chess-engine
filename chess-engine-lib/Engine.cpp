@@ -1,6 +1,6 @@
 #include "Engine.h"
 
-#include "Search.h"
+#include "MoveSearcher.h"
 #include "UciFrontEnd.h"
 
 #include <future>

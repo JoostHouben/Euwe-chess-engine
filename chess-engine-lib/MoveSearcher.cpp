@@ -1,4 +1,4 @@
-#include "Search.h"
+#include "MoveSearcher.h"
 
 #include "Eval.h"
 #include "Math.h"

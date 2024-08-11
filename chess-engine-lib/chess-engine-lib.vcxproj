@@ -32,7 +32,7 @@
     <ClInclude Include="Perft.h" />
     <ClInclude Include="Piece.h" />
     <ClInclude Include="PieceControl.h" />
-    <ClInclude Include="Search.h" />
+    <ClInclude Include="MoveSearcher.h" />
     <ClInclude Include="SearchInfo.h" />
     <ClInclude Include="SearchStatistics.h" />
     <ClInclude Include="SEE.h" />
@@ -57,7 +57,7 @@
     <ClCompile Include="Piece.cpp" />
     <ClCompile Include="PieceControl.cpp" />
     <ClCompile Include="ConsoleColor.cpp" />
-    <ClCompile Include="Search.cpp" />
+    <ClCompile Include="MoveSearcher.cpp" />
     <ClCompile Include="SEE.cpp" />
     <ClCompile Include="Side.cpp" />
     <ClCompile Include="UciFrontEnd.cpp" />
