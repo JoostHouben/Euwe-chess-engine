@@ -8,6 +8,7 @@
 #include "Move.h"
 
 #include <bit>
+#include <memory>
 #include <optional>
 
 #include <cstdint>
@@ -35,7 +36,6 @@ class TTable {
     using EntryT = TTEntry<PayloadT>;
 
     TTable(std::size_t requestedSize);
-    ~TTable();
 
     void clear();
 
@@ -52,7 +52,7 @@ class TTable {
   private:
     [[nodiscard]] std::size_t computeIndex(HashT hash) const;
 
-    EntryT* data_;
+    std::unique_ptr<EntryT[]> data_;
     std::size_t size_;
     std::size_t mask_;
 
@@ -63,18 +63,13 @@ using SearchTTable = TTable<SearchTTPayload>;
 
 template <typename PayloadT>
 TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
-    data_ = new EntryT[size_];
+    data_ = std::make_unique<EntryT[]>(size_);
 
     // size_ is a power of 2, so size_ - 1 is all 1s in binary.
     // size_ - 2 is all 1s except the least significant bit.
     // So by setting the mask to size_ - 2, `hash & mask_` will give us an even index in the range
     // [0, size_).
     mask_ = size_ - 2;
-}
-
-template <typename PayloadT>
-TTable<PayloadT>::~TTable() {
-    delete[] data_;
 }
 
 template <typename PayloadT>
