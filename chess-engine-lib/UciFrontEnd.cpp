@@ -46,6 +46,51 @@ void writeDebug(const bool debugToUci, const std::format_string<Args...> fmt, Ar
     }
 }
 
+struct OptionStringParseResult {
+    std::string_view optionName;
+    std::optional<std::string_view> optionValue;
+};
+
+std::optional<OptionStringParseResult> parseOptionLine(
+        std::string_view line, const bool debugMode) {
+    static constexpr std::string_view nameLiteral = "name";
+    const auto nameLiteralPosition                = line.find(nameLiteral);
+    const bool foundNameLiteral                   = nameLiteralPosition != std::string_view::npos;
+
+    if (!foundNameLiteral) {
+        writeDebug(
+                debugMode,
+                "Error: Failed to find expected token '{}' in the following string: '{}'",
+                nameLiteral,
+                line);
+        return std::nullopt;
+    }
+
+    const auto nameStart = nameLiteralPosition + nameLiteral.size() + 1;
+
+    static constexpr std::string_view valueLiteral = "value";
+    const auto valueLiteralPosition                = line.find(valueLiteral);
+    const bool foundValueLiteral                   = valueLiteralPosition != std::string_view::npos;
+
+    const int nameLength = foundValueLiteral ? (int)valueLiteralPosition - (int)nameStart - 1
+                                             : (int)line.size() - (int)nameStart;
+    if (nameLength <= 0) {
+        writeDebug(
+                debugMode, "Error: Failed to find option name in the following string: '{}'", line);
+        return std::nullopt;
+    }
+
+    OptionStringParseResult result;
+    result.optionName = line.substr(nameStart, nameLength);
+
+    if (foundValueLiteral) {
+        const auto valueStart = valueLiteralPosition + valueLiteral.size() + 1;
+        result.optionValue    = line.substr(valueStart);
+    }
+
+    return result;
+}
+
 }  // namespace
 
 UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {
@@ -53,7 +98,7 @@ UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPositi
     addOption(
             "Hash",
             FrontEndOption::createInteger(
-                    1, 1, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
+                    0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
                         engine_.setTTableSize(requestedSizeInMb);
                     }));
 }
@@ -105,7 +150,7 @@ void UciFrontEnd::run() {
         } else if (command.empty()) {
             continue;
         } else {
-            writeDebug(debugMode_, "Ignoring unknown command: '{}'", command);
+            writeDebug(debugMode_, "Warning: Ignoring unknown command: '{}'", command);
         }
     }
 }
@@ -207,7 +252,7 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
     }
 
     if (token != "moves") {
-        writeDebug(debugMode_, "Unrecognized token '{}'. Expected 'moves'.", token);
+        writeDebug(debugMode_, "Error: Unrecognized token '{}'. Expected 'moves'.", token);
         return;
     }
 
@@ -277,7 +322,7 @@ void UciFrontEnd::handleDebug(std::stringstream& lineSStream) {
     } else {
         writeDebug(
                 debugMode_,
-                "Unknown debug setting '{}'. Expected 'on' or 'off'.",
+                "Error: Unknown debug setting '{}'. Expected 'on' or 'off'.",
                 debugSettingString);
     }
 
@@ -294,74 +339,91 @@ void UciFrontEnd::handleRegister() const {
 }
 
 void UciFrontEnd::handleSetOption(const std::string& line) {
-    const std::string nameLiteral  = "name";
-    const auto nameLiteralPosition = line.find(nameLiteral);
-    const auto nameStart           = nameLiteralPosition + nameLiteral.size() + 1;
-
-    if (nameLiteralPosition == std::string::npos) {
-        writeDebug(
-                debugMode_,
-                "Failed to find expected token '{}' in the following string: '{}'",
-                nameLiteral,
-                line);
+    const auto optionParseResult = parseOptionLine(line, debugMode_);
+    if (!optionParseResult.has_value()) {
         return;
     }
 
-    const std::string valueLiteral  = "value";
-    const auto valueLiteralPosition = line.find(valueLiteral);
-    const auto valueStart           = valueLiteralPosition + valueLiteral.size() + 1;
-
-    int nameLength;
-    if (valueLiteralPosition == std::string::npos) {
-        nameLength = (int)line.size() - (int)nameStart;
-    } else {
-        nameLength = (int)valueLiteralPosition - (int)nameStart - 1;
-    }
-    if (nameLength <= 0) {
-        writeDebug(debugMode_, "Failed to find option name in the following string: '{}'", line);
-        return;
-    }
-    const std::string optionName = line.substr(nameStart, nameLength);
-
-    auto it = optionsMap_.find(optionName);
+    const auto it = optionsMap_.find(optionParseResult->optionName);
     if (it == optionsMap_.end()) {
-        writeDebug(debugMode_, "Unknown option '{}'", optionName);
+        writeDebug(debugMode_, "Error: Unknown option '{}'", optionParseResult->optionName);
         return;
     }
-
     FrontEndOption& option = it->second;
 
     if (option.getType() == FrontEndOption::Type::Action) {
-        writeDebug(debugMode_, "Action option '{}' triggered", optionName);
-        option.getOnSet()("");
-        return;
-    }
-
-    if (valueLiteralPosition == std::string::npos) {
-        writeDebug(
-                debugMode_,
-                "Option '{}' is not a button. Failed to find expected token '{}' in the following "
-                "string: '{}'",
-                optionName,
-                valueLiteral,
-                line);
-        return;
-    }
-
-    const std::string valueString = line.substr(valueStart);
-    if (valueString.empty()) {
-        if (option.getType() == FrontEndOption::Type::String) {
-            writeDebug(debugMode_, "Setting option '{}' to empty string.", optionName);
-            option.getOnSet()("");
-        } else {
+        if (optionParseResult->optionValue.has_value()) {
             writeDebug(
-                    debugMode_, "Failed to find option value in the following string: '{}'", line);
+                    debugMode_,
+                    "Warning: Option '{}' is a button. Expected no value, but found '{}'. Ignoring "
+                    "this value.",
+                    optionParseResult->optionName,
+                    *optionParseResult->optionValue);
+        }
+
+        try {
+            option.trigger();
+            writeDebug(debugMode_, "Action option '{}' triggered", optionParseResult->optionName);
+        } catch (const std::exception& e) {
+            writeDebug(
+                    debugMode_,
+                    "Error: Failed to trigger action option '{}': {}",
+                    optionParseResult->optionName,
+                    e.what());
         }
         return;
     }
 
-    writeDebug(debugMode_, "Setting option '{}' to '{}'", optionName, valueString);
-    option.getOnSet()(valueString);
+    if (!optionParseResult->optionValue.has_value()) {
+        writeDebug(
+                debugMode_,
+                "Error: Option '{}' is not a button. Failed to find value in the following string: "
+                "'{}'",
+                optionParseResult->optionName,
+                line);
+        return;
+    }
+
+    if (optionParseResult->optionValue->empty()) {
+        if (option.getType() != FrontEndOption::Type::String) {
+            writeDebug(
+                    debugMode_,
+                    "Error: Failed to find non-empty option value for non-string option '{}' in "
+                    "the following string: '{}'",
+                    optionParseResult->optionName,
+                    line);
+            return;
+        }
+
+        try {
+            option.set("");
+            writeDebug(
+                    debugMode_, "Set option '{}' to empty string.", optionParseResult->optionName);
+        } catch (const std::exception& e) {
+            writeDebug(
+                    debugMode_,
+                    "Error: Failed to set option '{}' to empty string: {}",
+                    optionParseResult->optionName,
+                    e.what());
+        }
+        return;
+    }
+
+    try {
+        option.set(*optionParseResult->optionValue);
+        writeDebug(
+                debugMode_,
+                "Set option '{}' to '{}'",
+                optionParseResult->optionName,
+                *optionParseResult->optionValue);
+    } catch (const std::exception& e) {
+        writeDebug(
+                debugMode_,
+                "Error: Failed to set option '{}' to '{}': {}",
+                optionParseResult->optionName,
+                *optionParseResult->optionValue,
+                e.what());
+    }
 }
 
 void UciFrontEnd::waitForGoToComplete() {

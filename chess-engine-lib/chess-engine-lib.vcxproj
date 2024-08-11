@@ -47,6 +47,7 @@
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Eval.cpp" />
     <ClCompile Include="EvalT.cpp" />
+    <ClCompile Include="FrontEndOption.cpp" />
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="GameStateStringOps.cpp" />
     <ClCompile Include="Move.cpp" />

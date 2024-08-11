@@ -6,11 +6,12 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 class FrontEndOption {
   public:
-    using OnSet = std::function<void(const std::string&)>;
+    using OnSet = std::function<void(std::string_view)>;
 
     enum class Type {
         Action,
@@ -20,67 +21,17 @@ class FrontEndOption {
         Alternative,
     };
 
-    static FrontEndOption createAction(std::function<void()> onSet) {
-        FrontEndOption option;
-        option.type_  = Type::Action;
-        option.onSet_ = [onSet = std::move(onSet)](const std::string&) {
-            onSet();
-        };
-        return option;
-    }
+    static FrontEndOption createAction(std::function<void()> onSet);
 
-    static FrontEndOption createBoolean(const bool defaultValue, std::function<void(bool)> onSet) {
-        std::ostringstream sstream;
-        sstream << std::boolalpha << defaultValue;
+    static FrontEndOption createBoolean(bool defaultValue, std::function<void(bool)> onSet);
 
-        FrontEndOption option;
-        option.type_         = Type::Boolean;
-        option.defaultValue_ = sstream.str();
-        option.onSet_        = [onSet = std::move(onSet)](const std::string& valueString) {
-            std::istringstream sstream(valueString);
-            bool value;
-            sstream >> std::boolalpha >> value;
-
-            if (sstream.good()) {
-                onSet(value);
-            }
-        };
-        return option;
-    }
-
-    static FrontEndOption createString(std::string defaultValue, OnSet onSet) {
-        FrontEndOption option;
-        option.type_         = Type::String;
-        option.defaultValue_ = std::move(defaultValue);
-        option.onSet_        = std::move(onSet);
-        return option;
-    }
+    static FrontEndOption createString(std::string defaultValue, OnSet onSet);
 
     static FrontEndOption createInteger(
-            const int defaultValue,
-            const int minValue,
-            const int maxValue,
-            std::function<void(int)> onSet) {
-        FrontEndOption option;
-        option.type_         = Type::Integer;
-        option.defaultValue_ = std::to_string(defaultValue);
-        option.minValue_     = minValue;
-        option.maxValue_     = maxValue;
-        option.onSet_        = [onSet = std::move(onSet)](const std::string& valueString) {
-            onSet(std::stoi(valueString));
-        };
-        return option;
-    }
+            int defaultValue, int minValue, int maxValue, std::function<void(int)> onSet);
 
     static FrontEndOption createAlternative(
-            std::vector<std::string> validValues, std::string defaultValue, OnSet onSet) {
-        FrontEndOption option;
-        option.type_         = Type::Alternative;
-        option.validValues_  = std::move(validValues);
-        option.defaultValue_ = std::move(defaultValue);
-        option.onSet_        = std::move(onSet);
-        return option;
-    }
+            std::vector<std::string> validValues, std::string defaultValue, OnSet onSet);
 
     const std::optional<std::string>& getDefaultValue() const { return defaultValue_; }
     const std::optional<int>& getMinValue() const { return minValue_; }
@@ -89,7 +40,10 @@ class FrontEndOption {
 
     Type getType() const { return type_; }
 
-    const OnSet& getOnSet() const { return onSet_; }
+    void set(std::string_view value);
+
+    // Only valid for Action type options.
+    void trigger();
 
   private:
     FrontEndOption() = default;

@@ -68,7 +68,7 @@ class UciFrontEnd {
 
     bool debugMode_ = false;
 
-    std::map<std::string, FrontEndOption> optionsMap_;
+    std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 
     std::future<void> goFuture;
 };
