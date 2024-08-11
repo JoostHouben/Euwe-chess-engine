@@ -100,28 +100,6 @@ void UciFrontEnd::run() {
 
 void UciFrontEnd::reportFullSearch(
         const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const {
-    const std::string scoreString = scoreToString(searchInfo.score);
-
-    const std::string pvString = pvToString(searchInfo.principalVariation);
-
-    writeUci(
-            "info depth {} seldepth {} time {} nodes {} nps {} hashfull {} score {} pv {}",
-            searchInfo.depth,
-            searchStatistics.selectiveDepth,
-            searchInfo.timeMs,
-            searchInfo.numNodes,
-            searchInfo.nodesPerSecond,
-            (int)(searchStatistics.ttableUtilization * 1000),
-            scoreString,
-            pvString);
-}
-
-void UciFrontEnd::reportPartialSearch(
-        const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const {
-    writeDebug(debugMode_, "Completed partial search of depth {}", searchInfo.depth);
-
-    const int completedDepth = searchInfo.depth - 1;
-
     std::string optionalScoreString = "";
     if (isValid(searchInfo.score)) {
         optionalScoreString = std::format(" score {}", scoreToString(searchInfo.score));
@@ -131,7 +109,7 @@ void UciFrontEnd::reportPartialSearch(
 
     writeUci(
             "info depth {} seldepth {} time {} nodes {} nps {} hashfull {}{} pv {}",
-            completedDepth,
+            searchInfo.depth,
             searchStatistics.selectiveDepth,
             searchInfo.timeMs,
             searchInfo.numNodes,
@@ -139,6 +117,16 @@ void UciFrontEnd::reportPartialSearch(
             (int)(searchStatistics.ttableUtilization * 1000),
             optionalScoreString,
             pvString);
+}
+
+void UciFrontEnd::reportPartialSearch(
+        const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const {
+    writeDebug(debugMode_, "Completed partial search of depth {}", searchInfo.depth);
+
+    SearchInfo completedSearchInfo = searchInfo;
+    completedSearchInfo.depth      = searchInfo.depth - 1;
+
+    reportFullSearch(completedSearchInfo, searchStatistics);
 }
 
 void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
