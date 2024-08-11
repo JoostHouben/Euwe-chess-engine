@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-class EngineImpl;
 class UciFrontEnd;
 
 class Engine {
@@ -25,5 +24,7 @@ class Engine {
     void interruptSearch();
 
   private:
-    std::unique_ptr<EngineImpl> impl_;
+    class Impl;
+
+    std::unique_ptr<Impl> impl_;
 };

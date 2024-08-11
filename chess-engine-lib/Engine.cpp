@@ -8,9 +8,9 @@
 #include <print>
 #include <ranges>
 
-class EngineImpl {
+class Engine::Impl {
   public:
-    EngineImpl(const UciFrontEnd* uciFrontEnd);
+    explicit Impl(const UciFrontEnd* uciFrontEnd);
 
     void newGame();
 
@@ -27,16 +27,16 @@ class EngineImpl {
     const UciFrontEnd* uciFrontEnd_;
 };
 
-EngineImpl::EngineImpl(const UciFrontEnd* uciFrontEnd)
+Engine::Impl::Impl(const UciFrontEnd* uciFrontEnd)
     : moveSearcher_(uciFrontEnd), uciFrontEnd_(uciFrontEnd) {
     moveStack_.reserve(1'000);
 }
 
-void EngineImpl::newGame() {
+void Engine::Impl::newGame() {
     moveSearcher_.newGame();
 }
 
-SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
+SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
     GameState copySate(gameState);
 
     moveSearcher_.resetSearchStatistics();
@@ -97,10 +97,11 @@ SearchInfo EngineImpl::findMoveWorker(const GameState& gameState) {
     return searchInfo;
 }
 
-SearchInfo EngineImpl::findMove(
+SearchInfo Engine::Impl::findMove(
         const GameState& gameState, const std::chrono::milliseconds timeBudget) {
     moveSearcher_.prepareForNewSearch(gameState);
-    auto moveFuture = std::async(std::launch::async, &EngineImpl::findMoveWorker, this, gameState);
+    auto moveFuture =
+            std::async(std::launch::async, &Engine::Impl::findMoveWorker, this, gameState);
 
     (void)moveFuture.wait_for(timeBudget);
     moveSearcher_.interruptSearch();
@@ -108,11 +109,12 @@ SearchInfo EngineImpl::findMove(
     return moveFuture.get();
 }
 
-void EngineImpl::interruptSearch() {
+void Engine::Impl::interruptSearch() {
     moveSearcher_.interruptSearch();
 }
 
-Engine::Engine(const UciFrontEnd* uciFrontEnd) : impl_(std::make_unique<EngineImpl>(uciFrontEnd)) {}
+Engine::Engine(const UciFrontEnd* uciFrontEnd)
+    : impl_(std::make_unique<Engine::Impl>(uciFrontEnd)) {}
 
 Engine::~Engine() = default;
 

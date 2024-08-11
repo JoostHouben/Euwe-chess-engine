@@ -12,9 +12,9 @@
 #include <atomic>
 #include <iostream>
 
-class MoveSearcherImpl {
+class MoveSearcher::Impl {
   public:
-    explicit MoveSearcherImpl(const UciFrontEnd* uciFrontEnd);
+    explicit Impl(const UciFrontEnd* uciFrontEnd);
 
     void newGame();
 
@@ -230,12 +230,12 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
 }  // namespace
 
-MoveSearcherImpl::MoveSearcherImpl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
+MoveSearcher::Impl::Impl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
 }
 
-void MoveSearcherImpl::newGame() {
+void MoveSearcher::Impl::newGame() {
     // Reset internal state for the sake of consistency
 
     stopSearch_     = false;
@@ -252,12 +252,12 @@ void MoveSearcherImpl::newGame() {
     initializeHistoryFromPieceSquare();
 }
 
-FORCE_INLINE std::array<Move, 2>& MoveSearcherImpl::getKillerMoves(const int ply) {
+FORCE_INLINE std::array<Move, 2>& MoveSearcher::Impl::getKillerMoves(const int ply) {
     MY_ASSERT(ply < kMaxDepth);
     return killerMoves_[ply];
 }
 
-FORCE_INLINE void MoveSearcherImpl::storeKillerMove(const Move& move, const int ply) {
+FORCE_INLINE void MoveSearcher::Impl::storeKillerMove(const Move& move, const int ply) {
     if (isCapture(move.flags) || isPromotion(move.flags)) {
         // Only store 'quiet' moves as killer moves.
         return;
@@ -275,14 +275,14 @@ FORCE_INLINE void MoveSearcherImpl::storeKillerMove(const Move& move, const int 
     plyKillerMoves[0] = move;
 }
 
-FORCE_INLINE Move MoveSearcherImpl::getCounterMove(const Move& move, const Side side) {
+FORCE_INLINE Move MoveSearcher::Impl::getCounterMove(const Move& move, const Side side) {
     if (move.pieceToMove == Piece::Invalid) {
         return {};
     }
     return counterMoves_[(int)side][(int)move.pieceToMove][(int)move.to];
 }
 
-FORCE_INLINE void MoveSearcherImpl::storeCounterMove(
+FORCE_INLINE void MoveSearcher::Impl::storeCounterMove(
         const Move& lastMove, const Move& counter, const Side side) {
     if (isCapture(counter.flags) || isPromotion(counter.flags)) {
         // Only store 'quiet' moves as counter moves.
@@ -294,11 +294,11 @@ FORCE_INLINE void MoveSearcherImpl::storeCounterMove(
     counterMoves_[(int)side][(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
 }
 
-FORCE_INLINE int MoveSearcherImpl::getHistoryWeight(const int depth) {
+FORCE_INLINE int MoveSearcher::Impl::getHistoryWeight(const int depth) {
     return depth * depth;
 }
 
-FORCE_INLINE void MoveSearcherImpl::updateHistoryForCutoff(
+FORCE_INLINE void MoveSearcher::Impl::updateHistoryForCutoff(
         const Move& move, const int depth, const Side side) {
     if (isCapture(move.flags) || isPromotion(move.flags)) {
         // Only update history for 'quiet' moves.
@@ -311,7 +311,7 @@ FORCE_INLINE void MoveSearcherImpl::updateHistoryForCutoff(
     historyCutOff_[(int)side][piece][square] += getHistoryWeight(depth);
 }
 
-FORCE_INLINE void MoveSearcherImpl::updateHistoryForUse(
+FORCE_INLINE void MoveSearcher::Impl::updateHistoryForUse(
         const Move& move, const int depth, const Side side) {
     if (isCapture(move.flags) || isPromotion(move.flags)) {
         // Only update history for 'quiet' moves.
@@ -324,7 +324,7 @@ FORCE_INLINE void MoveSearcherImpl::updateHistoryForUse(
     historyUsed_[(int)side][piece][square] += getHistoryWeight(depth);
 }
 
-FORCE_INLINE void MoveSearcherImpl::updateTTable(
+FORCE_INLINE void MoveSearcher::Impl::updateTTable(
         EvalT bestScore,
         EvalT alphaOrig,
         EvalT beta,
@@ -365,7 +365,7 @@ FORCE_INLINE void MoveSearcherImpl::updateTTable(
     tTable_.store(entry, isMoreValuable);
 }
 
-StackVector<Move> MoveSearcherImpl::extractPv(
+StackVector<Move> MoveSearcher::Impl::extractPv(
         GameState gameState, StackOfVectors<Move>& stack, const int depth) {
     // Note: taking copy of gameState
     // TODO: would make+unmake be faster here?
@@ -387,7 +387,7 @@ StackVector<Move> MoveSearcherImpl::extractPv(
     return pv;
 }
 
-void MoveSearcherImpl::shiftKillerMoves(const int halfMoveClock) {
+void MoveSearcher::Impl::shiftKillerMoves(const int halfMoveClock) {
     const int shiftAmount = halfMoveClock - moveClockForKillerMoves_;
 
     for (int ply = 0; ply < kMaxDepth - shiftAmount; ++ply) {
@@ -397,7 +397,7 @@ void MoveSearcherImpl::shiftKillerMoves(const int halfMoveClock) {
     moveClockForKillerMoves_ = halfMoveClock;
 }
 
-void MoveSearcherImpl::initializeHistoryFromPieceSquare() {
+void MoveSearcher::Impl::initializeHistoryFromPieceSquare() {
     static constexpr int kNumScaleBits        = 7;   // 128
     static constexpr int kPieceSquareBiasBits = 16;  // ~65k
 
@@ -417,7 +417,7 @@ void MoveSearcherImpl::initializeHistoryFromPieceSquare() {
     }
 }
 
-void MoveSearcherImpl::scaleDownHistory() {
+void MoveSearcher::Impl::scaleDownHistory() {
     static constexpr int kScaleDownBits = 4;   // 16
     static constexpr int kTargetBits    = 10;  // 1024
     static constexpr int kCountlTarget  = 32 - kTargetBits;
@@ -437,7 +437,7 @@ void MoveSearcherImpl::scaleDownHistory() {
     }
 }
 
-EvalT MoveSearcherImpl::search(
+EvalT MoveSearcher::Impl::search(
         GameState& gameState,
         int depth,
         const int ply,
@@ -707,7 +707,7 @@ EvalT MoveSearcherImpl::search(
 // Quiescence search. When in check search all moves, when not in check only search captures.
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
-EvalT MoveSearcherImpl::quiesce(
+EvalT MoveSearcher::Impl::quiesce(
         GameState& gameState,
         EvalT alpha,
         EvalT beta,
@@ -840,7 +840,7 @@ EvalT MoveSearcherImpl::quiesce(
     return bestScore;
 }
 
-FORCE_INLINE MoveSearcherImpl::SearchMoveOutcome MoveSearcherImpl::searchMove(
+FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMove(
         GameState& gameState,
         const Move& move,
         const int depth,
@@ -934,7 +934,7 @@ FORCE_INLINE MoveSearcherImpl::SearchMoveOutcome MoveSearcherImpl::searchMove(
 }
 
 // Perform an aspiration window search.
-RootSearchResult MoveSearcherImpl::aspirationWindowSearch(
+RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1042,7 +1042,7 @@ RootSearchResult MoveSearcherImpl::aspirationWindowSearch(
 }
 
 // Entry point: perform search and return the principal variation and evaluation.
-RootSearchResult MoveSearcherImpl::searchForBestMove(
+RootSearchResult MoveSearcher::Impl::searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1065,7 +1065,7 @@ RootSearchResult MoveSearcherImpl::searchForBestMove(
     }
 }
 
-void MoveSearcherImpl::prepareForNewSearch(const GameState& gameState) {
+void MoveSearcher::Impl::prepareForNewSearch(const GameState& gameState) {
     // Set state variables to prepare for search.
     stopSearch_     = false;
     wasInterrupted_ = false;
@@ -1074,12 +1074,12 @@ void MoveSearcherImpl::prepareForNewSearch(const GameState& gameState) {
     scaleDownHistory();
 }
 
-void MoveSearcherImpl::interruptSearch() {
+void MoveSearcher::Impl::interruptSearch() {
     // Set stop flag to interrupt search.
     stopSearch_ = true;
 }
 
-SearchStatistics MoveSearcherImpl::getSearchStatistics() {
+SearchStatistics MoveSearcher::Impl::getSearchStatistics() {
 
     //for (int side = 0; side < kNumSides; ++side) {
     //    for (int piece = 0; piece < kNumPieceTypes; ++piece) {
@@ -1097,14 +1097,14 @@ SearchStatistics MoveSearcherImpl::getSearchStatistics() {
     return searchStatistics_;
 }
 
-void MoveSearcherImpl::resetSearchStatistics() {
+void MoveSearcher::Impl::resetSearchStatistics() {
     searchStatistics_ = {};
 }
 
 // Implementation of interface: forward to implementation
 
 MoveSearcher::MoveSearcher(const UciFrontEnd* uciFrontEnd)
-    : impl_(std::make_unique<MoveSearcherImpl>(uciFrontEnd)) {}
+    : impl_(std::make_unique<MoveSearcher::Impl>(uciFrontEnd)) {}
 
 MoveSearcher::~MoveSearcher() = default;
 

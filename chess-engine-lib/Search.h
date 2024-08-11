@@ -14,8 +14,6 @@ struct RootSearchResult {
     EvalT eval;
     bool wasInterrupted = false;
 };
-
-class MoveSearcherImpl;
 class UciFrontEnd;
 
 class MoveSearcher {
@@ -46,5 +44,7 @@ class MoveSearcher {
     void resetSearchStatistics();
 
   private:
-    std::unique_ptr<MoveSearcherImpl> impl_;
+    class Impl;
+
+    std::unique_ptr<Impl> impl_;
 };
