@@ -20,6 +20,7 @@
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Eval.h" />
     <ClInclude Include="EvalT.h" />
+    <ClInclude Include="FrontEndOption.h" />
     <ClInclude Include="Math.h" />
     <ClInclude Include="Intrinsics.h" />
     <ClInclude Include="Macros.h" />

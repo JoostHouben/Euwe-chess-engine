@@ -48,15 +48,26 @@ void writeDebug(const bool debugToUci, const std::format_string<Args...> fmt, Ar
 
 }  // namespace
 
-UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {}
+UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPosition()) {
+    // Add UCI hard-coded options
+    addOption(
+            "Hash",
+            FrontEndOption::createInteger(
+                    1, 1, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
+                        engine_.setTTableSize(requestedSizeInMb);
+                    }));
+}
 
 UciFrontEnd::~UciFrontEnd() {
     MY_ASSERT(!goFuture.valid());
 }
 
 void UciFrontEnd::run() {
-    writeUci("id name refactor");
+    writeUci("id name setoption");
     writeUci("id author Joost Houben");
+
+    writeOptions();
+
     writeUci("uciok");
     std::flush(std::cout);
 
@@ -70,7 +81,6 @@ void UciFrontEnd::run() {
         lineSStream >> command;
 
         // Not implemented:
-        //  setoption
         //  ponderhit
 
         if (command == "isready") {
@@ -90,6 +100,8 @@ void UciFrontEnd::run() {
             return;
         } else if (command == "register") {
             handleRegister();
+        } else if (command == "setoption") {
+            handleSetOption(inputLine);
         } else if (command.empty()) {
             continue;
         } else {
@@ -156,6 +168,10 @@ void UciFrontEnd::reportAspirationWindowReSearch(
 
 void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
     writeDebug(debugMode_, "Discarded PV: {}", reason);
+}
+
+void UciFrontEnd::addOption(std::string name, FrontEndOption option) {
+    optionsMap_.emplace(std::move(name), std::move(option));
 }
 
 void UciFrontEnd::handleIsReady() {
@@ -277,8 +293,128 @@ void UciFrontEnd::handleRegister() const {
     std::flush(std::cout);
 }
 
+void UciFrontEnd::handleSetOption(const std::string& line) {
+    const std::string nameLiteral  = "name";
+    const auto nameLiteralPosition = line.find(nameLiteral);
+    const auto nameStart           = nameLiteralPosition + nameLiteral.size() + 1;
+
+    if (nameLiteralPosition == std::string::npos) {
+        writeDebug(
+                debugMode_,
+                "Failed to find expected token '{}' in the following string: '{}'",
+                nameLiteral,
+                line);
+        return;
+    }
+
+    const std::string valueLiteral  = "value";
+    const auto valueLiteralPosition = line.find(valueLiteral);
+    const auto valueStart           = valueLiteralPosition + valueLiteral.size() + 1;
+
+    int nameLength;
+    if (valueLiteralPosition == std::string::npos) {
+        nameLength = (int)line.size() - (int)nameStart;
+    } else {
+        nameLength = (int)valueLiteralPosition - (int)nameStart - 1;
+    }
+    if (nameLength <= 0) {
+        writeDebug(debugMode_, "Failed to find option name in the following string: '{}'", line);
+        return;
+    }
+    const std::string optionName = line.substr(nameStart, nameLength);
+
+    auto it = optionsMap_.find(optionName);
+    if (it == optionsMap_.end()) {
+        writeDebug(debugMode_, "Unknown option '{}'", optionName);
+        return;
+    }
+
+    FrontEndOption& option = it->second;
+
+    if (option.getType() == FrontEndOption::Type::Action) {
+        writeDebug(debugMode_, "Action option '{}' triggered", optionName);
+        option.getOnSet()("");
+        return;
+    }
+
+    if (valueLiteralPosition == std::string::npos) {
+        writeDebug(
+                debugMode_,
+                "Option '{}' is not a button. Failed to find expected token '{}' in the following "
+                "string: '{}'",
+                optionName,
+                valueLiteral,
+                line);
+        return;
+    }
+
+    const std::string valueString = line.substr(valueStart);
+    if (valueString.empty()) {
+        if (option.getType() == FrontEndOption::Type::String) {
+            writeDebug(debugMode_, "Setting option '{}' to empty string.", optionName);
+            option.getOnSet()("");
+        } else {
+            writeDebug(
+                    debugMode_, "Failed to find option value in the following string: '{}'", line);
+        }
+        return;
+    }
+
+    writeDebug(debugMode_, "Setting option '{}' to '{}'", optionName, valueString);
+    option.getOnSet()(valueString);
+}
+
 void UciFrontEnd::waitForGoToComplete() {
     if (goFuture.valid()) {
         goFuture.get();
+    }
+}
+
+void UciFrontEnd::writeOptions() const {
+    for (const auto& [name, option] : optionsMap_) {
+        switch (option.getType()) {
+            case FrontEndOption::Type::Action: {
+                writeUci("option name {} type button", name);
+                break;
+            }
+
+            case FrontEndOption::Type::Boolean: {
+                writeUci("option name {} type check default {}", name, *option.getDefaultValue());
+                break;
+            }
+
+            case FrontEndOption::Type::String: {
+                writeUci("option name {} type string default {}", name, *option.getDefaultValue());
+                break;
+            }
+
+            case FrontEndOption::Type::Integer: {
+                writeUci(
+                        "option name {} type spin default {} min {} max {}",
+                        name,
+                        *option.getDefaultValue(),
+                        *option.getMinValue(),
+                        *option.getMaxValue());
+                break;
+            }
+
+            case FrontEndOption::Type::Alternative: {
+                const std::vector<std::string> validValues = *option.getValidValues();
+                const std::string varsString =
+                        validValues
+                        | std::views::transform([](auto v) { return std::format("var {}", v); })
+                        | std::views::join_with(' ') | std::ranges::to<std::string>();
+                writeUci(
+                        "option name {} type combo default {} {}",
+                        name,
+                        *option.getDefaultValue(),
+                        varsString);
+                break;
+            }
+
+            default: {
+                UNREACHABLE;
+            }
+        }
     }
 }

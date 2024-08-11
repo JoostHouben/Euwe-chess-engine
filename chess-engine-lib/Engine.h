@@ -23,6 +23,8 @@ class Engine {
 
     void interruptSearch();
 
+    void setTTableSize(int requestedSizeInMb);
+
   private:
     class Impl;
 

@@ -40,6 +40,7 @@ $pgnout = "$($pgnoutFolder)\$($pgnBaseName)_$($engine1Name)_vs_$($engine2Name).p
         tc="inf/3+$($timePerMove)" `
         book=$book `
         bookdepth=5 `
+        option.Hash=512 `
     -rounds $numRounds -games 2 -repeat 2 -maxmoves 150 `
     -concurrency $concurrency `
     -ratinginterval 10 `

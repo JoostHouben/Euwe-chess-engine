@@ -3,12 +3,15 @@
 #pragma once
 
 #include "Engine.h"
+#include "FrontEndOption.h"
 #include "GameState.h"
 #include "SearchInfo.h"
 #include "SearchStatistics.h"
 
 #include <future>
+#include <map>
 #include <sstream>
+#include <string>
 #include <string_view>
 
 class UciFrontEnd {
@@ -44,6 +47,8 @@ class UciFrontEnd {
     // for some reason.
     void reportDiscardedPv(std::string_view reason) const;
 
+    void addOption(std::string name, FrontEndOption option);
+
   private:
     void handleIsReady();
     void handleNewGame();
@@ -52,13 +57,18 @@ class UciFrontEnd {
     void handleStop();
     void handleDebug(std::stringstream& lineSStream);
     void handleRegister() const;
+    void handleSetOption(const std::string& line);
 
     void waitForGoToComplete();
+
+    void writeOptions() const;
 
     Engine engine_;
     GameState gameState_;
 
     bool debugMode_ = false;
+
+    std::map<std::string, FrontEndOption> optionsMap_;
 
     std::future<void> goFuture;
 };

@@ -19,6 +19,8 @@ class Engine::Impl {
 
     void interruptSearch();
 
+    void setTTableSize(int requestedSizeInMb);
+
   private:
     [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState);
 
@@ -113,6 +115,10 @@ void Engine::Impl::interruptSearch() {
     moveSearcher_.interruptSearch();
 }
 
+void Engine::Impl::setTTableSize(const int requestedSizeInMb) {
+    moveSearcher_.setTTableSize(requestedSizeInMb);
+}
+
 Engine::Engine(const UciFrontEnd* uciFrontEnd)
     : impl_(std::make_unique<Engine::Impl>(uciFrontEnd)) {}
 
@@ -129,4 +135,8 @@ SearchInfo Engine::findMove(
 
 void Engine::interruptSearch() {
     impl_->interruptSearch();
+}
+
+void Engine::setTTableSize(const int requestedSizeInMb) {
+    impl_->setTTableSize(requestedSizeInMb);
 }

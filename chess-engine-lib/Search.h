@@ -38,10 +38,12 @@ class MoveSearcher {
     void interruptSearch();
 
     // Get statistics since the last call to resetSearchStatistics.
-    [[nodiscard]] SearchStatistics getSearchStatistics();
+    [[nodiscard]] SearchStatistics getSearchStatistics() const;
 
     // Reset the search statistics.
     void resetSearchStatistics();
+
+    void setTTableSize(int requestedSizeInMb);
 
   private:
     class Impl;

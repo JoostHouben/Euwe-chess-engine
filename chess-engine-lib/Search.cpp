@@ -28,9 +28,11 @@ class MoveSearcher::Impl {
 
     void interruptSearch();
 
-    [[nodiscard]] SearchStatistics getSearchStatistics();
+    [[nodiscard]] SearchStatistics getSearchStatistics() const;
 
     void resetSearchStatistics();
+
+    void setTTableSize(int requestedSizeInMb);
 
   private:
     // == Types ==
@@ -128,15 +130,12 @@ class MoveSearcher::Impl {
 
     static constexpr int kMaxDepth = 100;
 
-    static constexpr int kTTableSizeInBytes   = 512 * 1024 * 1024;
-    static constexpr int kTTableSizeInEntries = kTTableSizeInBytes / sizeof(SearchTTable::EntryT);
-
     // == Data ==
 
     std::atomic<bool> stopSearch_ = false;
     bool wasInterrupted_          = false;
 
-    SearchTTable tTable_ = SearchTTable(kTTableSizeInEntries);
+    SearchTTable tTable_ = {};
 
     StackOfVectors<MoveEvalT> moveScoreStack_ = {};
 
@@ -1079,7 +1078,7 @@ void MoveSearcher::Impl::interruptSearch() {
     stopSearch_ = true;
 }
 
-SearchStatistics MoveSearcher::Impl::getSearchStatistics() {
+SearchStatistics MoveSearcher::Impl::getSearchStatistics() const {
 
     //for (int side = 0; side < kNumSides; ++side) {
     //    for (int piece = 0; piece < kNumPieceTypes; ++piece) {
@@ -1092,13 +1091,25 @@ SearchStatistics MoveSearcher::Impl::getSearchStatistics() {
     //    }
     //}
 
-    searchStatistics_.ttableUtilization = tTable_.getUtilization();
+    SearchStatistics searchStatistics  = searchStatistics_;
+    searchStatistics.ttableUtilization = tTable_.getUtilization();
 
-    return searchStatistics_;
+    return searchStatistics;
 }
 
 void MoveSearcher::Impl::resetSearchStatistics() {
     searchStatistics_ = {};
+}
+
+void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
+    if (requestedSizeInMb == 0) {
+        tTable_ = SearchTTable();
+    } else {
+        const std::size_t tTableSizeInBytes   = (std::size_t)requestedSizeInMb * 1024 * 1024;
+        const std::size_t tTableSizeInEntries = tTableSizeInBytes / sizeof(SearchTTable::EntryT);
+
+        tTable_ = SearchTTable(tTableSizeInEntries);
+    }
 }
 
 // Implementation of interface: forward to implementation
@@ -1128,10 +1139,14 @@ void MoveSearcher::interruptSearch() {
     impl_->interruptSearch();
 }
 
-SearchStatistics MoveSearcher::getSearchStatistics() {
+SearchStatistics MoveSearcher::getSearchStatistics() const {
     return impl_->getSearchStatistics();
 }
 
 void MoveSearcher::resetSearchStatistics() {
     impl_->resetSearchStatistics();
+}
+
+void MoveSearcher::setTTableSize(const int requestedSizeInMb) {
+    impl_->setTTableSize(requestedSizeInMb);
 }

@@ -35,7 +35,10 @@ class TTable {
   public:
     using EntryT = TTEntry<PayloadT>;
 
-    TTable(std::size_t requestedSize);
+    // Construct table with minimal size.
+    TTable();
+
+    explicit TTable(std::size_t requestedSize);
 
     void clear();
 
@@ -57,12 +60,19 @@ class TTable {
     std::size_t mask_;
 
     int numInUse_ = 0;
+
+    static constexpr std::size_t kMinimumSize = 2;
 };
 
 using SearchTTable = TTable<SearchTTPayload>;
 
 template <typename PayloadT>
+TTable<PayloadT>::TTable() : TTable(kMinimumSize) {}
+
+template <typename PayloadT>
 TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
+    MY_ASSERT(size_ >= 2);
+
     data_ = std::make_unique<EntryT[]>(size_);
 
     // size_ is a power of 2, so size_ - 1 is all 1s in binary.
