@@ -23,7 +23,7 @@ TEST(FrontEndOptionTests, TestAction) {
 TEST(FrontEndOptionTests, TestBoolean) {
     bool value = false;
 
-    FrontEndOption action = FrontEndOption::createBoolean(value, [&](bool v) { value = v; });
+    FrontEndOption action = FrontEndOption::createBoolean(value);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), "false");
@@ -46,8 +46,7 @@ TEST(FrontEndOptionTests, TestBoolean) {
 TEST(FrontEndOptionTests, TestString) {
     std::string value = "default";
 
-    FrontEndOption action =
-            FrontEndOption::createString(value, [&](std::string_view v) { value = v; });
+    FrontEndOption action = FrontEndOption::createString(value);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), value);
@@ -65,8 +64,7 @@ TEST(FrontEndOptionTests, TestString) {
 TEST(FrontEndOptionTests, TestInteger) {
     int value = 0;
 
-    FrontEndOption action =
-            FrontEndOption::createInteger(value, -10, 10, [&](int v) { value = v; });
+    FrontEndOption action = FrontEndOption::createInteger(value, -10, 10);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), "0");
@@ -86,6 +84,7 @@ TEST(FrontEndOptionTests, TestInteger) {
 
     EXPECT_THROW(action.set("-11"), std::invalid_argument);
     EXPECT_THROW(action.set("11"), std::invalid_argument);
+    EXPECT_EQ(value, 5);
 }
 
 TEST(FrontEndOptionTests, TestAlternative) {
@@ -93,8 +92,7 @@ TEST(FrontEndOptionTests, TestAlternative) {
 
     std::vector<std::string> alternatives{"a", "b", "c", "default"};
 
-    FrontEndOption action = FrontEndOption::createAlternative(
-            alternatives, value, [&](std::string_view v) { value = v; });
+    FrontEndOption action = FrontEndOption::createAlternative(value, alternatives);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), value);
@@ -108,6 +106,9 @@ TEST(FrontEndOptionTests, TestAlternative) {
     EXPECT_THROW(action.trigger(), std::logic_error);
 
     action.set("b");
+    EXPECT_EQ(value, "b");
+
+    EXPECT_THROW(action.set("invalid"), std::invalid_argument);
     EXPECT_EQ(value, "b");
 }
 

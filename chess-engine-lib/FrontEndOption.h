@@ -24,14 +24,19 @@ class FrontEndOption {
     static FrontEndOption createAction(std::function<void()> onSet);
 
     static FrontEndOption createBoolean(bool defaultValue, std::function<void(bool)> onSet);
+    static FrontEndOption createBoolean(bool& value);
 
     static FrontEndOption createString(std::string defaultValue, OnSet onSet);
+    static FrontEndOption createString(std::string& value);
 
     static FrontEndOption createInteger(
             int defaultValue, int minValue, int maxValue, std::function<void(int)> onSet);
+    static FrontEndOption createInteger(int& value, int minValue, int maxValue);
 
     static FrontEndOption createAlternative(
-            std::vector<std::string> validValues, std::string defaultValue, OnSet onSet);
+            std::string defaultValue, std::vector<std::string> validValues, OnSet onSet);
+    static FrontEndOption createAlternative(
+            std::string& value, std::vector<std::string> validValues);
 
     const std::optional<std::string>& getDefaultValue() const { return defaultValue_; }
     const std::optional<int>& getMinValue() const { return minValue_; }

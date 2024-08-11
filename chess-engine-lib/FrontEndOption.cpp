@@ -4,6 +4,7 @@
 
 #include <charconv>
 #include <format>
+#include <ranges>
 #include <stdexcept>
 #include <system_error>
 
@@ -76,12 +77,20 @@ FrontEndOption FrontEndOption::createBoolean(
     return option;
 }
 
+FrontEndOption FrontEndOption::createBoolean(bool& value) {
+    return createBoolean(value, [&](bool v) { value = v; });
+}
+
 FrontEndOption FrontEndOption::createString(std::string defaultValue, OnSet onSet) {
     FrontEndOption option;
     option.type_         = Type::String;
     option.defaultValue_ = std::move(defaultValue);
     option.onSet_        = std::move(onSet);
     return option;
+}
+
+FrontEndOption FrontEndOption::createString(std::string& value) {
+    return createString(value, [&](std::string_view v) { value = v; });
 }
 
 FrontEndOption FrontEndOption::createInteger(
@@ -107,14 +116,34 @@ FrontEndOption FrontEndOption::createInteger(
     return option;
 }
 
+FrontEndOption FrontEndOption::createInteger(int& value, const int minValue, const int maxValue) {
+    return createInteger(value, minValue, maxValue, [&](int v) { value = v; });
+}
+
 FrontEndOption FrontEndOption::createAlternative(
-        std::vector<std::string> validValues, std::string defaultValue, OnSet onSet) {
+        std::string defaultValue, std::vector<std::string> validValues, OnSet onSet) {
     FrontEndOption option;
     option.type_         = Type::Alternative;
     option.validValues_  = std::move(validValues);
     option.defaultValue_ = std::move(defaultValue);
-    option.onSet_        = std::move(onSet);
+    option.onSet_        = [onSet       = std::move(onSet),
+                     validValues = *option.validValues_](std::string_view valueString) {
+        const auto it = std::find(validValues.begin(), validValues.end(), valueString);
+        if (it == validValues.end()) {
+            const std::string validValuesString = validValues
+                                                | std::views::join_with(std::string(", "))
+                                                | std::ranges::to<std::string>();
+            throw std::invalid_argument(std::format(
+                    "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
+        }
+        onSet(valueString);
+    };
     return option;
+}
+
+FrontEndOption FrontEndOption::createAlternative(
+        std::string& value, std::vector<std::string> validValues) {
+    return createAlternative(value, std::move(validValues), [&](std::string_view v) { value = v; });
 }
 
 void FrontEndOption::set(std::string_view valueString) {
