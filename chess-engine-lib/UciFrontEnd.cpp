@@ -100,8 +100,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     GameState gameState_;
 
-    bool debugMode_         = false;
-    bool printVisualString_ = false;
+    bool debugMode_ = false;
 
     std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 
@@ -123,9 +122,6 @@ UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, st
                     0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
                         engine_.setTTableSize(requestedSizeInMb);
                     }));
-
-    // Add front-end options
-    addOption("print_visual_string", FrontEndOption::createBoolean(printVisualString_));
 }
 
 UciFrontEnd::Impl::~Impl() {
@@ -291,7 +287,7 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
         (void)gameState_.makeMove(move);
     }
 
-    if (printVisualString_) {
+    if (debugMode_) {
         writeDebugNonUci("Position:\n{}", gameState_.toVisualString());
     }
 }
