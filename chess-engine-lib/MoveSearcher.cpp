@@ -14,7 +14,9 @@
 
 class MoveSearcher::Impl {
   public:
-    explicit Impl(const UciFrontEnd* uciFrontEnd);
+    Impl();
+
+    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd);
 
     void newGame();
 
@@ -152,7 +154,7 @@ class MoveSearcher::Impl {
     std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
             historyUsed_ = {};
 
-    const UciFrontEnd* uciFrontEnd_;
+    const UciFrontEnd* uciFrontEnd_ = nullptr;
 };
 
 namespace {
@@ -229,9 +231,13 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
 }  // namespace
 
-MoveSearcher::Impl::Impl(const UciFrontEnd* uciFrontEnd) : uciFrontEnd_(uciFrontEnd) {
+MoveSearcher::Impl::Impl() {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
+}
+
+void MoveSearcher::Impl::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
+    uciFrontEnd_ = uciFrontEnd;
 }
 
 void MoveSearcher::Impl::newGame() {
@@ -1114,10 +1120,13 @@ void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
 
 // Implementation of interface: forward to implementation
 
-MoveSearcher::MoveSearcher(const UciFrontEnd* uciFrontEnd)
-    : impl_(std::make_unique<MoveSearcher::Impl>(uciFrontEnd)) {}
+MoveSearcher::MoveSearcher() : impl_(std::make_unique<MoveSearcher::Impl>()) {}
 
 MoveSearcher::~MoveSearcher() = default;
+
+void MoveSearcher::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
+    impl_->setUciFrontEnd(uciFrontEnd);
+}
 
 void MoveSearcher::newGame() {
     impl_->newGame();

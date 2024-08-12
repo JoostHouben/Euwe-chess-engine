@@ -3,27 +3,26 @@
 #pragma once
 
 #include "GameState.h"
+#include "IEngine.h"
 #include "SearchInfo.h"
 
-#include <chrono>
 #include <memory>
-#include <vector>
 
-class UciFrontEnd;
-
-class Engine {
+class Engine final : public IEngine {
   public:
-    explicit Engine(const UciFrontEnd* uciFrontEnd = nullptr);
+    Engine();
     ~Engine();
 
-    void newGame();
+    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd) override;
+
+    void newGame() override;
 
     [[nodiscard]] SearchInfo findMove(
-            const GameState& gameState, std::chrono::milliseconds timeBudget);
+            const GameState& gameState, std::chrono::milliseconds timeBudget) override;
 
-    void interruptSearch();
+    void interruptSearch() override;
 
-    void setTTableSize(int requestedSizeInMb);
+    void setTTableSize(int requestedSizeInMb) override;
 
   private:
     class Impl;

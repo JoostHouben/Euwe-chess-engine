@@ -43,7 +43,11 @@ struct OptionStringParseResult {
 
 class UciFrontEnd::Impl {
   public:
-    Impl(const UciFrontEnd* uciFrontEnd);
+    Impl(IEngine& engine,
+         std::istream& in,
+         std::ostream& out,
+         std::ostream& debug,
+         const UciFrontEnd* uciFrontEnd);
     ~Impl();
 
     void run();
@@ -92,7 +96,12 @@ class UciFrontEnd::Impl {
     template <typename... Args>
     void writeDebugNonUci(std::format_string<Args...> fmt, Args&&... args) const;
 
-    Engine engine_;
+    IEngine& engine_;
+
+    std::istream& in_;
+    std::ostream& out_;
+    std::ostream& debug_;
+
     GameState gameState_;
 
     bool debugMode_         = false;
@@ -103,8 +112,19 @@ class UciFrontEnd::Impl {
     std::future<void> goFuture;
 };
 
-UciFrontEnd::Impl::Impl(const UciFrontEnd* uciFrontEnd)
-    : engine_(uciFrontEnd), gameState_(GameState::startingPosition()) {
+UciFrontEnd::Impl::Impl(
+        IEngine& engine,
+        std::istream& in,
+        std::ostream& out,
+        std::ostream& debug,
+        const UciFrontEnd* uciFrontEnd)
+    : engine_(engine),
+      in_(in),
+      out_(out),
+      debug_(debug),
+      gameState_(GameState::startingPosition()) {
+    engine_.setUciFrontEnd(uciFrontEnd);
+
     // Add UCI hard-coded options
     addOption(
             "Hash",
@@ -122,17 +142,17 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name setoption");
+    writeUci("id name frontend-dep-inj");
     writeUci("id author Joost Houben");
 
     writeOptions();
 
     writeUci("uciok");
-    std::flush(std::cout);
+    std::flush(out_);
 
     while (true) {
         std::string inputLine;
-        std::getline(std::cin, inputLine);
+        std::getline(in_, inputLine);
 
         std::stringstream lineSStream(inputLine);
 
@@ -235,7 +255,7 @@ void UciFrontEnd::Impl::addOption(std::string name, FrontEndOption option) {
 void UciFrontEnd::Impl::handleIsReady() {
     waitForGoToComplete();
     writeUci("readyok");
-    std::flush(std::cout);
+    std::flush(out_);
 }
 
 void UciFrontEnd::Impl::handleNewGame() {
@@ -315,7 +335,7 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
         const auto searchInfo = engine_.findMove(gameState_, timeBudget);
 
         writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
-        std::flush(std::cout);
+        std::flush(out_);
     });
 }
 
@@ -349,7 +369,7 @@ void UciFrontEnd::Impl::handleRegister() const {
     writeUci("info string No registration is needed!");
     writeUci("registration checking");
     writeUci("registration ok");
-    std::flush(std::cout);
+    std::flush(out_);
 }
 
 void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
@@ -536,7 +556,7 @@ template <typename... Args>
 void UciFrontEnd::Impl::writeUci(const std::format_string<Args...> fmt, Args&&... args) const {
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Green);
 
-    std::println(fmt, std::forward<Args>(args)...);
+    std::println(out_, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
@@ -544,9 +564,9 @@ void UciFrontEnd::Impl::writeDebug(const std::format_string<Args...> fmt, Args&&
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
 
     if (debugMode_) {
-        std::println("info string {}", std::format(fmt, std::forward<Args>(args)...));
+        std::println(out_, "info string {}", std::format(fmt, std::forward<Args>(args)...));
     } else {
-        std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
+        std::println(debug_, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
     }
 }
 
@@ -555,12 +575,13 @@ void UciFrontEnd::Impl::writeDebugNonUci(
         const std::format_string<Args...> fmt, Args&&... args) const {
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
 
-    std::println(std::cerr, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
+    std::println(debug_, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
 }
 
 // Implementation of interface: forward to implementation
 
-UciFrontEnd::UciFrontEnd() : impl_(std::make_unique<Impl>(this)) {}
+UciFrontEnd::UciFrontEnd(IEngine& engine, std::istream& in, std::ostream& out, std::ostream& debug)
+    : impl_(std::make_unique<Impl>(engine, in, out, debug, this)) {}
 
 UciFrontEnd::~UciFrontEnd() = default;
 

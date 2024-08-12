@@ -18,8 +18,10 @@ class UciFrontEnd;
 
 class MoveSearcher {
   public:
-    explicit MoveSearcher(const UciFrontEnd* uciFrontEnd = nullptr);
+    MoveSearcher();
     ~MoveSearcher();
+
+    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd);
 
     void newGame();
 

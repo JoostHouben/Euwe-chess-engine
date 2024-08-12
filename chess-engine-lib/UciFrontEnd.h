@@ -3,16 +3,22 @@
 #pragma once
 
 #include "FrontEndOption.h"
+#include "IEngine.h"
 #include "SearchInfo.h"
 #include "SearchStatistics.h"
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
 
 class UciFrontEnd {
   public:
-    UciFrontEnd();
+    UciFrontEnd(
+            IEngine& engine,
+            std::istream& in    = std::cin,
+            std::ostream& out   = std::cout,
+            std::ostream& debug = std::cerr);
     ~UciFrontEnd();
 
     // Run in a loop, handling UCI commands.

@@ -10,7 +10,9 @@
 
 class Engine::Impl {
   public:
-    explicit Impl(const UciFrontEnd* uciFrontEnd);
+    Impl();
+
+    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd);
 
     void newGame();
 
@@ -29,9 +31,13 @@ class Engine::Impl {
     const UciFrontEnd* uciFrontEnd_;
 };
 
-Engine::Impl::Impl(const UciFrontEnd* uciFrontEnd)
-    : moveSearcher_(uciFrontEnd), uciFrontEnd_(uciFrontEnd) {
+Engine::Impl::Impl() {
     moveStack_.reserve(1'000);
+}
+
+void Engine::Impl::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
+    uciFrontEnd_ = uciFrontEnd;
+    moveSearcher_.setUciFrontEnd(uciFrontEnd);
 }
 
 void Engine::Impl::newGame() {
@@ -121,10 +127,13 @@ void Engine::Impl::setTTableSize(const int requestedSizeInMb) {
 
 // Implementation of interface: forward to implementation
 
-Engine::Engine(const UciFrontEnd* uciFrontEnd)
-    : impl_(std::make_unique<Engine::Impl>(uciFrontEnd)) {}
+Engine::Engine() : impl_(std::make_unique<Engine::Impl>()) {}
 
 Engine::~Engine() = default;
+
+void Engine::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
+    impl_->setUciFrontEnd(uciFrontEnd);
+}
 
 void Engine::newGame() {
     impl_->newGame();

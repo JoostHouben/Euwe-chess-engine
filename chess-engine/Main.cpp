@@ -23,7 +23,8 @@ int main() {
         std::cin >> command;
 
         if (command == "uci") {
-            UciFrontEnd uciFrontEnd;
+            Engine engine;
+            UciFrontEnd uciFrontEnd(engine);
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
