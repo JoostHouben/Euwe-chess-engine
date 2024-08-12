@@ -119,6 +119,8 @@ void Engine::Impl::setTTableSize(const int requestedSizeInMb) {
     moveSearcher_.setTTableSize(requestedSizeInMb);
 }
 
+// Implementation of interface: forward to implementation
+
 Engine::Engine(const UciFrontEnd* uciFrontEnd)
     : impl_(std::make_unique<Engine::Impl>(uciFrontEnd)) {}
 
