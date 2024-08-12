@@ -66,7 +66,8 @@ class UciFrontEnd {
     Engine engine_;
     GameState gameState_;
 
-    bool debugMode_ = false;
+    bool debugMode_         = false;
+    bool printVisualString_ = false;
 
     std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 

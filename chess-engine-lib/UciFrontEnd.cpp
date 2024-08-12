@@ -101,6 +101,9 @@ UciFrontEnd::UciFrontEnd() : engine_(this), gameState_(GameState::startingPositi
                     0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
                         engine_.setTTableSize(requestedSizeInMb);
                     }));
+
+    // Add front-end options
+    addOption("print_visual_string", FrontEndOption::createBoolean(printVisualString_));
 }
 
 UciFrontEnd::~UciFrontEnd() {
@@ -267,7 +270,9 @@ void UciFrontEnd::handlePosition(std::stringstream& lineSStream) {
         (void)gameState_.makeMove(move);
     }
 
-    writeDebug(/*debugToUci =*/false, "Position:\n{}", gameState_.toVisualString());
+    if (printVisualString_) {
+        writeDebug(/*debugToUci =*/false, "Position:\n{}", gameState_.toVisualString());
+    }
 }
 
 void UciFrontEnd::handleGo(std::stringstream& lineSStream) {
