@@ -4,6 +4,7 @@
 
 #include "GameState.h"
 #include "IEngine.h"
+#include "IFrontEnd.h"
 #include "SearchInfo.h"
 
 #include <memory>
@@ -13,7 +14,7 @@ class Engine final : public IEngine {
     Engine();
     ~Engine();
 
-    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd) override;
+    void setFrontEnd(const IFrontEnd* uciFrontEnd) override;
 
     void newGame() override;
 

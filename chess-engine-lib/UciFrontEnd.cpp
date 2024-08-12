@@ -41,35 +41,31 @@ struct OptionStringParseResult {
 
 }  // namespace
 
-class UciFrontEnd::Impl {
+class UciFrontEnd::Impl final : public IFrontEnd {
   public:
-    Impl(IEngine& engine,
-         std::istream& in,
-         std::ostream& out,
-         std::ostream& debug,
-         const UciFrontEnd* uciFrontEnd);
+    Impl(IEngine& engine, std::istream& in, std::ostream& out, std::ostream& debug);
     ~Impl();
 
-    void run();
+    void run() override;
 
     void reportFullSearch(
-            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const override;
 
     void reportPartialSearch(
-            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const override;
 
-    void reportSearchStatistics(const SearchStatistics& searchStatistics) const;
+    void reportSearchStatistics(const SearchStatistics& searchStatistics) const override;
 
     void reportAspirationWindowReSearch(
             EvalT previousLowerBound,
             EvalT previousUpperBound,
             EvalT searchEval,
             EvalT newLowerBound,
-            EvalT newUpperBound) const;
+            EvalT newUpperBound) const override;
 
-    void reportDiscardedPv(std::string_view reason) const;
+    void reportDiscardedPv(std::string_view reason) const override;
 
-    void addOption(std::string name, FrontEndOption option);
+    void addOption(std::string name, FrontEndOption option) override;
 
   private:
     void handleIsReady();
@@ -112,18 +108,13 @@ class UciFrontEnd::Impl {
     std::future<void> goFuture;
 };
 
-UciFrontEnd::Impl::Impl(
-        IEngine& engine,
-        std::istream& in,
-        std::ostream& out,
-        std::ostream& debug,
-        const UciFrontEnd* uciFrontEnd)
+UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, std::ostream& debug)
     : engine_(engine),
       in_(in),
       out_(out),
       debug_(debug),
       gameState_(GameState::startingPosition()) {
-    engine_.setUciFrontEnd(uciFrontEnd);
+    engine_.setFrontEnd(this);
 
     // Add UCI hard-coded options
     addOption(
@@ -142,7 +133,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name frontend-dep-inj");
+    writeUci("id name abstract-front-end");
     writeUci("id author Joost Houben");
 
     writeOptions();
@@ -581,7 +572,7 @@ void UciFrontEnd::Impl::writeDebugNonUci(
 // Implementation of interface: forward to implementation
 
 UciFrontEnd::UciFrontEnd(IEngine& engine, std::istream& in, std::ostream& out, std::ostream& debug)
-    : impl_(std::make_unique<Impl>(engine, in, out, debug, this)) {}
+    : impl_(std::make_unique<Impl>(engine, in, out, debug)) {}
 
 UciFrontEnd::~UciFrontEnd() = default;
 

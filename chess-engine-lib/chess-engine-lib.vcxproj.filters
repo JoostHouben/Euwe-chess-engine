@@ -105,6 +105,9 @@
     <ClInclude Include="IEngine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="IFrontEnd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameState.cpp">

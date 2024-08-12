@@ -3,18 +3,17 @@
 #pragma once
 
 #include "GameState.h"
+#include "IFrontEnd.h"
 #include "SearchInfo.h"
 
 #include <chrono>
-
-class UciFrontEnd;
 
 class IEngine {
   public:
     IEngine()          = default;
     virtual ~IEngine() = default;
 
-    virtual void setUciFrontEnd(const UciFrontEnd* uciFrontEnd) = 0;
+    virtual void setFrontEnd(const IFrontEnd* uciFrontEnd) = 0;
 
     virtual void newGame() = 0;
 

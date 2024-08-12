@@ -4,6 +4,7 @@
 
 #include "EvalT.h"
 #include "GameState.h"
+#include "IFrontEnd.h"
 #include "SearchStatistics.h"
 
 #include <memory>
@@ -14,14 +15,13 @@ struct RootSearchResult {
     EvalT eval;
     bool wasInterrupted = false;
 };
-class UciFrontEnd;
 
 class MoveSearcher {
   public:
     MoveSearcher();
     ~MoveSearcher();
 
-    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd);
+    void setFrontEnd(const IFrontEnd* frontEnd);
 
     void newGame();
 

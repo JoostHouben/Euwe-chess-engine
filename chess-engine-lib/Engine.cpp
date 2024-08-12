@@ -1,7 +1,6 @@
 #include "Engine.h"
 
 #include "MoveSearcher.h"
-#include "UciFrontEnd.h"
 
 #include <future>
 #include <iostream>
@@ -12,7 +11,7 @@ class Engine::Impl {
   public:
     Impl();
 
-    void setUciFrontEnd(const UciFrontEnd* uciFrontEnd);
+    void setFrontEnd(const IFrontEnd* frontEnd);
 
     void newGame();
 
@@ -28,16 +27,16 @@ class Engine::Impl {
 
     StackOfVectors<Move> moveStack_;
     MoveSearcher moveSearcher_;
-    const UciFrontEnd* uciFrontEnd_;
+    const IFrontEnd* frontEnd_;
 };
 
 Engine::Impl::Impl() {
     moveStack_.reserve(1'000);
 }
 
-void Engine::Impl::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
-    uciFrontEnd_ = uciFrontEnd;
-    moveSearcher_.setUciFrontEnd(uciFrontEnd);
+void Engine::Impl::setFrontEnd(const IFrontEnd* frontEnd) {
+    frontEnd_ = frontEnd;
+    moveSearcher_.setFrontEnd(frontEnd);
 }
 
 void Engine::Impl::newGame() {
@@ -82,15 +81,15 @@ SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
         searchInfo.nodesPerSecond = (int)nodesPerSecond;
 
         if (searchResult.wasInterrupted) {
-            if (uciFrontEnd_) {
-                uciFrontEnd_->reportPartialSearch(searchInfo, searchStatistics);
+            if (frontEnd_) {
+                frontEnd_->reportPartialSearch(searchInfo, searchStatistics);
             }
             searchInfo.depth -= 1;
             break;
         }
 
-        if (uciFrontEnd_) {
-            uciFrontEnd_->reportFullSearch(searchInfo, searchStatistics);
+        if (frontEnd_) {
+            frontEnd_->reportFullSearch(searchInfo, searchStatistics);
         }
 
         if (isMate(searchResult.eval) && getMateDistanceInPly(searchResult.eval) <= depth) {
@@ -98,8 +97,8 @@ SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
         }
     }
 
-    if (uciFrontEnd_) {
-        uciFrontEnd_->reportSearchStatistics(moveSearcher_.getSearchStatistics());
+    if (frontEnd_) {
+        frontEnd_->reportSearchStatistics(moveSearcher_.getSearchStatistics());
     }
 
     return searchInfo;
@@ -131,8 +130,8 @@ Engine::Engine() : impl_(std::make_unique<Engine::Impl>()) {}
 
 Engine::~Engine() = default;
 
-void Engine::setUciFrontEnd(const UciFrontEnd* uciFrontEnd) {
-    impl_->setUciFrontEnd(uciFrontEnd);
+void Engine::setFrontEnd(const IFrontEnd* frontEnd) {
+    impl_->setFrontEnd(frontEnd);
 }
 
 void Engine::newGame() {

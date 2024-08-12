@@ -4,6 +4,7 @@
 
 #include "FrontEndOption.h"
 #include "IEngine.h"
+#include "IFrontEnd.h"
 #include "SearchInfo.h"
 #include "SearchStatistics.h"
 
@@ -12,7 +13,7 @@
 #include <string>
 #include <string_view>
 
-class UciFrontEnd {
+class UciFrontEnd final : public IFrontEnd {
   public:
     UciFrontEnd(
             IEngine& engine,
@@ -21,36 +22,26 @@ class UciFrontEnd {
             std::ostream& debug = std::cerr);
     ~UciFrontEnd();
 
-    // Run in a loop, handling UCI commands.
-    void run();
+    void run() override;
 
-    // Can be used by engine to report that a search to a certain depth has been fully completed.
     void reportFullSearch(
-            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const override;
 
-    // Can be used by engine to report that a search to a certain depth has been partially
-    // completed. Normally this happens if the engine runs out of time while searching.
     void reportPartialSearch(
-            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const;
+            const SearchInfo& searchInfo, const SearchStatistics& searchStatistics) const override;
 
-    // Can be used by engine to report statistics after ending the search.
-    void reportSearchStatistics(const SearchStatistics& searchStatistics) const;
+    void reportSearchStatistics(const SearchStatistics& searchStatistics) const override;
 
-    // Can be used by the move searcher to report that we are re-searching with an updated
-    // aspiration window.
     void reportAspirationWindowReSearch(
             EvalT previousLowerBound,
             EvalT previousUpperBound,
             EvalT searchEval,
             EvalT newLowerBound,
-            EvalT newUpperBound) const;
+            EvalT newUpperBound) const override;
 
-    // Can be used by the move searcher to report that the PV from a (partial) search was discarded
-    // for some reason.
-    void reportDiscardedPv(std::string_view reason) const;
+    void reportDiscardedPv(std::string_view reason) const override;
 
-    // Add option that can be configured through UCI setoption.
-    void addOption(std::string name, FrontEndOption option);
+    void addOption(std::string name, FrontEndOption option) override;
 
   private:
     class Impl;
