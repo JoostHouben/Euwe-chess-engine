@@ -5,8 +5,6 @@
 
 #include <iostream>
 #include <print>
-#include <ranges>
-#include <sstream>
 
 void runPerft() {
     GameState gameState = GameState::startingPosition();

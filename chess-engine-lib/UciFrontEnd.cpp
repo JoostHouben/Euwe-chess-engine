@@ -1,7 +1,6 @@
 #include "UciFrontEnd.h"
 
 #include "ConsoleColor.h"
-#include "Engine.h"
 #include "GameState.h"
 #include "Math.h"
 #include "MyAssert.h"

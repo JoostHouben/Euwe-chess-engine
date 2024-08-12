@@ -14,7 +14,7 @@ class Engine final : public IEngine {
     Engine();
     ~Engine();
 
-    void setFrontEnd(const IFrontEnd* uciFrontEnd) override;
+    void setFrontEnd(const IFrontEnd* frontEnd) override;
 
     void newGame() override;
 

@@ -13,7 +13,7 @@ class IEngine {
     IEngine()          = default;
     virtual ~IEngine() = default;
 
-    virtual void setFrontEnd(const IFrontEnd* uciFrontEnd) = 0;
+    virtual void setFrontEnd(const IFrontEnd* frontEnd) = 0;
 
     virtual void newGame() = 0;
 

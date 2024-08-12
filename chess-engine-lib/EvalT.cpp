@@ -2,7 +2,7 @@
 
 #include "MyAssert.h"
 
-#include <numeric>
+#include <cmath>
 
 bool isMate(const EvalT eval) {
     return std::abs(eval) >= kMateEval - 1000;

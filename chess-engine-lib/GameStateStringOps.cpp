@@ -4,8 +4,6 @@
 
 #include <cstdlib>
 
-#include <bit>
-#include <map>
 #include <sstream>
 
 namespace {

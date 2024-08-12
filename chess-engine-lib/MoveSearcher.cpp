@@ -9,7 +9,10 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <iostream>
+#include <bit>
+#include <limits>
+
+#include <cstdint>
 
 class MoveSearcher::Impl {
   public:
@@ -145,13 +148,13 @@ class MoveSearcher::Impl {
     int moveClockForKillerMoves_                            = 0;
     std::array<std::array<Move, 2>, kMaxDepth> killerMoves_ = {};
 
-    std::array<std::array<std ::array<Move, kSquares>, kNumPieceTypes>, kNumSides> counterMoves_ =
+    std::array<std::array<std::array<Move, kSquares>, kNumPieceTypes>, kNumSides> counterMoves_ =
             {};
 
-    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
+    std::array<std::array<std::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
             historyCutOff_ = {};
-    std::array<std::array<std ::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides>
-            historyUsed_ = {};
+    std::array<std::array<std::array<unsigned, kSquares>, kNumPieceTypes>, kNumSides> historyUsed_ =
+            {};
 
     const IFrontEnd* frontEnd_ = nullptr;
 };
@@ -837,8 +840,8 @@ EvalT MoveSearcher::Impl::quiesce(
             return score;
         }
 
-        alpha     = std::max(alpha, score);
-        bestScore = std::max(bestScore, score);
+        alpha     = max(alpha, score);
+        bestScore = max(bestScore, score);
     }
 
     return bestScore;
@@ -931,7 +934,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
         // If score is above alpha, it is either exact or a lower bound, so it is safe to raise
         // the lower bound of our feasibility window.
-        alpha = std::max(alpha, bestScore);
+        alpha = max(alpha, bestScore);
     }
 
     return SearchMoveOutcome::Continue;
