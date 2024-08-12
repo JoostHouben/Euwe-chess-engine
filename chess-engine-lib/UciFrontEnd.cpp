@@ -590,11 +590,11 @@ void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistic
 }
 
 void UciFrontEnd::reportAspirationWindowReSearch(
-        EvalT previousLowerBound,
-        EvalT previousUpperBound,
-        EvalT searchEval,
-        EvalT newLowerBound,
-        EvalT newUpperBound) const {
+        const EvalT previousLowerBound,
+        const EvalT previousUpperBound,
+        const EvalT searchEval,
+        const EvalT newLowerBound,
+        const EvalT newUpperBound) const {
     impl_->reportAspirationWindowReSearch(
             previousLowerBound, previousUpperBound, searchEval, newLowerBound, newUpperBound);
 }
