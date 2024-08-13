@@ -130,7 +130,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name time-control");
+    writeUci("id name flush");
     writeUci("id author Joost Houben");
 
     writeOptions();
@@ -196,6 +196,7 @@ void UciFrontEnd::Impl::reportFullSearch(
             (int)(searchStatistics.ttableUtilization * 1000),
             optionalScoreString,
             pvString);
+    std::flush(out_);
 }
 
 void UciFrontEnd::Impl::reportPartialSearch(
