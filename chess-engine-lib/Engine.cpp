@@ -2,37 +2,40 @@
 
 #include "MoveSearcher.h"
 
-#include <future>
-
 class Engine::Impl {
   public:
     Impl();
 
-    void setFrontEnd(const IFrontEnd* frontEnd);
+    TimeManager& getTimeManager();
+
+    void setFrontEnd(IFrontEnd* frontEnd);
 
     void newGame();
 
-    [[nodiscard]] SearchInfo findMove(
-            const GameState& gameState, std::chrono::milliseconds timeBudget);
+    [[nodiscard]] SearchInfo findMove(const GameState& gameState);
 
     void interruptSearch();
 
     void setTTableSize(int requestedSizeInMb);
 
   private:
-    [[nodiscard]] SearchInfo findMoveWorker(const GameState& gameState);
-
     StackOfVectors<Move> moveStack_;
+    TimeManager timeManager_;
     MoveSearcher moveSearcher_;
-    const IFrontEnd* frontEnd_;
+    IFrontEnd* frontEnd_ = nullptr;
 };
 
-Engine::Impl::Impl() {
+Engine::Impl::Impl() : moveSearcher_(timeManager_) {
     moveStack_.reserve(1'000);
 }
 
-void Engine::Impl::setFrontEnd(const IFrontEnd* frontEnd) {
+TimeManager& Engine::Impl::getTimeManager() {
+    return timeManager_;
+}
+
+void Engine::Impl::setFrontEnd(IFrontEnd* frontEnd) {
     frontEnd_ = frontEnd;
+    timeManager_.setFrontEnd(frontEnd);
     moveSearcher_.setFrontEnd(frontEnd);
 }
 
@@ -40,7 +43,9 @@ void Engine::Impl::newGame() {
     moveSearcher_.newGame();
 }
 
-SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
+SearchInfo Engine::Impl::findMove(const GameState& gameState) {
+    moveSearcher_.prepareForNewSearch(gameState);
+
     GameState copySate(gameState);
 
     moveSearcher_.resetSearchStatistics();
@@ -68,7 +73,8 @@ SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
 
         const auto searchStatistics = moveSearcher_.getSearchStatistics();
 
-        const int numNodes = searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
+        const std::uint64_t numNodes =
+                searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched;
         const float nodesPerSecond = static_cast<float>(numNodes) / millisecondsElapsed * 1'000.0f;
 
         searchInfo.score          = searchResult.eval;
@@ -92,6 +98,10 @@ SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
         if (isMate(searchResult.eval) && getMateDistanceInPly(searchResult.eval) <= depth) {
             break;
         }
+
+        if (timeManager_.shouldStopAfterFullPly(depth)) {
+            break;
+        }
     }
 
     if (frontEnd_) {
@@ -99,18 +109,6 @@ SearchInfo Engine::Impl::findMoveWorker(const GameState& gameState) {
     }
 
     return searchInfo;
-}
-
-SearchInfo Engine::Impl::findMove(
-        const GameState& gameState, const std::chrono::milliseconds timeBudget) {
-    moveSearcher_.prepareForNewSearch(gameState);
-    auto moveFuture =
-            std::async(std::launch::async, &Engine::Impl::findMoveWorker, this, gameState);
-
-    (void)moveFuture.wait_for(timeBudget);
-    moveSearcher_.interruptSearch();
-
-    return moveFuture.get();
 }
 
 void Engine::Impl::interruptSearch() {
@@ -127,7 +125,11 @@ Engine::Engine() : impl_(std::make_unique<Engine::Impl>()) {}
 
 Engine::~Engine() = default;
 
-void Engine::setFrontEnd(const IFrontEnd* frontEnd) {
+TimeManager& Engine::getTimeManager() {
+    return impl_->getTimeManager();
+}
+
+void Engine::setFrontEnd(IFrontEnd* frontEnd) {
     impl_->setFrontEnd(frontEnd);
 }
 
@@ -135,9 +137,8 @@ void Engine::newGame() {
     impl_->newGame();
 }
 
-SearchInfo Engine::findMove(
-        const GameState& gameState, const std::chrono::milliseconds timeBudget) {
-    return impl_->findMove(gameState, timeBudget);
+SearchInfo Engine::findMove(const GameState& gameState) {
+    return impl_->findMove(gameState);
 }
 
 void Engine::interruptSearch() {

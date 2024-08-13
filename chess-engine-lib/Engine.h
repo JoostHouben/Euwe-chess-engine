@@ -14,12 +14,13 @@ class Engine final : public IEngine {
     Engine();
     ~Engine();
 
-    void setFrontEnd(const IFrontEnd* frontEnd) override;
+    TimeManager& getTimeManager() override;
+
+    void setFrontEnd(IFrontEnd* frontEnd) override;
 
     void newGame() override;
 
-    [[nodiscard]] SearchInfo findMove(
-            const GameState& gameState, std::chrono::milliseconds timeBudget) override;
+    [[nodiscard]] SearchInfo findMove(const GameState& gameState) override;
 
     void interruptSearch() override;
 

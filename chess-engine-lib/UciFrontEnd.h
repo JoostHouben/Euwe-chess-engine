@@ -41,6 +41,8 @@ class UciFrontEnd final : public IFrontEnd {
 
     void reportDiscardedPv(std::string_view reason) const override;
 
+    void reportDebugString(std::string_view message) const override;
+
     void addOption(std::string name, FrontEndOption option) override;
 
   private:

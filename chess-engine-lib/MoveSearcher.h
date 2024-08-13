@@ -6,6 +6,7 @@
 #include "GameState.h"
 #include "IFrontEnd.h"
 #include "SearchStatistics.h"
+#include "TimeManager.h"
 
 #include <memory>
 #include <optional>
@@ -18,10 +19,10 @@ struct RootSearchResult {
 
 class MoveSearcher {
   public:
-    MoveSearcher();
+    MoveSearcher(const TimeManager& timeManager);
     ~MoveSearcher();
 
-    void setFrontEnd(const IFrontEnd* frontEnd);
+    void setFrontEnd(IFrontEnd* frontEnd);
 
     void newGame();
 

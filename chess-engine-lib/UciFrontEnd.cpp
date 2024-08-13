@@ -64,6 +64,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     void reportDiscardedPv(std::string_view reason) const override;
 
+    void reportDebugString(std::string_view message) const override;
+
     void addOption(std::string name, FrontEndOption option) override;
 
   private:
@@ -103,7 +105,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 
-    std::future<void> goFuture;
+    std::future<void> goFuture_;
 };
 
 UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, std::ostream& debug)
@@ -124,11 +126,11 @@ UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, st
 }
 
 UciFrontEnd::Impl::~Impl() {
-    MY_ASSERT(!goFuture.valid());
+    MY_ASSERT(!goFuture_.valid());
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name abstract-front-end");
+    writeUci("id name time-control");
     writeUci("id author Joost Houben");
 
     writeOptions();
@@ -234,6 +236,10 @@ void UciFrontEnd::Impl::reportDiscardedPv(std::string_view reason) const {
     writeDebug("Discarded PV: {}", reason);
 }
 
+void UciFrontEnd::Impl::reportDebugString(std::string_view message) const {
+    writeDebug("{}", message);
+}
+
 void UciFrontEnd::Impl::addOption(std::string name, FrontEndOption option) {
     optionsMap_.emplace(std::move(name), std::move(option));
 }
@@ -292,33 +298,85 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
 }
 
 void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
-    // Most sub-commands not supported
+    // Not implemented: searchmoves, ponder, mate
 
-    auto timeBudget = std::chrono::milliseconds(1000);
+    const std::string ourTimeString = gameState_.getSideToMove() == Side::White ? "wtime" : "btime";
+    const std::string ourIncString  = gameState_.getSideToMove() == Side::White ? "winc" : "binc";
+
+    std::optional<std::chrono::milliseconds> timeLeft      = std::nullopt;
+    std::optional<std::chrono::milliseconds> timeIncrement = std::nullopt;
+    std::optional<int> movesToGo                           = std::nullopt;
+    std::optional<int> depth                               = std::nullopt;
+    std::optional<std::uint64_t> nodes                     = std::nullopt;
+    std::optional<std::chrono::milliseconds> fixedTime     = std::nullopt;
+    bool isInfinite                                        = false;
 
     while (lineSStream) {
         std::string token;
-        lineSStream >> token;
-        if (token.empty()) {
+        if (!(lineSStream >> token)) {
             break;
         }
 
-        const std::string ourIncString =
-                gameState_.getSideToMove() == Side::White ? "winc" : "binc";
-
-        // If an increment is given, use the time budget as increment
         if (token == ourIncString) {
             int incMs;
-            lineSStream >> incMs;
-            timeBudget = std::chrono::milliseconds(incMs);
+            if (lineSStream >> incMs) {
+                timeIncrement = std::chrono::milliseconds(incMs);
+            }
+        } else if (token == ourTimeString) {
+            int timeMs;
+            if (lineSStream >> timeMs) {
+                timeLeft = std::chrono::milliseconds(timeMs);
+            }
+        } else if (token == "movestogo") {
+            int movesToGoVal;
+            if (lineSStream >> movesToGoVal) {
+                movesToGo = movesToGoVal;
+            }
+        } else if (token == "depth") {
+            int depthVal;
+            if (lineSStream >> depthVal) {
+                depth = depthVal;
+            }
+        } else if (token == "nodes") {
+            std::uint64_t nodesVal;
+            if (lineSStream >> nodesVal) {
+                nodes = nodesVal;
+            }
+        } else if (token == "movetime") {
+            int timeMs;
+            if (lineSStream >> timeMs) {
+                fixedTime = std::chrono::milliseconds(timeMs);
+            }
+        } else if (token == "infinite") {
+            isInfinite = true;
         }
     }
 
-    waitForGoToComplete();
-    MY_ASSERT(!goFuture.valid());
+    TimeManager& timeManager = engine_.getTimeManager();
 
-    goFuture = std::async(std::launch::async, [=, this] {
-        const auto searchInfo = engine_.findMove(gameState_, timeBudget);
+    if (isInfinite) {
+        timeManager.configureForInfiniteSearch();
+    } else if (depth) {
+        timeManager.configureForFixedDepthSearch(*depth);
+    } else if (nodes) {
+        timeManager.configureForFixedNodesSearch(*nodes);
+    } else if (fixedTime) {
+        timeManager.configureForFixedTimeSearch(*fixedTime);
+    } else if (timeLeft) {
+        timeIncrement = timeIncrement.value_or(std::chrono::milliseconds(0));
+        movesToGo     = movesToGo.value_or(std::numeric_limits<int>::max());
+
+        timeManager.configureForTimeControl(*timeLeft, *timeIncrement, *movesToGo, gameState_);
+    } else {
+        writeDebug("Error: no time control specified. Defaulting to fixed 1 second search.");
+        timeManager.configureForFixedTimeSearch(std::chrono::seconds(1));
+    }
+
+    waitForGoToComplete();
+    MY_ASSERT(!goFuture_.valid());
+
+    goFuture_ = std::async(std::launch::async, [=, this] {
+        const auto searchInfo = engine_.findMove(gameState_);
 
         writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
         std::flush(out_);
@@ -326,9 +384,9 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
 }
 
 void UciFrontEnd::Impl::handleStop() {
-    if (goFuture.valid()) {
+    if (goFuture_.valid()) {
         engine_.interruptSearch();
-        goFuture.get();
+        goFuture_.get();
     }
 }
 
@@ -446,8 +504,8 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 }
 
 void UciFrontEnd::Impl::waitForGoToComplete() {
-    if (goFuture.valid()) {
-        goFuture.get();
+    if (goFuture_.valid()) {
+        goFuture_.get();
     }
 }
 
@@ -601,6 +659,10 @@ void UciFrontEnd::reportAspirationWindowReSearch(
 
 void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {
     impl_->reportDiscardedPv(reason);
+}
+
+void UciFrontEnd::reportDebugString(std::string_view message) const {
+    impl_->reportDebugString(message);
 }
 
 void UciFrontEnd::addOption(std::string name, FrontEndOption option) {

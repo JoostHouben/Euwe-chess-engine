@@ -7,11 +7,13 @@
 
 #include <vector>
 
+#include <cstdint>
+
 struct SearchInfo {
     std::vector<Move> principalVariation;
     EvalT score;
     int depth;
     int timeMs;
-    int numNodes;
+    std::uint64_t numNodes;
     int nodesPerSecond;
 };

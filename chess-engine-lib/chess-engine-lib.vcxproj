@@ -40,6 +40,7 @@
     <ClInclude Include="SEE.h" />
     <ClInclude Include="Side.h" />
     <ClInclude Include="StackOfVectors.h" />
+    <ClInclude Include="TimeManager.h" />
     <ClInclude Include="TTable.h" />
     <ClInclude Include="UciFrontEnd.h" />
   </ItemGroup>
@@ -62,6 +63,7 @@
     <ClCompile Include="MoveSearcher.cpp" />
     <ClCompile Include="SEE.cpp" />
     <ClCompile Include="Side.cpp" />
+    <ClCompile Include="TimeManager.cpp" />
     <ClCompile Include="UciFrontEnd.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

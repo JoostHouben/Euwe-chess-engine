@@ -10,7 +10,7 @@ param
 
     [int]$concurrency = 4,
 
-    [float]$timePerMove = 0.1
+    [String]$timeControl = "inf/3+0.1"
 )
 
 $cuteChessCli = "C:\Program Files (x86)\Cute Chess\cutechess-cli.exe"
@@ -37,10 +37,12 @@ $pgnout = "$($pgnoutFolder)\$($pgnBaseName)_$($engine1Name)_vs_$($engine2Name).p
     -engine cmd=$Engine1 proto=uci `
     -engine cmd=$Engine2 proto=uci `
     -each `
-        tc="inf/3+$($timePerMove)" `
+        tc=$timeControl `
+        timemargin=20 `
         book=$book `
         bookdepth=5 `
         option.Hash=512 `
+        option.move_overhead_ms=20 `
     -rounds $numRounds -games 2 -repeat 2 -maxmoves 150 `
     -concurrency $concurrency `
     -ratinginterval 10 `

@@ -16,9 +16,9 @@
 
 class MoveSearcher::Impl {
   public:
-    Impl();
+    Impl(const TimeManager& timeManager);
 
-    void setFrontEnd(const IFrontEnd* frontEnd);
+    void setFrontEnd(IFrontEnd* frontEnd);
 
     void newGame();
 
@@ -77,6 +77,8 @@ class MoveSearcher::Impl {
     void shiftKillerMoves(int halfMoveClock);
     void initializeHistoryFromPieceSquare();
     void scaleDownHistory();
+
+    [[nodiscard]] bool shouldStopSearch() const;
 
     // == Search functions ==
 
@@ -137,7 +139,7 @@ class MoveSearcher::Impl {
     // == Data ==
 
     std::atomic<bool> stopSearch_ = false;
-    bool wasInterrupted_          = false;
+    mutable bool wasInterrupted_  = false;
 
     SearchTTable tTable_ = {};
 
@@ -157,6 +159,8 @@ class MoveSearcher::Impl {
             {};
 
     const IFrontEnd* frontEnd_ = nullptr;
+
+    const TimeManager& timeManager_;
 };
 
 namespace {
@@ -233,12 +237,12 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
 }  // namespace
 
-MoveSearcher::Impl::Impl() {
+MoveSearcher::Impl::Impl(const TimeManager& timeManager) : timeManager_(timeManager) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
 }
 
-void MoveSearcher::Impl::setFrontEnd(const IFrontEnd* frontEnd) {
+void MoveSearcher::Impl::setFrontEnd(IFrontEnd* frontEnd) {
     frontEnd_ = frontEnd;
 }
 
@@ -444,6 +448,14 @@ void MoveSearcher::Impl::scaleDownHistory() {
     }
 }
 
+bool MoveSearcher::Impl::shouldStopSearch() const {
+    const std::uint64_t numNodes =
+            searchStatistics_.normalNodesSearched + searchStatistics_.qNodesSearched;
+    wasInterrupted_ =
+            wasInterrupted_ || stopSearch_ || timeManager_.shouldInterruptSearch(numNodes);
+    return wasInterrupted_;
+}
+
 EvalT MoveSearcher::Impl::search(
         GameState& gameState,
         int depth,
@@ -453,8 +465,7 @@ EvalT MoveSearcher::Impl::search(
         Move lastMove,
         const int lastNullMovePly,
         StackOfVectors<Move>& stack) {
-    if (stopSearch_) {
-        wasInterrupted_ = true;
+    if (shouldStopSearch()) {
         return -kInfiniteEval;
     }
 
@@ -722,12 +733,10 @@ EvalT MoveSearcher::Impl::quiesce(
         const bool returnIfNotInCheck) {
     // TODO:
     //  - Can we use the TTable here?
-    //  - Can we prune certain captures? Maybe using SEE or a simpler heuristic?
 
     EvalT bestScore = -kInfiniteEval;
 
-    if (stopSearch_) {
-        wasInterrupted_ = true;
+    if (shouldStopSearch()) {
         return bestScore;
     }
 
@@ -1122,11 +1131,12 @@ void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
 
 // Implementation of interface: forward to implementation
 
-MoveSearcher::MoveSearcher() : impl_(std::make_unique<MoveSearcher::Impl>()) {}
+MoveSearcher::MoveSearcher(const TimeManager& timeManager)
+    : impl_(std::make_unique<MoveSearcher::Impl>(timeManager)) {}
 
 MoveSearcher::~MoveSearcher() = default;
 
-void MoveSearcher::setFrontEnd(const IFrontEnd* frontEnd) {
+void MoveSearcher::setFrontEnd(IFrontEnd* frontEnd) {
     impl_->setFrontEnd(frontEnd);
 }
 
