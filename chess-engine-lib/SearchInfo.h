@@ -15,5 +15,5 @@ struct SearchInfo {
     int depth;
     int timeMs;
     std::uint64_t numNodes;
-    int nodesPerSecond;
+    float nodesPerSecond;
 };

@@ -81,7 +81,7 @@ SearchInfo Engine::Impl::findMove(const GameState& gameState) {
         searchInfo.depth          = depth;
         searchInfo.timeMs         = (int)millisecondsElapsed;
         searchInfo.numNodes       = numNodes;
-        searchInfo.nodesPerSecond = (int)nodesPerSecond;
+        searchInfo.nodesPerSecond = nodesPerSecond;
 
         if (searchResult.wasInterrupted) {
             if (frontEnd_) {

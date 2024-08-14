@@ -189,15 +189,20 @@ void UciFrontEnd::Impl::reportFullSearch(
         optionalScoreString = std::format(" score {}", scoreToString(searchInfo.score));
     }
 
+    std::string optionalNpsString = "";
+    if (searchInfo.timeMs > 0) {
+        optionalNpsString = std::format(" nps {}", (int)std::round(searchInfo.nodesPerSecond));
+    }
+
     const std::string pvString = pvToString(searchInfo.principalVariation);
 
     writeUci(
-            "info depth {} seldepth {} time {} nodes {} nps {} hashfull {}{} pv {}",
+            "info depth {} seldepth {} time {} nodes {}{} hashfull {}{} pv {}",
             searchInfo.depth,
             searchStatistics.selectiveDepth,
             searchInfo.timeMs,
             searchInfo.numNodes,
-            searchInfo.nodesPerSecond,
+            optionalNpsString,
             (int)(searchStatistics.ttableUtilization * 1000),
             optionalScoreString,
             pvString);
