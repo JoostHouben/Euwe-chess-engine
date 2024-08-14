@@ -55,21 +55,23 @@ int stringViewToInt(std::string_view valueString) {
 
 }  // namespace
 
-FrontEndOption FrontEndOption::createAction(std::function<void()> onSet) {
+FrontEndOption FrontEndOption::createAction(std::string name, std::function<void()> onTrigger) {
     FrontEndOption option;
+    option.name_  = std::move(name);
     option.type_  = Type::Action;
-    option.onSet_ = [onSet = std::move(onSet)](std::string_view) {
-        onSet();
+    option.onSet_ = [onTrigger = std::move(onTrigger)](std::string_view) {
+        onTrigger();
     };
     return option;
 }
 
 FrontEndOption FrontEndOption::createBoolean(
-        const bool defaultValue, std::function<void(bool)> onSet) {
+        std::string name, const bool defaultValue, std::function<void(bool)> onSet) {
     std::ostringstream sstream;
     sstream << std::boolalpha << defaultValue;
 
     FrontEndOption option;
+    option.name_         = std::move(name);
     option.type_         = Type::Boolean;
     option.defaultValue_ = sstream.str();
     option.onSet_        = [onSet = std::move(onSet)](std::string_view valueString) {
@@ -78,28 +80,32 @@ FrontEndOption FrontEndOption::createBoolean(
     return option;
 }
 
-FrontEndOption FrontEndOption::createBoolean(bool& value) {
-    return createBoolean(value, [&](bool v) { value = v; });
+FrontEndOption FrontEndOption::createBoolean(std::string name, bool& value) {
+    return createBoolean(std::move(name), value, [&](bool v) { value = v; });
 }
 
-FrontEndOption FrontEndOption::createString(std::string defaultValue, OnSet onSet) {
+FrontEndOption FrontEndOption::createString(
+        std::string name, std::string defaultValue, OnSet onSet) {
     FrontEndOption option;
+    option.name_         = std::move(name);
     option.type_         = Type::String;
     option.defaultValue_ = std::move(defaultValue);
     option.onSet_        = std::move(onSet);
     return option;
 }
 
-FrontEndOption FrontEndOption::createString(std::string& value) {
-    return createString(value, [&](std::string_view v) { value = v; });
+FrontEndOption FrontEndOption::createString(std::string name, std::string& value) {
+    return createString(std::move(name), value, [&](std::string_view v) { value = v; });
 }
 
 FrontEndOption FrontEndOption::createInteger(
+        std::string name,
         const int defaultValue,
         const int minValue,
         const int maxValue,
         std::function<void(int)> onSet) {
     FrontEndOption option;
+    option.name_         = std::move(name);
     option.type_         = Type::Integer;
     option.defaultValue_ = std::to_string(defaultValue);
     option.minValue_     = minValue;
@@ -117,13 +123,18 @@ FrontEndOption FrontEndOption::createInteger(
     return option;
 }
 
-FrontEndOption FrontEndOption::createInteger(int& value, const int minValue, const int maxValue) {
-    return createInteger(value, minValue, maxValue, [&](int v) { value = v; });
+FrontEndOption FrontEndOption::createInteger(
+        std::string name, int& value, const int minValue, const int maxValue) {
+    return createInteger(std::move(name), value, minValue, maxValue, [&](int v) { value = v; });
 }
 
 FrontEndOption FrontEndOption::createAlternative(
-        std::string defaultValue, std::vector<std::string> validValues, OnSet onSet) {
+        std::string name,
+        std::string defaultValue,
+        std::vector<std::string> validValues,
+        OnSet onSet) {
     FrontEndOption option;
+    option.name_         = std::move(name);
     option.type_         = Type::Alternative;
     option.validValues_  = std::move(validValues);
     option.defaultValue_ = std::move(defaultValue);
@@ -143,8 +154,9 @@ FrontEndOption FrontEndOption::createAlternative(
 }
 
 FrontEndOption FrontEndOption::createAlternative(
-        std::string& value, std::vector<std::string> validValues) {
-    return createAlternative(value, std::move(validValues), [&](std::string_view v) { value = v; });
+        std::string name, std::string& value, std::vector<std::string> validValues) {
+    return createAlternative(
+            std::move(name), value, std::move(validValues), [&](std::string_view v) { value = v; });
 }
 
 void FrontEndOption::set(std::string_view valueString) {

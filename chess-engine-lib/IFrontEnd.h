@@ -46,5 +46,5 @@ class IFrontEnd {
     virtual void reportDebugString(std::string_view message) const = 0;
 
     // Add option that can be configured through the frontend.
-    virtual void addOption(std::string name, FrontEndOption option) = 0;
+    virtual void addOption(FrontEndOption option) = 0;
 };

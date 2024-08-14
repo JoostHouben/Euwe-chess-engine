@@ -20,23 +20,32 @@ class FrontEndOption {
         Alternative,
     };
 
-    static FrontEndOption createAction(std::function<void()> onSet);
+    static FrontEndOption createAction(std::string name, std::function<void()> onTrigger);
 
-    static FrontEndOption createBoolean(bool defaultValue, std::function<void(bool)> onSet);
-    static FrontEndOption createBoolean(bool& value);
+    static FrontEndOption createBoolean(
+            std::string name, bool defaultValue, std::function<void(bool)> onSet);
+    static FrontEndOption createBoolean(std::string name, bool& value);
 
-    static FrontEndOption createString(std::string defaultValue, OnSet onSet);
-    static FrontEndOption createString(std::string& value);
+    static FrontEndOption createString(std::string name, std::string defaultValue, OnSet onSet);
+    static FrontEndOption createString(std::string name, std::string& value);
 
     static FrontEndOption createInteger(
-            int defaultValue, int minValue, int maxValue, std::function<void(int)> onSet);
-    static FrontEndOption createInteger(int& value, int minValue, int maxValue);
+            std::string name,
+            int defaultValue,
+            int minValue,
+            int maxValue,
+            std::function<void(int)> onSet);
+    static FrontEndOption createInteger(std::string name, int& value, int minValue, int maxValue);
 
     static FrontEndOption createAlternative(
-            std::string defaultValue, std::vector<std::string> validValues, OnSet onSet);
+            std::string name,
+            std::string defaultValue,
+            std::vector<std::string> validValues,
+            OnSet onSet);
     static FrontEndOption createAlternative(
-            std::string& value, std::vector<std::string> validValues);
+            std::string name, std::string& value, std::vector<std::string> validValues);
 
+    const std::string& getName() const { return name_; }
     const std::optional<std::string>& getDefaultValue() const { return defaultValue_; }
     const std::optional<int>& getMinValue() const { return minValue_; }
     const std::optional<int>& getMaxValue() const { return maxValue_; }
@@ -51,6 +60,8 @@ class FrontEndOption {
 
   private:
     FrontEndOption() = default;
+
+    std::string name_;
 
     std::optional<std::string> defaultValue_;
     std::optional<int> minValue_;

@@ -7,9 +7,12 @@
 namespace FrontEndOptionTests {
 
 TEST(FrontEndOptionTests, TestAction) {
-    bool triggered = false;
+    bool triggered         = false;
+    const std::string name = "action";
 
-    FrontEndOption action = FrontEndOption::createAction([&]() { triggered = true; });
+    FrontEndOption action = FrontEndOption::createAction(name, [&]() { triggered = true; });
+
+    EXPECT_EQ(action.getName(), name);
 
     EXPECT_FALSE(action.getDefaultValue().has_value());
     EXPECT_FALSE(action.getMinValue().has_value());
@@ -21,9 +24,12 @@ TEST(FrontEndOptionTests, TestAction) {
 }
 
 TEST(FrontEndOptionTests, TestBoolean) {
-    bool value = false;
+    bool value             = false;
+    const std::string name = "boolean";
 
-    FrontEndOption action = FrontEndOption::createBoolean(value);
+    FrontEndOption action = FrontEndOption::createBoolean(name, value);
+
+    EXPECT_EQ(action.getName(), name);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), "false");
@@ -44,9 +50,12 @@ TEST(FrontEndOptionTests, TestBoolean) {
 }
 
 TEST(FrontEndOptionTests, TestString) {
-    std::string value = "default";
+    std::string value      = "default";
+    const std::string name = "string";
 
-    FrontEndOption action = FrontEndOption::createString(value);
+    FrontEndOption action = FrontEndOption::createString(name, value);
+
+    EXPECT_EQ(action.getName(), name);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), value);
@@ -62,9 +71,12 @@ TEST(FrontEndOptionTests, TestString) {
 }
 
 TEST(FrontEndOptionTests, TestInteger) {
-    int value = 0;
+    int value              = 0;
+    const std::string name = "integer";
 
-    FrontEndOption action = FrontEndOption::createInteger(value, -10, 10);
+    FrontEndOption action = FrontEndOption::createInteger(name, value, -10, 10);
+
+    EXPECT_EQ(action.getName(), name);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), "0");
@@ -88,11 +100,14 @@ TEST(FrontEndOptionTests, TestInteger) {
 }
 
 TEST(FrontEndOptionTests, TestAlternative) {
-    std::string value = "default";
+    std::string value      = "default";
+    const std::string name = "alternative";
 
     std::vector<std::string> alternatives{"a", "b", "c", "default"};
 
-    FrontEndOption action = FrontEndOption::createAlternative(value, alternatives);
+    FrontEndOption action = FrontEndOption::createAlternative(name, value, alternatives);
+
+    EXPECT_EQ(action.getName(), name);
 
     ASSERT_TRUE(action.getDefaultValue().has_value());
     EXPECT_EQ(action.getDefaultValue().value(), value);

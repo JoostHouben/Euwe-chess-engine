@@ -43,7 +43,7 @@ class UciFrontEnd final : public IFrontEnd {
 
     void reportDebugString(std::string_view message) const override;
 
-    void addOption(std::string name, FrontEndOption option) override;
+    void addOption(FrontEndOption option) override;
 
   private:
     class Impl;

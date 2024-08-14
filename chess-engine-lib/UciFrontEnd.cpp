@@ -13,6 +13,8 @@
 #include <ranges>
 #include <sstream>
 
+#include <cctype>
+
 namespace {
 
 std::string pvToString(const std::vector<Move>& principalVariation) {
@@ -37,6 +39,11 @@ struct OptionStringParseResult {
     std::string_view optionName;
     std::optional<std::string_view> optionValue;
 };
+
+std::string stringToLower(std::string_view str) {
+    return str | std::views::transform([](unsigned char c) { return std::tolower(c); })
+         | std::ranges::to<std::string>();
+}
 
 }  // namespace
 
@@ -66,7 +73,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     void reportDebugString(std::string_view message) const override;
 
-    void addOption(std::string name, FrontEndOption option) override;
+    void addOption(FrontEndOption option) override;
 
   private:
     void handleIsReady();
@@ -117,12 +124,10 @@ UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, st
     engine_.setFrontEnd(this);
 
     // Add UCI hard-coded options
-    addOption(
-            "Hash",
-            FrontEndOption::createInteger(
-                    0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
-                        engine_.setTTableSize(requestedSizeInMb);
-                    }));
+    addOption(FrontEndOption::createInteger(
+            "Hash", 0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
+                engine_.setTTableSize(requestedSizeInMb);
+            }));
 }
 
 UciFrontEnd::Impl::~Impl() {
@@ -241,8 +246,9 @@ void UciFrontEnd::Impl::reportDebugString(std::string_view message) const {
     writeDebug("{}", message);
 }
 
-void UciFrontEnd::Impl::addOption(std::string name, FrontEndOption option) {
-    optionsMap_.emplace(std::move(name), std::move(option));
+void UciFrontEnd::Impl::addOption(FrontEndOption option) {
+    // UCI option names are case insensitive, so convert to lower case for lookup.
+    optionsMap_.emplace(stringToLower(option.getName()), std::move(option));
 }
 
 void UciFrontEnd::Impl::handleIsReady() {
@@ -423,7 +429,8 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
         return;
     }
 
-    const auto it = optionsMap_.find(optionParseResult->optionName);
+    // UCI option names are case insensitive, so convert to lower case for lookup.
+    const auto it = optionsMap_.find(stringToLower(optionParseResult->optionName));
     if (it == optionsMap_.end()) {
         writeDebug("Error: Unknown option '{}'", optionParseResult->optionName);
         return;
@@ -433,32 +440,27 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
     if (option.getType() == FrontEndOption::Type::Action) {
         if (optionParseResult->optionValue.has_value()) {
             writeDebug(
-
                     "Warning: Option '{}' is a button. Expected no value, but found '{}'. Ignoring "
                     "this value.",
-                    optionParseResult->optionName,
+                    option.getName(),
                     *optionParseResult->optionValue);
         }
 
         try {
             option.trigger();
-            writeDebug("Action option '{}' triggered", optionParseResult->optionName);
+            writeDebug("Action option '{}' was triggered.", option.getName());
         } catch (const std::exception& e) {
             writeDebug(
-
-                    "Error: Failed to trigger action option '{}': {}",
-                    optionParseResult->optionName,
-                    e.what());
+                    "Error: Failed to trigger action option '{}': {}", option.getName(), e.what());
         }
         return;
     }
 
     if (!optionParseResult->optionValue.has_value()) {
         writeDebug(
-
                 "Error: Option '{}' is not a button. Failed to find value in the following string: "
                 "'{}'",
-                optionParseResult->optionName,
+                option.getName(),
                 line);
         return;
     }
@@ -466,22 +468,20 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
     if (optionParseResult->optionValue->empty()) {
         if (option.getType() != FrontEndOption::Type::String) {
             writeDebug(
-
                     "Error: Failed to find non-empty option value for non-string option '{}' in "
                     "the following string: '{}'",
-                    optionParseResult->optionName,
+                    option.getName(),
                     line);
             return;
         }
 
         try {
             option.set("");
-            writeDebug("Set option '{}' to empty string.", optionParseResult->optionName);
+            writeDebug("Option '{}' was set to empty string.", option.getName());
         } catch (const std::exception& e) {
             writeDebug(
-
                     "Error: Failed to set option '{}' to empty string: {}",
-                    optionParseResult->optionName,
+                    option.getName(),
                     e.what());
         }
         return;
@@ -491,14 +491,11 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
         option.set(*optionParseResult->optionValue);
         writeDebug(
 
-                "Set option '{}' to '{}'",
-                optionParseResult->optionName,
-                *optionParseResult->optionValue);
+                "Option '{}' was set to '{}'.", option.getName(), *optionParseResult->optionValue);
     } catch (const std::exception& e) {
         writeDebug(
-
                 "Error: Failed to set option '{}' to '{}': {}",
-                optionParseResult->optionName,
+                option.getName(),
                 *optionParseResult->optionValue,
                 e.what());
     }
@@ -511,7 +508,9 @@ void UciFrontEnd::Impl::waitForGoToComplete() {
 }
 
 void UciFrontEnd::Impl::writeOptions() const {
-    for (const auto& [name, option] : optionsMap_) {
+    for (const auto& [_, option] : optionsMap_) {
+        // Use the original name from the option, not the case-insensitive key.
+        const std::string& name = option.getName();
         switch (option.getType()) {
             case FrontEndOption::Type::Action: {
                 writeUci("option name {} type button", name);
@@ -666,6 +665,6 @@ void UciFrontEnd::reportDebugString(std::string_view message) const {
     impl_->reportDebugString(message);
 }
 
-void UciFrontEnd::addOption(std::string name, FrontEndOption option) {
-    impl_->addOption(std::move(name), std::move(option));
+void UciFrontEnd::addOption(FrontEndOption option) {
+    impl_->addOption(std::move(option));
 }
