@@ -19,6 +19,8 @@ struct RootSearchResult {
 
 class MoveSearcher {
   public:
+    static constexpr int kMaxDepth = 100;
+
     MoveSearcher(const TimeManager& timeManager);
     ~MoveSearcher();
 

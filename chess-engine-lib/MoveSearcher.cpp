@@ -132,10 +132,6 @@ class MoveSearcher::Impl {
             StackOfVectors<Move>& stack,
             const EvalT initialGuess);
 
-    // == Constants ==
-
-    static constexpr int kMaxDepth = 100;
-
     // == Data ==
 
     std::atomic<bool> stopSearch_ = false;
@@ -336,13 +332,13 @@ FORCE_INLINE void MoveSearcher::Impl::updateHistoryForUse(
 }
 
 FORCE_INLINE void MoveSearcher::Impl::updateTTable(
-        EvalT bestScore,
-        EvalT alphaOrig,
-        EvalT beta,
-        bool stoppedEarly,
-        Move bestMove,
-        int depth,
-        HashT hash) {
+        const EvalT bestScore,
+        const EvalT alphaOrig,
+        const EvalT beta,
+        const bool stoppedEarly,
+        const Move bestMove,
+        const int depth,
+        const HashT hash) {
     ScoreType scoreType;
     if (stoppedEarly) {
         // Don't trust scores from partial search.

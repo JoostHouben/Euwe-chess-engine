@@ -46,7 +46,7 @@ void Engine::Impl::newGame() {
 SearchInfo Engine::Impl::findMove(const GameState& gameState) {
     moveSearcher_.prepareForNewSearch(gameState);
 
-    GameState copySate(gameState);
+    GameState copyState(gameState);
 
     moveSearcher_.resetSearchStatistics();
 
@@ -56,9 +56,9 @@ SearchInfo Engine::Impl::findMove(const GameState& gameState) {
     auto startTime = std::chrono::high_resolution_clock::now();
 
     int depth;
-    for (depth = 1; depth < 40; ++depth) {
+    for (depth = 1; depth < MoveSearcher::kMaxDepth; ++depth) {
         const auto searchResult =
-                moveSearcher_.searchForBestMove(copySate, depth, moveStack_, evalGuess);
+                moveSearcher_.searchForBestMove(copyState, depth, moveStack_, evalGuess);
 
         evalGuess = searchResult.eval;
 
