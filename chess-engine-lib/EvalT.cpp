@@ -5,7 +5,7 @@
 #include <cmath>
 
 bool isMate(const EvalT eval) {
-    return std::abs(eval) >= kMateEval - 1000;
+    return std::abs(eval) > kMateEval - 1000;
 }
 
 bool isValid(const EvalT eval) {

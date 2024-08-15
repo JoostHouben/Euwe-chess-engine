@@ -38,3 +38,9 @@
 #else
 #define UNREACHABLE std::unreachable()
 #endif
+
+#ifndef NDEBUG
+#define MY_ASSERT_DEBUG(condition) MY_ASSERT(condition)
+#else
+#define MY_ASSERT_DEBUG(condition) (void)0
+#endif

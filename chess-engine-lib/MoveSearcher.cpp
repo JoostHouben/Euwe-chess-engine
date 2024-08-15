@@ -189,11 +189,13 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
 [[nodiscard]] FORCE_INLINE bool nullMovePruningAllowed(
         const GameState& gameState,
+        const bool isPvNode,
         const bool isInCheck,
         const int depth,
         const int ply,
         const int lastNullMovePly) {
-    const bool basicConditions = !isInCheck && ply > 0 && depth >= 3 && ply != lastNullMovePly + 2;
+    const bool basicConditions =
+            !isPvNode && !isInCheck && ply > 0 && depth >= 3 && ply != lastNullMovePly + 2;
     if (!basicConditions) {
         return false;
     }
@@ -508,12 +510,12 @@ EvalT MoveSearcher::Impl::search(
     }
 
     constexpr int kNullMoveReduction = 3;
-    if (nullMovePruningAllowed(gameState, isInCheck, depth, ply, lastNullMovePly)) {
+    if (nullMovePruningAllowed(gameState, isPvNode, isInCheck, depth, ply, lastNullMovePly)) {
         const int nullMoveSearchDepth = max(1, depth - kNullMoveReduction - 1);
 
         const auto unmakeInfo = gameState.makeNullMove();
 
-        const EvalT nullMoveScore =
+        EvalT nullMoveScore =
                 -search(gameState,
                         nullMoveSearchDepth,
                         ply + 1,
@@ -524,6 +526,10 @@ EvalT MoveSearcher::Impl::search(
                         stack);
 
         gameState.unmakeNullMove(unmakeInfo);
+
+        if (isMate(nullMoveScore)) {
+            nullMoveScore -= signum(nullMoveScore);
+        }
 
         if (wasInterrupted_) {
             return -kInfiniteEval;
@@ -630,6 +636,7 @@ EvalT MoveSearcher::Impl::search(
     if (ttHit) {
         const auto& ttInfo    = ttHit->payload;
         const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttInfo.bestMove);
+        MY_ASSERT_DEBUG(hashMoveIt != moves.end());
         if (hashMoveIt != moves.end()) {
             *hashMoveIt = moves.front();
             ++moveIdx;
@@ -871,8 +878,9 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     const int reducedDepth = depth - reduction - 1;
     const int fullDepth    = depth - 1;
     if (reducedDepth > 0) {
+        const bool isPvNode              = beta - alpha > 1;
         const bool likelyNullMoveAllowed = nullMovePruningAllowed(
-                gameState, /*isInCheck =*/false, reducedDepth, ply + 1, lastNullMovePly);
+                gameState, isPvNode, /*isInCheck =*/false, reducedDepth, ply + 1, lastNullMovePly);
 
         HashT hashToPrefetch = gameState.getBoardHash();
         if (likelyNullMoveAllowed) {
@@ -1019,7 +1027,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         if (searchEval <= lowerBound) {
             // Failed low
-            if (isMate(searchEval)) {
+            if (isMate(searchEval) && searchEval < 0) {
                 // If we found a mate, fully open up the window to the mating side.
                 // This will allow us to find the earliest mate.
                 lowerBound = -kInfiniteEval;
@@ -1032,7 +1040,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             }
         } else {
             // Failed high
-            if (isMate(searchEval)) {
+            if (isMate(searchEval) && searchEval > 0) {
                 // If we found a mate, fully open up the window to the mating side.
                 // This will allow us to find the earliest mate.
                 upperBound = kInfiniteEval;
