@@ -86,7 +86,7 @@ tested yet.
 
 ### Build instructions
 
-Open [chess-engine.sln](chess-engine.sln) in Visual Studio 2022 and build the solution.
+Open [Euwe.sln](Euwe.sln) in Visual Studio 2022 and build the solution.
 
 ## License
 

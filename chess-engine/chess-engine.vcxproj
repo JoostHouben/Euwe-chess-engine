@@ -16,6 +16,7 @@
     <ProjectGuid>{2b95bd01-643e-46ec-bf42-e91787322b32}</ProjectGuid>
     <RootNamespace>chessengine</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Euwe</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
