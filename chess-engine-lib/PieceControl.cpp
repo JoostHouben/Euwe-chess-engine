@@ -24,7 +24,7 @@ constexpr BitBoard computeKnightControlledSquares(const BoardPosition origin) {
                     continue;
                 }
                 const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
-                set(controlledSquares, newPosition);
+                controlledSquares |= newPosition;
             }
         }
     }
@@ -147,7 +147,7 @@ BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoa
 }
 
 BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
-    clear(anyPiece, origin);
+    anyPiece &= ~origin;
 
     const std::uint64_t northEastOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 1, 1);
     const std::uint64_t southEastOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 1, -1);
@@ -159,10 +159,10 @@ BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece)
     const int firstSWOccupied = kSquares - 1 - std::countl_zero(southWestOccupancy);
     const int firstNWOccupied = std::countr_zero(northWestOccupancy);
 
-    clear(anyPiece, (BoardPosition)firstNEOccupied);
-    clear(anyPiece, (BoardPosition)firstSEOccupied);
-    clear(anyPiece, (BoardPosition)firstSWOccupied);
-    clear(anyPiece, (BoardPosition)firstNWOccupied);
+    anyPiece &= ~(BoardPosition)firstNEOccupied;
+    anyPiece &= ~(BoardPosition)firstSEOccupied;
+    anyPiece &= ~(BoardPosition)firstSWOccupied;
+    anyPiece &= ~(BoardPosition)firstNWOccupied;
 
     const std::uint64_t originBitBoard       = 1ULL << (int)origin;
     const std::uint64_t notBlockingPieceMask = ~((std::uint64_t)anyPiece);
@@ -199,7 +199,7 @@ BitBoard computeRookControlledSquares(const BoardPosition origin, const BitBoard
 }
 
 BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
-    clear(anyPiece, origin);
+    anyPiece &= ~origin;
 
     const std::uint64_t northOccupancy = (std::uint64_t)anyPiece & getFullRay(origin, 0, 1);
     const std::uint64_t eastOccupancy  = (std::uint64_t)anyPiece & getFullRay(origin, 1, 0);
@@ -211,10 +211,10 @@ BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
     const int firstSouthOccupied = kSquares - 1 - std::countl_zero(southOccupancy);
     const int firstWestOccupied  = kSquares - 1 - std::countl_zero(westOccupancy);
 
-    clear(anyPiece, (BoardPosition)firstNorthOccupied);
-    clear(anyPiece, (BoardPosition)firstEastOccupied);
-    clear(anyPiece, (BoardPosition)firstSouthOccupied);
-    clear(anyPiece, (BoardPosition)firstWestOccupied);
+    anyPiece &= ~(BoardPosition)firstNorthOccupied;
+    anyPiece &= ~(BoardPosition)firstEastOccupied;
+    anyPiece &= ~(BoardPosition)firstSouthOccupied;
+    anyPiece &= ~(BoardPosition)firstWestOccupied;
 
     const std::uint64_t originBitBoard       = 1ULL << (int)origin;
     const std::uint64_t notBlockingPieceMask = ~((std::uint64_t)anyPiece);
@@ -244,10 +244,10 @@ constexpr BitBoard computeKingControlledSquares(const BoardPosition origin) {
                 continue;
             }
             const BoardPosition newPosition = positionFromFileRank(newFile, newRank);
-            set(controlledSquares, newPosition);
+            controlledSquares |= newPosition;
         }
     }
-    clear(controlledSquares, origin);
+    controlledSquares &= ~origin;
     return controlledSquares;
 }
 
@@ -525,7 +525,7 @@ FORCE_INLINE BitBoard getPawnControlledSquares(const BitBoard pawnBitBoard, cons
     const BitBoard leftCaptures  = leftForwardShift(pawnBitBoard);
     const BitBoard rightCaptures = rightForwardShift(pawnBitBoard);
 
-    return any(leftCaptures, rightCaptures);
+    return leftCaptures | rightCaptures;
 }
 
 BitBoard getKingControlledSquares(const BoardPosition position) {
@@ -586,7 +586,7 @@ FORCE_INLINE BitBoard getPieceControlledSquares(
         case Piece::Queen: {
             const BitBoard bishopControlledSquares = getBishopAttack(position, anyPiece);
             const BitBoard rookControlledSquares   = getRookAttack(position, anyPiece);
-            return any(bishopControlledSquares, rookControlledSquares);
+            return bishopControlledSquares | rookControlledSquares;
         }
         case Piece::King:
             return getKingControlledSquares(position);
@@ -609,7 +609,7 @@ getPieceXRays(const Piece piece, const BoardPosition position, const BitBoard an
         case Piece::Queen: {
             const BitBoard bishopXRays = getBishopXRay(position, anyPiece);
             const BitBoard rookXRays   = getRookXRay(position, anyPiece);
-            return any(bishopXRays, rookXRays);
+            return bishopXRays | rookXRays;
         }
         case Piece::King:
             return BitBoard::Empty;

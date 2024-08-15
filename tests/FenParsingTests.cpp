@@ -64,7 +64,7 @@ TEST(FenParsing, TestStartingPosition) {
 
             while (pieceBitBoard != BitBoard::Empty) {
                 const BoardPosition position = getFirstSetPosition(pieceBitBoard);
-                clear(pieceBitBoard, position);
+                pieceBitBoard &= ~position;
                 actualPieces.insert({getColoredPiece(piece, (Side)sideIdx), position});
             }
         }

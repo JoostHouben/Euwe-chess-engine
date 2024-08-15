@@ -200,12 +200,11 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 
     // Allow null move only if the side to move has any (non-pawn) pieces.
     // Having pieces makes zugzwang less likely.
-    const Side sideToMove = gameState.getSideToMove();
-    const BitBoard piecesBitBoard =
-            any(gameState.getPieceBitBoard(sideToMove, Piece::Knight),
-                gameState.getPieceBitBoard(sideToMove, Piece::Bishop),
-                gameState.getPieceBitBoard(sideToMove, Piece::Rook),
-                gameState.getPieceBitBoard(sideToMove, Piece::Queen));
+    const Side sideToMove         = gameState.getSideToMove();
+    const BitBoard piecesBitBoard = gameState.getPieceBitBoard(sideToMove, Piece::Knight)
+                                  | gameState.getPieceBitBoard(sideToMove, Piece::Bishop)
+                                  | gameState.getPieceBitBoard(sideToMove, Piece::Rook)
+                                  | gameState.getPieceBitBoard(sideToMove, Piece::Queen);
 
     return piecesBitBoard != BitBoard::Empty;
 }

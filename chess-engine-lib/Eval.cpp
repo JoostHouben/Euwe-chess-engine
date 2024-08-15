@@ -250,7 +250,7 @@ FORCE_INLINE void updatePiecePositionEvaluation(
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
-    const BitBoard anyPawn    = any(ownPawns, enemyPawns);
+    const BitBoard anyPawn    = ownPawns | enemyPawns;
 
     PiecePositionEvaluation result{};
 
@@ -269,8 +269,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Bishop);
 
         const std::array<int, 2> ownPawnsPerSquareColor = {
-                popCount(intersection(ownPawns, kDarkSquareBitBoard)),
-                popCount(intersection(ownPawns, kLightSquareBitBoard)),
+                popCount(ownPawns & kDarkSquareBitBoard),
+                popCount(ownPawns & kLightSquareBitBoard),
         };
 
         while (pieceBitBoard != BitBoard::Empty) {
@@ -292,8 +292,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             updatePiecePositionEvaluation((int)Piece::Rook, position, side, result);
 
             const BitBoard fileBitBoard = getFileBitBoard(position);
-            const bool blockedByOwnPawn = intersection(ownPawns, fileBitBoard) != BitBoard::Empty;
-            const bool blockedByAnyPawn = intersection(anyPawn, fileBitBoard) != BitBoard::Empty;
+            const bool blockedByOwnPawn = (ownPawns & fileBitBoard) != BitBoard::Empty;
+            const bool blockedByAnyPawn = (anyPawn & fileBitBoard) != BitBoard::Empty;
 
             if (!blockedByAnyPawn) {
                 result.earlyGamePosition += kRookOpenFileBonus;
@@ -339,9 +339,9 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
         const BitBoard forwardMask            = getPawnForwardMask(position, side);
         const BitBoard neighborMask           = getPawnNeighborFileMask(position);
 
-        const BitBoard opponentBlockers = intersection(enemyPawns, passedPawnOpponentMask);
-        const BitBoard ownBlockers      = intersection(ownPawns, forwardMask);
-        const BitBoard ownNeighbors     = intersection(ownPawns, neighborMask);
+        const BitBoard opponentBlockers = enemyPawns & passedPawnOpponentMask;
+        const BitBoard ownBlockers      = ownPawns & forwardMask;
+        const BitBoard ownNeighbors     = ownPawns & neighborMask;
 
         const bool isDoubledPawn = ownBlockers != BitBoard::Empty;
         const bool isPassedPawn  = !isDoubledPawn && opponentBlockers == BitBoard::Empty;

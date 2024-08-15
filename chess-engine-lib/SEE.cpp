@@ -16,21 +16,15 @@ namespace {
 
     const BitBoard rookControlFromTarget = getRookAttack(targetSquare, anyPiece);
     const BitBoard rookMovePieces =
-            any(pieceBitBoards[0][(int)Piece::Rook],
-                pieceBitBoards[0][(int)Piece::Queen],
-                pieceBitBoards[1][(int)Piece::Rook],
-                pieceBitBoards[1][(int)Piece::Queen]);
+            pieceBitBoards[0][(int)Piece::Rook] | pieceBitBoards[0][(int)Piece::Queen]
+            | pieceBitBoards[1][(int)Piece::Rook] | pieceBitBoards[1][(int)Piece::Queen];
 
     const BitBoard bishopControlFromTarget = getBishopAttack(targetSquare, anyPiece);
     const BitBoard bishopMovePieces =
-            any(pieceBitBoards[0][(int)Piece::Bishop],
-                pieceBitBoards[0][(int)Piece::Queen],
-                pieceBitBoards[1][(int)Piece::Bishop],
-                pieceBitBoards[1][(int)Piece::Queen]);
+            pieceBitBoards[0][(int)Piece::Bishop] | pieceBitBoards[0][(int)Piece::Queen]
+            | pieceBitBoards[1][(int)Piece::Bishop] | pieceBitBoards[1][(int)Piece::Queen];
 
-    return any(
-            intersection(rookControlFromTarget, rookMovePieces),
-            intersection(bishopControlFromTarget, bishopMovePieces));
+    return (rookControlFromTarget & rookMovePieces) | (bishopControlFromTarget & bishopMovePieces);
 }
 
 [[nodiscard]] FORCE_INLINE BitBoard getAllPiecesControllingSquare(
@@ -43,36 +37,31 @@ namespace {
     const BitBoard knightControlFromTarget =
             getPieceControlledSquares(Piece::Knight, targetSquare, anyPiece);
     const BitBoard knightPieces =
-            any(pieceBitBoards[0][(int)Piece::Knight], pieceBitBoards[1][(int)Piece::Knight]);
+            pieceBitBoards[0][(int)Piece::Knight] | pieceBitBoards[1][(int)Piece::Knight];
 
-    controllingPieces = any(controllingPieces, intersection(knightControlFromTarget, knightPieces));
+    controllingPieces = controllingPieces | (knightControlFromTarget & knightPieces);
 
     const BitBoard kingControlFromTarget =
             getPieceControlledSquares(Piece::King, targetSquare, anyPiece);
     const BitBoard kingPieces =
-            any(pieceBitBoards[0][(int)Piece::King], pieceBitBoards[1][(int)Piece::King]);
+            pieceBitBoards[0][(int)Piece::King] | pieceBitBoards[1][(int)Piece::King];
 
-    controllingPieces = any(controllingPieces, intersection(kingControlFromTarget, kingPieces));
+    controllingPieces = controllingPieces | (kingControlFromTarget & kingPieces);
 
-    BitBoard targetSquareBitBoard = BitBoard::Empty;
-    set(targetSquareBitBoard, targetSquare);
+    const BitBoard targetSquareBitBoard = BitBoard::Empty | targetSquare;
     const BitBoard whitePawnControlFromTarget =
             getPawnControlledSquares(targetSquareBitBoard, Side::White);
 
     controllingPieces =
-            any(controllingPieces,
-                intersection(
-                        whitePawnControlFromTarget,
-                        pieceBitBoards[(int)Side::Black][(int)Piece::Pawn]));
+            controllingPieces
+            | (whitePawnControlFromTarget & pieceBitBoards[(int)Side::Black][(int)Piece::Pawn]);
 
     const BitBoard blackPawnControlFromTarget =
             getPawnControlledSquares(targetSquareBitBoard, Side::Black);
 
     controllingPieces =
-            any(controllingPieces,
-                intersection(
-                        blackPawnControlFromTarget,
-                        pieceBitBoards[(int)Side::White][(int)Piece::Pawn]));
+            controllingPieces
+            | (blackPawnControlFromTarget & pieceBitBoards[(int)Side::White][(int)Piece::Pawn]);
 
     return controllingPieces;
 }
@@ -85,8 +74,7 @@ namespace {
     const auto& sidePieceBitBoards = pieceBitBoards[(int)side];
 
     for (int pieceIdx = minimumAttackerIdx; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        const BitBoard pieceAttackers =
-                intersection(controllingPieces, sidePieceBitBoards[pieceIdx]);
+        const BitBoard pieceAttackers = controllingPieces & sidePieceBitBoards[pieceIdx];
         if (pieceAttackers != BitBoard::Empty) {
             return {(Piece)pieceIdx, getFirstSetBitBoard(pieceAttackers)};
         }
@@ -98,22 +86,21 @@ namespace {
 [[nodiscard]] FORCE_INLINE BitBoard getPiecesThatCanTakeAlongXRay(const GameState& gameState) {
     // Don't need to consider kings, because an exchagne sequence always ends once the king has been
     // captured
-    return any(
-            gameState.getPieceBitBoard(Side::White, Piece::Pawn),
-            gameState.getPieceBitBoard(Side::White, Piece::Bishop),
-            gameState.getPieceBitBoard(Side::White, Piece::Rook),
-            gameState.getPieceBitBoard(Side::White, Piece::Queen),
-            gameState.getPieceBitBoard(Side::Black, Piece::Pawn),
-            gameState.getPieceBitBoard(Side::Black, Piece::Bishop),
-            gameState.getPieceBitBoard(Side::Black, Piece::Rook),
-            gameState.getPieceBitBoard(Side::Black, Piece::Queen));
+    return gameState.getPieceBitBoard(Side::White, Piece::Pawn)
+         | gameState.getPieceBitBoard(Side::White, Piece::Bishop)
+         | gameState.getPieceBitBoard(Side::White, Piece::Rook)
+         | gameState.getPieceBitBoard(Side::White, Piece::Queen)
+         | gameState.getPieceBitBoard(Side::Black, Piece::Pawn)
+         | gameState.getPieceBitBoard(Side::Black, Piece::Bishop)
+         | gameState.getPieceBitBoard(Side::Black, Piece::Rook)
+         | gameState.getPieceBitBoard(Side::Black, Piece::Queen);
 }
 
 [[nodiscard]] FORCE_INLINE std::pair<BitBoard, Piece> getAnyPieceAndTargetPiece(
         const GameState& gameState, const Move& move) {
     const BoardPosition targetSquare = move.to;
 
-    BitBoard anyPiece = any(gameState.getOccupancy().ownPiece, gameState.getOccupancy().enemyPiece);
+    BitBoard anyPiece = gameState.getOccupancy().ownPiece | gameState.getOccupancy().enemyPiece;
 
     Piece targetPiece = getPiece(gameState.getPieceOnSquare(move.to));
 
@@ -121,8 +108,8 @@ namespace {
         const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
         const auto [toFile, toRank]     = fileRankFromPosition(move.to);
         BoardPosition captureTarget     = positionFromFileRank(toFile, fromRank);
-        clear(anyPiece, captureTarget);
-        set(anyPiece, targetSquare);
+        anyPiece &= ~captureTarget;
+        anyPiece |= targetSquare;
 
         targetPiece = Piece::Pawn;
     }
@@ -138,15 +125,14 @@ FORCE_INLINE void updateForXRay(
         const PieceBitBoards& pieceBitBoards,
         BitBoard& controllingPieces,
         std::array<int, kNumSides>& minimumAttackerIdx) {
-    if (intersection(piecesThatCanTakeAlongXray, vacatedSquare) != BitBoard::Empty) {
+    if ((piecesThatCanTakeAlongXray & vacatedSquare) != BitBoard::Empty) {
         // Re-calculate sliding piece attacks to account for x-rays
         const BitBoard controllingSlidingPieces =
                 getSlidingPiecesControllingSquare(targetSquare, anyPiece, pieceBitBoards);
 
         // We need to intersect with anyPiece so that we ignore sliding pieces that already
         // entered the exchange.
-        controllingPieces =
-                any(controllingPieces, intersection(controllingSlidingPieces, anyPiece));
+        controllingPieces = controllingPieces | (controllingSlidingPieces & anyPiece);
 
         minimumAttackerIdx[0] = min(minimumAttackerIdx[0], (int)Piece::Bishop);
         minimumAttackerIdx[1] = min(minimumAttackerIdx[1], (int)Piece::Bishop);
@@ -186,8 +172,7 @@ template <bool ReturnBound, bool ReturnMeets>
     std::array<int, kNumSides> minimumAttackerIdx = {0, 0};
 
     targetPiece            = move.pieceToMove;
-    BitBoard vacatedSquare = BitBoard::Empty;
-    set(vacatedSquare, move.from);
+    BitBoard vacatedSquare = BitBoard::Empty | move.from;
 
     BitBoard controllingPieces =
             getAllPiecesControllingSquare(targetSquare, pieceBitBoards, anyPiece);
@@ -219,8 +204,8 @@ template <bool ReturnBound, bool ReturnMeets>
         }
 
         // Deferred update of controllingPieces and anyPiece
-        controllingPieces = subtract(controllingPieces, vacatedSquare);
-        anyPiece          = subtract(anyPiece, vacatedSquare);
+        controllingPieces &= ~vacatedSquare;
+        anyPiece &= ~vacatedSquare;
 
         updateForXRay(
                 piecesThatCanTakeAlongXray,

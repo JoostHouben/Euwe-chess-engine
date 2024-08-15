@@ -32,7 +32,7 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterato
             const Side side                 = getSide(coloredPiece);
             const Piece piece               = getPiece(coloredPiece);
 
-            set(boardConfiguration.pieceBitBoards[(int)side][(int)piece], position);
+            boardConfiguration.pieceBitBoards[(int)side][(int)piece] |= position;
 
             boardConfiguration.pieceOnSquare[(int)position] = coloredPiece;
 
@@ -172,10 +172,9 @@ GameState::PieceOccupancyBitBoards getPieceOccupancyBitBoards(
     GameState::PieceOccupancyBitBoards occupancy{};
 
     for (int piece = 0; piece < kNumPieceTypes; ++piece) {
-        occupancy.ownPiece =
-                any(occupancy.ownPiece, configuration.pieceBitBoards[(int)ownSide][piece]);
-        occupancy.enemyPiece = any(
-                occupancy.enemyPiece, configuration.pieceBitBoards[(int)nextSide(ownSide)][piece]);
+        occupancy.ownPiece = occupancy.ownPiece | configuration.pieceBitBoards[(int)ownSide][piece];
+        occupancy.enemyPiece =
+                occupancy.enemyPiece | configuration.pieceBitBoards[(int)nextSide(ownSide)][piece];
     }
 
     return occupancy;

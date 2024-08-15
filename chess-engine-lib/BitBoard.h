@@ -15,32 +15,58 @@ enum class BitBoard : std::uint64_t {
 
 [[nodiscard]] std::string bitBoardToVisualString(BitBoard bitboard);
 
-[[nodiscard]] constexpr bool isSet(BitBoard bitboard, BoardPosition position) {
+// Operators between bitboards
+
+[[nodiscard]] constexpr BitBoard operator|(const BitBoard lhs, const BitBoard rhs) {
+    return (BitBoard)((std::uint64_t)lhs | (std::uint64_t)rhs);
+}
+
+constexpr BitBoard& operator|=(BitBoard& lhs, const BitBoard rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+[[nodiscard]] constexpr BitBoard operator&(const BitBoard lhs, const BitBoard rhs) {
+    return (BitBoard)((std::uint64_t)lhs & (std::uint64_t)rhs);
+}
+
+constexpr BitBoard& operator&=(BitBoard& lhs, const BitBoard rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+[[nodiscard]] constexpr BitBoard operator~(const BitBoard bitboard) {
+    return (BitBoard) ~(std::uint64_t)bitboard;
+}
+
+// Operators between bitboards and positions
+
+[[nodiscard]] constexpr BitBoard operator|(const BitBoard bitboard, const BoardPosition position) {
+    return (BitBoard)((std::uint64_t)bitboard | (1ULL << (int)position));
+}
+
+constexpr BitBoard& operator|=(BitBoard& bitboard, const BoardPosition position) {
+    bitboard = bitboard | position;
+    return bitboard;
+}
+
+[[nodiscard]] constexpr bool operator&(const BitBoard bitboard, const BoardPosition position) {
     return (std::uint64_t)bitboard & (1ULL << (int)position);
 }
 
-constexpr void set(BitBoard& bitboard, BoardPosition position) {
-    bitboard = (BitBoard)((std::uint64_t)bitboard | 1ULL << (int)position);
+enum class InverseBoardPosition : std::uint8_t {};
+
+[[nodiscard]] constexpr InverseBoardPosition operator~(const BoardPosition position) {
+    return static_cast<InverseBoardPosition>(position);
 }
 
-constexpr void clear(BitBoard& bitboard, BoardPosition position) {
-    bitboard = (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
+[[nodiscard]] constexpr BitBoard operator&(const BitBoard bitboard, InverseBoardPosition position) {
+    return (BitBoard)((std::uint64_t)bitboard & ~(1ULL << (int)position));
 }
 
-template <typename... BitBoardTs>
-[[nodiscard]] constexpr BitBoard any(BitBoardTs... bitboards) {
-    static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
-    return (BitBoard)((std::uint64_t)bitboards | ...);
-}
-
-template <typename... BitBoardTs>
-[[nodiscard]] constexpr BitBoard intersection(BitBoardTs... bitboards) {
-    static_assert((std::is_same_v<BitBoardTs, BitBoard> && ...));
-    return (BitBoard)((std::uint64_t)bitboards & ...);
-}
-
-[[nodiscard]] constexpr BitBoard subtract(BitBoard lhs, BitBoard rhs) {
-    return (BitBoard)((std::uint64_t)lhs & ~(std::uint64_t)rhs);
+constexpr BitBoard& operator&=(BitBoard& bitboard, InverseBoardPosition position) {
+    bitboard = bitboard & position;
+    return bitboard;
 }
 
 [[nodiscard]] constexpr BoardPosition getFirstSetPosition(BitBoard bitBoard) {

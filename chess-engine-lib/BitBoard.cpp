@@ -14,7 +14,7 @@ constexpr BitBoard computeFileBitBoard(const BoardPosition position) {
 }
 
 constexpr std::array<BitBoard, kSquares> kFileBitBoards = []() {
-    std::array<BitBoard, kSquares> fileBitBoards;
+    std::array<BitBoard, kSquares> fileBitBoards{};
     for (int position = 0; position < kSquares; ++position) {
         fileBitBoards[position] = computeFileBitBoard((BoardPosition)position);
     }
@@ -23,7 +23,7 @@ constexpr std::array<BitBoard, kSquares> kFileBitBoards = []() {
 
 }  // namespace
 
-std::string bitBoardToVisualString(BitBoard bitboard) {
+std::string bitBoardToVisualString(const BitBoard bitboard) {
     const std::string boardTop = "  .-------------------------------.\n";
     const std::string boardSep = "  |---+---+---+---+---+---+---+---|\n";
     const std::string boardBot = "  '-------------------------------'\n";
@@ -35,8 +35,8 @@ std::string bitBoardToVisualString(BitBoard bitboard) {
         ss << rank + 1 << " |";
         for (int file = 0; file < 8; ++file) {
             ss << ' ';
-            BoardPosition position = positionFromFileRank(file, rank);
-            if (isSet(bitboard, position)) {
+            const BoardPosition position = positionFromFileRank(file, rank);
+            if (bitboard & position) {
                 ss << 'X';
             } else {
                 ss << ' ';
@@ -54,6 +54,6 @@ std::string bitBoardToVisualString(BitBoard bitboard) {
     return ss.str();
 }
 
-BitBoard getFileBitBoard(BoardPosition position) {
+BitBoard getFileBitBoard(const BoardPosition position) {
     return kFileBitBoards[(int)position];
 }
