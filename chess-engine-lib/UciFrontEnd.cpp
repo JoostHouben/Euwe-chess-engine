@@ -135,7 +135,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name refactors");
+    writeUci("id name Euwe v1.0");
     writeUci("id author Joost Houben");
 
     writeOptions();
