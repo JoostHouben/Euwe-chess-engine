@@ -72,6 +72,20 @@ Currently the following UCI features are not supported:
 
 Other than this the full UCI protocol is supported.
 
+## Usage
+
+The recommended way to use Euwe is using a UCI chess GUI. Some good choices include:
+
+ - [Arena](http://www.playwitharena.com/)
+ - [Cute Chess](https://cutechess.com/)
+ - [Banksia GUI](https://banksiagui.com/)
+ - [Tarrasch](http://www.triplehappy.com/)]
+
+Alternatively, you can use Euwe directly from the command line by manually sending UCI commands. See,
+e.g., [here](https://gist.github.com/DOBRO/2592c6dad754ba67e6dcaec8c90165bf) for a description of the
+interface. To aid with playing, you can enable printing of the board after each move by enabling
+debug mode. To do this, send the command `debug on`.
+
 ## Technical details
 
 Euwe targets the C++23 standard. It is designed to have minimal external dependencies. Currently, the
@@ -87,6 +101,25 @@ tested yet.
 ### Build instructions
 
 Open [Euwe.sln](Euwe.sln) in Visual Studio 2022 and build the solution.
+
+## Acknowledgements
+
+The author would like to thank:
+
+ - The [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page),
+   [TalkChess](http://talkchess.com/), and the many other freely available resources on chess
+   programming.
+ - [Sebastian Lague](https://www.youtube.com/@SebastianLague) for his amazing Coding Adventure
+   series. The [episodes](https://www.youtube.com/watch?v=U4ogK0MIzqk) on chess programming were
+   the inspiration for this project.
+ - [lichess](https://lichess.org/) for providing an
+   [API](https://github.com/lichess-bot-devs/lichess-bot) and platform for chess engines to play
+   online.
+ - [Cute Chess](https://github.com/cutechess/cutechess) for providing a valuable testing platform.
+ - Microsoft for providing valuable free development tools: Visual Studio Community Edition, GitHub,
+   and GitHub Copilot.
+ - The LLVM development group for providing valuable free and open source development tools: clang,
+   clang-format, and clang-tidy.
 
 ## License
 
