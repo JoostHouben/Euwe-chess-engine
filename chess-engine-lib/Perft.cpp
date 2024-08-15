@@ -67,7 +67,7 @@ std::size_t perftSplit(
         if (!moveString.empty()) {
             moveString += ',';
         }
-        moveString += moveToUciString(move);
+        moveString += move.toUci();
 
         GameState copy = gameState;
         copy.makeMove(move);

@@ -6,11 +6,11 @@ param
     [Parameter(Mandatory)]
     [String]$Engine2,
 
-    [switch]$sprt = $false,
+    [switch]$SPRT = $false,
 
-    [int]$concurrency = 4,
+    [int]$Threads = 4,
 
-    [String]$timeControl = "inf/3+0.1"
+    [String]$TimeControl = "inf/3+0.1"
 )
 
 $cuteChessCli = "C:\Program Files (x86)\Cute Chess\cutechess-cli.exe"
@@ -25,7 +25,7 @@ $engine2Name = [System.IO.Path]::GetFileNameWithoutExtension($Engine2)
 $pgnBaseName = "tournament"
 
 $sprtArgs = @()
-if ($sprt) {
+if ($SPRT) {
     $sprtArgs = @("-sprt", "elo0=0", "elo1=10", "alpha=0.05", "beta=0.05")
     $numRounds = 1000
     $pgnBaseName = "sprt"
@@ -37,14 +37,14 @@ $pgnout = "$($pgnoutFolder)\$($pgnBaseName)_$($engine1Name)_vs_$($engine2Name).p
     -engine cmd=$Engine1 proto=uci `
     -engine cmd=$Engine2 proto=uci `
     -each `
-        tc=$timeControl `
+        tc=$TimeControl `
         timemargin=20 `
         book=$book `
         bookdepth=5 `
         option.Hash=512 `
         option.move_overhead_ms=20 `
     -rounds $numRounds -games 2 -repeat 2 -maxmoves 150 `
-    -concurrency $concurrency `
+    -concurrency $Threads `
     -ratinginterval 10 `
     -pgnout $pgnout `
     @sprtArgs

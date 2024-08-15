@@ -18,7 +18,7 @@
 namespace {
 
 std::string pvToString(const std::vector<Move>& principalVariation) {
-    return principalVariation | std::views::transform(moveToUciString) | std::views::join_with(' ')
+    return principalVariation | std::views::transform(&Move::toUci) | std::views::join_with(' ')
          | std::ranges::to<std::string>();
 }
 
@@ -135,7 +135,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name flush");
+    writeUci("id name refactors");
     writeUci("id author Joost Houben");
 
     writeOptions();
@@ -300,7 +300,7 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
             break;
         }
 
-        const Move move = moveFromUciString(moveString, gameState_);
+        const Move move = Move::fromUci(moveString, gameState_);
         (void)gameState_.makeMove(move);
     }
 
@@ -390,7 +390,7 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
     goFuture_ = std::async(std::launch::async, [=, this] {
         const auto searchInfo = engine_.findMove(gameState_);
 
-        writeUci("bestmove {}", moveToUciString(searchInfo.principalVariation[0]));
+        writeUci("bestmove {}", searchInfo.principalVariation[0].toUci());
         std::flush(out_);
     });
 }

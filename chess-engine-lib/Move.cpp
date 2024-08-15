@@ -84,37 +84,25 @@ namespace {
 
 }  // namespace
 
-Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState) {
-    StackOfVectors<Move> stack;
-
-    const StackVector<Move> moves = gameState.generateMoves(stack);
-    for (const auto& move : moves) {
-        if (algebraicFromMove(move, gameState) == algebraic) {
-            return move;
-        }
-    }
-    UNREACHABLE;
-}
-
-std::string algebraicFromMove(const Move& move, const GameState& gameState) {
+std::string Move::toAlgebraic(const GameState& gameState) const {
     StackOfVectors<Move> stack;
 
     std::string algebraic;
 
-    switch (move.pieceToMove) {
+    switch (pieceToMove) {
         case Piece::Pawn:
-            algebraic = algebraicFromPawnMove(move);
+            algebraic = algebraicFromPawnMove(*this);
             break;
         case Piece::King:
-            algebraic = algebraicFromKingMove(move);
+            algebraic = algebraicFromKingMove(*this);
             break;
         default:
-            algebraic = algebraicFromPieceMove(move, gameState, stack);
+            algebraic = algebraicFromPieceMove(*this, gameState, stack);
             break;
     }
 
     GameState copyState(gameState);
-    copyState.makeMove(move);
+    copyState.makeMove(*this);
 
     const bool isCheck     = copyState.isInCheck();
     const bool isCheckMate = isCheck && copyState.generateMoves(stack).empty();
@@ -128,35 +116,35 @@ std::string algebraicFromMove(const Move& move, const GameState& gameState) {
     return algebraic;
 }
 
-std::string moveToExtendedString(const Move& move) {
-    if (isCastle(move.flags)) {
-        const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
-        const bool isQueenSide              = kingToFile == 2;  // c
-        return isQueenSide ? "O-O-O" : "O-O";
-    }
+std::string Move::toUci() const {
+    std::string uciString = algebraicFromPosition(from) + algebraicFromPosition(to);
 
-    const char positionSeparator = isCapture(move.flags) ? 'x' : '-';
-    const Piece promotionPiece   = getPromotionPiece(move.flags);
-    const std::string promotionString =
-            promotionPiece == Piece::Pawn ? "" : std::format("={}", pieceToString(promotionPiece));
-
-    const std::string enPassant = isEnPassant(move.flags) ? " e.p." : "";
-
-    return pieceToString(move.pieceToMove) + algebraicFromPosition(move.from) + positionSeparator
-         + algebraicFromPosition(move.to) + promotionString + enPassant;
-}
-
-std::string moveToUciString(const Move& move) {
-    std::string uciString = algebraicFromPosition(move.from) + algebraicFromPosition(move.to);
-
-    if (auto promotionPiece = getPromotionPiece(move.flags); promotionPiece != Piece::Pawn) {
+    if (auto promotionPiece = getPromotionPiece(flags); promotionPiece != Piece::Pawn) {
         uciString += toLowerCaseFenChar(promotionPiece);
     }
 
     return uciString;
 }
 
-Move moveFromUciString(std::string_view uciString, const GameState& gameState) {
+std::string Move::toExtendedString() const {
+    if (isCastle(flags)) {
+        const auto [kingToFile, kingToRank] = fileRankFromPosition(to);
+        const bool isQueenSide              = kingToFile == 2;  // c
+        return isQueenSide ? "O-O-O" : "O-O";
+    }
+
+    const char positionSeparator = isCapture(flags) ? 'x' : '-';
+    const Piece promotionPiece   = getPromotionPiece(flags);
+    const std::string promotionString =
+            promotionPiece == Piece::Pawn ? "" : std::format("={}", pieceToString(promotionPiece));
+
+    const std::string enPassant = isEnPassant(flags) ? " e.p." : "";
+
+    return pieceToString(pieceToMove) + algebraicFromPosition(from) + positionSeparator
+         + algebraicFromPosition(to) + promotionString + enPassant;
+}
+
+Move Move::fromUci(std::string_view uciString, const GameState& gameState) {
     const BoardPosition from = positionFromAlgebraic(uciString.substr(0, 2));
     const BoardPosition to   = positionFromAlgebraic(uciString.substr(2, 2));
 
@@ -185,4 +173,16 @@ Move moveFromUciString(std::string_view uciString, const GameState& gameState) {
     }
 
     return Move{.pieceToMove = pieceToMove, .from = from, .to = to, .flags = moveFlags};
+}
+
+Move Move::fromAlgebraic(std::string_view algebraic, const GameState& gameState) {
+    StackOfVectors<Move> stack;
+
+    const StackVector<Move> moves = gameState.generateMoves(stack);
+    for (const auto& move : moves) {
+        if (move.toAlgebraic(gameState) == algebraic) {
+            return move;
+        }
+    }
+    UNREACHABLE;
 }

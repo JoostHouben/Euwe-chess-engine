@@ -47,6 +47,8 @@ enum class MoveFlags : std::uint8_t {
     return flags & MoveFlags::IsCastle;
 }
 
+class GameState;
+
 struct Move {
     Piece pieceToMove  = Piece::Invalid;
     BoardPosition from = BoardPosition::Invalid;
@@ -54,6 +56,22 @@ struct Move {
     MoveFlags flags    = MoveFlags::None;
 
     bool operator==(const Move& other) const = default;
+
+    [[nodiscard]] std::string toAlgebraic(const GameState& gameState) const;
+    [[nodiscard]] std::string toUci() const;
+
+    // Long algebraic notation for moves, except no indicators for check or checkmate
+    // {piece}{from}-{to}
+    // If capture: use 'x' instead of '-'
+    // For promotions: suffix '={promotion piece}'
+    // For en passant: suffix ' e.p.'
+    // For castling: normal algebraic notation
+    // Examples: Pe2-e4, Rd3xd7, Pe5xd6 e.p.
+    [[nodiscard]] std::string toExtendedString() const;
+
+    [[nodiscard]] static Move fromAlgebraic(std::string_view algebraic, const GameState& gameState);
+
+    [[nodiscard]] static Move fromUci(std::string_view uci, const GameState& gameState);
 };
 
 // For fast initialization
@@ -62,21 +80,3 @@ inline constexpr Move kUninitializedMove =
              .from        = (BoardPosition)0,
              .to          = (BoardPosition)0,
              .flags       = MoveFlags::None};
-
-class GameState;
-
-[[nodiscard]] Move moveFromAlgebraic(std::string_view algebraic, const GameState& gameState);
-
-[[nodiscard]] std::string algebraicFromMove(const Move& move, const GameState& gameState);
-
-// Long algebraic notation for moves, except no indicators for check or checkmate
-// {piece}{from}-{to}
-// If capture: use 'x' instead of '-'
-// For promotions: suffix '={promotion piece}'
-// For en passant: suffix ' e.p.'
-// For castling: normal algebraic notation
-// Examples: Pe2-e4, Rd3xd7, Pe5xd6 e.p.
-[[nodiscard]] std::string moveToExtendedString(const Move& move);
-
-[[nodiscard]] std::string moveToUciString(const Move& move);
-[[nodiscard]] Move moveFromUciString(std::string_view uciString, const GameState& gameState);

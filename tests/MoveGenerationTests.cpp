@@ -106,7 +106,7 @@ void countMoveStatisticsAtPlyWithUnmake(
         EXPECT_EQ(hash, gameState.getBoardHash());
 
         if (hash != gameState.getBoardHash()) {
-            std::cerr << moveToExtendedString(move) << std::endl;
+            std::cerr << move.toExtendedString() << std::endl;
             hash = gameState.getBoardHash();
         }
     }
@@ -153,7 +153,7 @@ MoveStatistics countMoveStatisticsAtPlyWithTTable(
         EXPECT_EQ(hash, gameState.getBoardHash());
 
         if (hash != gameState.getBoardHash()) {
-            std::cerr << moveToExtendedString(move) << std::endl;
+            std::cerr << move.toExtendedString() << std::endl;
             hash = gameState.getBoardHash();
         }
     }
