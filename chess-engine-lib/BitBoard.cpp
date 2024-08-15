@@ -13,15 +13,13 @@ constexpr BitBoard computeFileBitBoard(const BoardPosition position) {
     return (BitBoard)(westFileMask << file);
 }
 
-constexpr std::array<BitBoard, kSquares> computeFileBitBoards() {
+constexpr std::array<BitBoard, kSquares> kFileBitBoards = []() {
     std::array<BitBoard, kSquares> fileBitBoards;
     for (int position = 0; position < kSquares; ++position) {
         fileBitBoards[position] = computeFileBitBoard((BoardPosition)position);
     }
     return fileBitBoards;
-}
-
-constexpr std::array<BitBoard, kSquares> kFileBitBoards = computeFileBitBoards();
+}();
 
 }  // namespace
 

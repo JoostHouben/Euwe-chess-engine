@@ -79,7 +79,7 @@ void generatePawnMoves(
 
                     MoveFlags flags = baseFlags;
                     if (targetPosition == enPassantTarget) {
-                        MY_ASSERT(flags == MoveFlags::IsCapture);
+                        MY_ASSERT(isCapture(flags));
                         flags = getFlags(flags, MoveFlags::IsEnPassant);
                     }
 
@@ -453,8 +453,6 @@ StackVector<Move> GameState::generateMovesInCheck(
     }
 
     // Generate pawn moves that either capture the checking piece or block
-#pragma warning(suppress : 4269)
-    const std::array<BitBoard, kNumPiecesPerSide> unusedPiecePinBitBoards;  // NOLINT
     const BitBoard nonPinnedPawns =
             subtract(getPieceBitBoard(sideToMove_, Piece::Pawn), pinBitBoard);
     generatePawnMoves(
@@ -462,8 +460,8 @@ StackVector<Move> GameState::generateMovesInCheck(
             sideToMove_,
             occupancy_,
             enPassantTarget,
-            unusedPiecePinBitBoards,
-            BitBoard::Empty,
+            /*unused*/ pinOrKingAttackBitBoards,
+            /*pinBitBoard*/ BitBoard::Empty,
             moves,
             capturesOnly,
             pawnBlockOrCaptureBitBoard);
@@ -706,6 +704,8 @@ Piece GameState::makeSinglePieceMove(const Move& move) {
         enPassantTarget_ = BoardPosition::Invalid;
     }
 
+    MY_ASSERT(move.from != BoardPosition::Invalid && move.to != BoardPosition::Invalid);
+
     clear(occupancy_.ownPiece, move.from);
     set(occupancy_.ownPiece, move.to);
 
@@ -904,7 +904,7 @@ GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
     BitBoard xRayingBishops = intersection(bishopXRayFromKing, enemyBishopsOrQueens);
 
     int pinIdx        = 0;
-    BitBoard& allPins = piecePinOrKingAttackBitBoards[kNumPiecesPerSide - 1];
+    BitBoard& allPins = piecePinOrKingAttackBitBoards[kNumPiecesPerSide - 1ULL];
 
     while (xRayingRooks != BitBoard::Empty) {
         const BoardPosition pinningPiecePosition = popFirstSetPosition(xRayingRooks);
@@ -922,6 +922,7 @@ GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
 
         MY_ASSERT(isSet(pinningBitBoard, kingPosition));
 
+        MY_ASSERT(pinIdx < piecePinOrKingAttackBitBoards.size());
         piecePinOrKingAttackBitBoards[pinIdx++] = pinningBitBoard;
         allPins                                 = any(allPins, pinningBitBoard);
     }
@@ -942,6 +943,7 @@ GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
 
         MY_ASSERT(isSet(pinningBitBoard, kingPosition));
 
+        MY_ASSERT(pinIdx < piecePinOrKingAttackBitBoards.size());
         piecePinOrKingAttackBitBoards[pinIdx++] = pinningBitBoard;
         allPins                                 = any(allPins, pinningBitBoard);
     }

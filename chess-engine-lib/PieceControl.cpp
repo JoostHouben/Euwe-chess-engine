@@ -14,7 +14,7 @@ constexpr BitBoard computeKnightControlledSquares(const BoardPosition origin) {
 
     const auto [file, rank]    = fileRankFromPosition(origin);
     BitBoard controlledSquares = BitBoard::Empty;
-    for (const auto [fileDst, rankDst] : kFileRankDsts) {
+    for (const auto& [fileDst, rankDst] : kFileRankDsts) {
         for (const auto fileSign : kSigns) {
             for (const auto rankSign : kSigns) {
                 const int newFile = file + fileSign * fileDst;
@@ -31,16 +31,13 @@ constexpr BitBoard computeKnightControlledSquares(const BoardPosition origin) {
     return controlledSquares;
 }
 
-constexpr std::array<BitBoard, kSquares> getKnightControlledSquaresArray() {
+constexpr std::array<BitBoard, kSquares> kKnightControlledSquares = []() {
     std::array<BitBoard, kSquares> knightControlledSquares = {};
     for (int square = 0; square < kSquares; ++square) {
         knightControlledSquares[square] = computeKnightControlledSquares((BoardPosition)square);
     }
     return knightControlledSquares;
-}
-
-constexpr std::array<BitBoard, kSquares> kKnightControlledSquares =
-        getKnightControlledSquaresArray();
+}();
 
 template <int N>
 constexpr std::uint64_t shift(const std::uint64_t x) {
@@ -132,64 +129,6 @@ constexpr std::array<std::array<std::array<std::uint64_t, kSquares>, 3>, 3> kFul
                 // rank 1 (north east)
                 std::array<std::uint64_t, kSquares>{getFullRays<kNorthEast, notWestFileMask>()}}};
 
-constexpr std::uint64_t computeFillRay(
-        const BoardPosition origin,
-        const BitBoard anyPiece,
-        const int fileIncrement,
-        const int rankIncrement) {
-    const std::uint64_t originBitBoard    = 1ULL << (int)origin;
-    const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece);
-
-    switch (fileIncrement) {
-        // West
-        case -1: {
-            switch (rankIncrement) {
-                case -1:
-                    return fillRayWithMask<kSouthWest, notEastFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                case 0:
-                    return fillRayWithMask<kWest, notEastFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                case 1:
-                    return fillRayWithMask<kNorthWest, notEastFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                default:
-                    UNREACHABLE;
-            }
-        }
-        // North/South
-        case 0: {
-            switch (rankIncrement) {
-                case -1:
-                    return fillRayNoMask<kSouth>(originBitBoard, notOtherPieceMask);
-                case 1:
-                    return fillRayNoMask<kNorth>(originBitBoard, notOtherPieceMask);
-                default:
-                    // Stationary: not allowed
-                    UNREACHABLE;
-            }
-        }
-        // East
-        case 1: {
-            switch (rankIncrement) {
-                case -1:
-                    return fillRayWithMask<kSouthEast, notWestFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                case 0:
-                    return fillRayWithMask<kEast, notWestFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                case 1:
-                    return fillRayWithMask<kNorthEast, notWestFileMask>(
-                            originBitBoard, notOtherPieceMask);
-                default:
-                    UNREACHABLE;
-            }
-        }
-        default:
-            UNREACHABLE;
-    }
-}
-
 BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoard anyPiece) {
     const std::uint64_t originBitBoard    = 1ULL << (int)origin;
     const std::uint64_t notOtherPieceMask = ~((std::uint64_t)anyPiece);
@@ -203,8 +142,8 @@ BitBoard computeBishopControlledSquares(const BoardPosition origin, const BitBoa
     const std::uint64_t northWestControlledSquares =
             fillRayWithMask<7, notEastFileMask>(originBitBoard, notOtherPieceMask);
 
-    return (BitBoard)(northEastControlledSquares | southEastControlledSquares |
-                      southWestControlledSquares | northWestControlledSquares);
+    return (BitBoard)(northEastControlledSquares | southEastControlledSquares
+                      | southWestControlledSquares | northWestControlledSquares);
 }
 
 BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
@@ -255,8 +194,8 @@ BitBoard computeRookControlledSquares(const BoardPosition origin, const BitBoard
     const std::uint64_t westControlledSquares =
             fillRayWithMask<-1, notEastFileMask>(originBitBoard, notOtherPieceMask);
 
-    return (BitBoard)(northControlledSquares | eastControlledSquares | southControlledSquares |
-                      westControlledSquares);
+    return (BitBoard)(northControlledSquares | eastControlledSquares | southControlledSquares
+                      | westControlledSquares);
 }
 
 BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
@@ -312,15 +251,13 @@ constexpr BitBoard computeKingControlledSquares(const BoardPosition origin) {
     return controlledSquares;
 }
 
-constexpr std::array<BitBoard, kSquares> getKingControlledSquaresArray() {
+constexpr std::array<BitBoard, kSquares> kKingControlledSquares = []() {
     std::array<BitBoard, kSquares> kingControlledSquares = {};
     for (int square = 0; square < kSquares; ++square) {
         kingControlledSquares[square] = computeKingControlledSquares((BoardPosition)square);
     }
     return kingControlledSquares;
-}
-
-constexpr std::array<BitBoard, kSquares> kKingControlledSquares = getKingControlledSquaresArray();
+}();
 
 constexpr int kNumRookAttackEntries = 6 * 6 * (1 << 10) + 4 * 6 * (1 << 11) + 4 * (1 << 12);
 constexpr int kNumBishopAttackEntries =
@@ -631,7 +568,7 @@ FORCE_INLINE BitBoard getBishopXRay(const BoardPosition position, const BitBoard
 
 FORCE_INLINE std::uint64_t getFullRay(
         const BoardPosition position, const int fileIncrement, const int rankIncrement) {
-    return kFullRays[fileIncrement + 1][rankIncrement + 1][(int)position];
+    return kFullRays[fileIncrement + 1ULL][rankIncrement + 1ULL][(int)position];
 }
 
 FORCE_INLINE BitBoard getPieceControlledSquares(

@@ -13,7 +13,7 @@ using PiecePositionHashesT =
         std::array<std::array<std::array<HashT, kNumPieceTypes>, kSquares>, kNumSides>;
 
 PiecePositionHashesT getPiecePositionHashes() {
-    PiecePositionHashesT piecePositionhashes;
+    PiecePositionHashesT piecePositionhashes{};
 
     for (int side = 0; side < kNumSides; ++side) {
         for (int square = 0; square < kSquares; ++square) {
@@ -33,7 +33,7 @@ HashT gSideToMoveHash = gRandomGenerator();
 using EnPassantHashesT = std::array<HashT, kFiles>;
 
 EnPassantHashesT getEnPassantHashes() {
-    EnPassantHashesT enPassantHashes;
+    EnPassantHashesT enPassantHashes{};
 
     for (int file = 0; file < kFiles; ++file) {
         enPassantHashes[file] = gRandomGenerator();
@@ -47,7 +47,7 @@ EnPassantHashesT gEnPassantHashes = getEnPassantHashes();
 using CastlingRightsHashesT = std::array<std::array<HashT, 2>, kNumSides>;
 
 CastlingRightsHashesT getCastlingRightsHashes() {
-    CastlingRightsHashesT castlingRightsHashes;
+    CastlingRightsHashesT castlingRightsHashes{};
 
     for (int side = 0; side < kNumSides; ++side) {
         castlingRightsHashes[side][0] = gRandomGenerator();

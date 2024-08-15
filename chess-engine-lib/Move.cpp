@@ -46,8 +46,8 @@ namespace {
             moves.end(),
             std::back_inserter(ambiguousMoves),
             [&move](const Move& otherMove) {
-                return otherMove.pieceToMove == move.pieceToMove && otherMove.to == move.to &&
-                       otherMove.from != move.from;
+                return otherMove.pieceToMove == move.pieceToMove && otherMove.to == move.to
+                    && otherMove.from != move.from;
             });
     ambiguousMoves.lock();
 
@@ -142,8 +142,8 @@ std::string moveToExtendedString(const Move& move) {
 
     const std::string enPassant = isEnPassant(move.flags) ? " e.p." : "";
 
-    return pieceToString(move.pieceToMove) + algebraicFromPosition(move.from) + positionSeparator +
-           algebraicFromPosition(move.to) + promotionString + enPassant;
+    return pieceToString(move.pieceToMove) + algebraicFromPosition(move.from) + positionSeparator
+         + algebraicFromPosition(move.to) + promotionString + enPassant;
 }
 
 std::string moveToUciString(const Move& move) {

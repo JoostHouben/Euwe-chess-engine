@@ -8,8 +8,6 @@
 
 namespace {
 
-constexpr char kLowerCaseBit = 1 << 5;
-
 constexpr bool isNumber(char c) {
     return c >= '0' && c <= '9';
 }
@@ -263,11 +261,6 @@ GameState GameState::fromFen(const std::string& fenString) {
 std::string GameState::toFen() const {
     std::ostringstream ss;
 
-    BoardConfigurationInfo boardConfig = {
-            .pieceBitBoards = pieceBitBoards_,
-            .pieceOnSquare  = pieceOnSquare_,
-    };
-
     const int moveCounter = halfMoveClock_ / 2 + 1;
 
     ss << toFenNoMoveCounters();
@@ -286,8 +279,6 @@ std::string GameState::toFenNoMoveCounters() const {
             .pieceBitBoards = pieceBitBoards_,
             .pieceOnSquare  = pieceOnSquare_,
     };
-
-    const int moveCounter = halfMoveClock_ / 2 + 1;
 
     boardConfigurationToFen(boardConfig, ss);
     ss << ' ';

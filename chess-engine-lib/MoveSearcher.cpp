@@ -398,7 +398,7 @@ void MoveSearcher::Impl::shiftKillerMoves(const int halfMoveClock) {
     const int shiftAmount = halfMoveClock - moveClockForKillerMoves_;
 
     for (int ply = 0; ply < kMaxDepth - shiftAmount; ++ply) {
-        killerMoves_[ply] = killerMoves_[ply + shiftAmount];
+        killerMoves_[ply] = killerMoves_[(std::size_t)ply + shiftAmount];
     }
 
     moveClockForKillerMoves_ = halfMoveClock;

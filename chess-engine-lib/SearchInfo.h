@@ -10,10 +10,10 @@
 #include <cstdint>
 
 struct SearchInfo {
-    std::vector<Move> principalVariation;
-    EvalT score;
-    int depth;
-    int timeMs;
-    std::uint64_t numNodes;
-    float nodesPerSecond;
+    std::vector<Move> principalVariation{};
+    EvalT score{};
+    int depth{};
+    int timeMs{};
+    std::uint64_t numNodes{};
+    float nodesPerSecond{};
 };

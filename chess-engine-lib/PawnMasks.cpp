@@ -111,15 +111,13 @@ constexpr std::array<std::array<BitBoard, kSquares>, kNumSides> kPassedPawnOppon
     return (BitBoard)result;
 }
 
-[[nodiscard]] constexpr std::array<BitBoard, kSquares> computePawnNeighborFileMasks() {
+constexpr std::array<BitBoard, kSquares> kPawnNeighborFileMasks = []() {
     std::array<BitBoard, kSquares> masks{};
     for (int i = 0; i < kSquares; ++i) {
         masks[i] = computePawnNeighborFileMask((BoardPosition)i);
     }
     return masks;
-}
-
-constexpr std::array<BitBoard, kSquares> kPawnNeighborFileMasks = computePawnNeighborFileMasks();
+}();
 
 }  // namespace
 

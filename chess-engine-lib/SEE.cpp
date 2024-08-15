@@ -164,7 +164,7 @@ template <bool ReturnBound, bool ReturnMeets>
 
     auto [anyPiece, targetPiece] = getAnyPieceAndTargetPiece(gameState, move);
 
-    std::array<int, kNumTotalPieces> gain;
+    std::array<int, kNumTotalPieces> gain{};
     int exchangeIdx     = 0;
     gain[exchangeIdx++] = getPieceValue(targetPiece);
 
@@ -195,7 +195,7 @@ template <bool ReturnBound, bool ReturnMeets>
     const Side sideToMove = gameState.getSideToMove();
     for (;; ++exchangeIdx) {
         // Gain from the perspective of current side to move if the target piece is taken
-        gain[exchangeIdx] = getPieceValue(targetPiece) - gain[exchangeIdx - 1];
+        gain[exchangeIdx] = getPieceValue(targetPiece) - gain[exchangeIdx - 1ULL];
 
         const Side side = (Side)((exchangeIdx + (int)sideToMove) & 1);
 
@@ -274,7 +274,7 @@ template <bool ReturnBound, bool ReturnMeets>
     // So from the previous player's perspective the gain after captures 0...i-1 becomes the
     // negation of that: -max(-gain[i-1], gain[i])
     for (int i = exchangeIdx - 1; i > 0; --i) {
-        gain[i - 1] = -max(-gain[i - 1], gain[i]);
+        gain[i - 1ULL] = -max(-gain[i - 1ULL], gain[i]);
     }
 
     if constexpr (ReturnMeets) {
