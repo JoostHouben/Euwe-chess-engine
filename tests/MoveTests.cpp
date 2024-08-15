@@ -6,16 +6,6 @@
 
 namespace MoveTests {
 
-TEST(MoveTests, TestGetFlags) {
-    EXPECT_EQ(
-            getFlags(MoveFlags::IsCapture, MoveFlags::IsCastle),
-            (MoveFlags)((int)MoveFlags::IsCapture | (int)MoveFlags::IsCastle));
-
-    EXPECT_EQ(
-            getFlags(MoveFlags::IsCapture, Piece::Bishop),
-            (MoveFlags)((int)MoveFlags::IsCapture | (int)Piece::Bishop));
-}
-
 TEST(MoveTests, TestMoveToExtendedString) {
     EXPECT_EQ(moveToExtendedString({Piece::Pawn, BoardPosition::E2, BoardPosition::E4}), "Pe2-e4");
 
@@ -29,7 +19,7 @@ TEST(MoveTests, TestMoveToExtendedString) {
                     {Piece::Pawn,
                      BoardPosition::E5,
                      BoardPosition::E6,
-                     getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)}),
+                     MoveFlags::IsCapture | MoveFlags::IsEnPassant}),
             "Pe5xe6 e.p.");
 
     EXPECT_EQ(
@@ -37,7 +27,7 @@ TEST(MoveTests, TestMoveToExtendedString) {
                     {Piece::Pawn,
                      BoardPosition::B7,
                      BoardPosition::C8,
-                     getFlags(MoveFlags::IsCapture, Piece::Queen)}),
+                     MoveFlags::IsCapture | Piece::Queen}),
             "Pb7xc8=Q");
 
     EXPECT_EQ(
@@ -64,7 +54,7 @@ TEST(MoveTests, TestMoveToUciString) {
                     {Piece::Pawn,
                      BoardPosition::E5,
                      BoardPosition::E6,
-                     getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)}),
+                     MoveFlags::IsCapture | MoveFlags::IsEnPassant}),
             "e5e6");
 
     EXPECT_EQ(
@@ -72,7 +62,7 @@ TEST(MoveTests, TestMoveToUciString) {
                     {Piece::Pawn,
                      BoardPosition::B7,
                      BoardPosition::C8,
-                     getFlags(MoveFlags::IsCapture, Piece::Queen)}),
+                     MoveFlags::IsCapture | Piece::Queen}),
             "b7c8q");
 
     EXPECT_EQ(
@@ -91,12 +81,9 @@ TEST(MoveTests, TestMoveFromUciString) {
     const GameState gameState =
             GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
 
-    const Move parsedPromotionCapture = moveFromUciString("d7c8q", gameState);
-    const Move expectedPromotionCapture =
-            Move{Piece::Pawn,
-                 BoardPosition::D7,
-                 BoardPosition::C8,
-                 getFlags(MoveFlags::IsCapture, Piece::Queen)};
+    const Move parsedPromotionCapture   = moveFromUciString("d7c8q", gameState);
+    const Move expectedPromotionCapture = Move{
+            Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
 
     EXPECT_EQ(parsedPromotionCapture, expectedPromotionCapture);
 
@@ -118,7 +105,7 @@ TEST(MoveTests, TestMoveFromUciStringEnPassant) {
             Move{Piece::Pawn,
                  BoardPosition::F4,
                  BoardPosition::E3,
-                 getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)};
+                 MoveFlags::IsCapture | MoveFlags::IsEnPassant};
 
     EXPECT_EQ(parsedEnPassantCapture, expectedEnPassantCapture);
 }
@@ -145,10 +132,7 @@ TEST(AlgebraicNotation, TestAlgebraicFromMovePosition5) {
             GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
 
     const Move promotionCapture{
-            Piece::Pawn,
-            BoardPosition::D7,
-            BoardPosition::C8,
-            getFlags(MoveFlags::IsCapture, Piece::Queen)};
+            Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
     const std::string promotionCaptureAlgebraic = algebraicFromMove(promotionCapture, gameState);
     EXPECT_EQ(promotionCaptureAlgebraic, "dxc8=Q");
 
@@ -232,10 +216,7 @@ TEST(AlgebraicNotation, TestMoveFromAlgebraicPosition5) {
 
     const Move promotionCapture = moveFromAlgebraic("dxc8=Q", gameState);
     const Move expectedPromotionCapture{
-            Piece::Pawn,
-            BoardPosition::D7,
-            BoardPosition::C8,
-            getFlags(MoveFlags::IsCapture, Piece::Queen)};
+            Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
 
     EXPECT_EQ(promotionCapture, expectedPromotionCapture);
 

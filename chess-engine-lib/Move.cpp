@@ -167,12 +167,12 @@ Move moveFromUciString(std::string_view uciString, const GameState& gameState) {
 
     const Piece pieceToMove = getPiece(gameState.getPieceOnSquare(from));
 
-    MoveFlags moveFlags = getFlags(promotionPiece);
+    MoveFlags moveFlags = (MoveFlags)promotionPiece;
 
     if (pieceToMove == Piece::Pawn && to == gameState.getEnPassantTarget()) {
-        moveFlags = getFlags(moveFlags, MoveFlags::IsCapture, MoveFlags::IsEnPassant);
+        moveFlags = moveFlags | MoveFlags::IsCapture | MoveFlags::IsEnPassant;
     } else if (getPiece(gameState.getPieceOnSquare(to)) != Piece::Invalid) {
-        moveFlags = getFlags(moveFlags, MoveFlags::IsCapture);
+        moveFlags = moveFlags | MoveFlags::IsCapture;
     }
 
     if (pieceToMove == Piece::King) {
@@ -180,7 +180,7 @@ Move moveFromUciString(std::string_view uciString, const GameState& gameState) {
         const auto [kintToFile, _2]   = fileRankFromPosition(to);
 
         if (std::abs(kingFromFile - kintToFile) == 2) {
-            moveFlags = getFlags(moveFlags, MoveFlags::IsCastle);
+            moveFlags = moveFlags | MoveFlags::IsCastle;
         }
     }
 

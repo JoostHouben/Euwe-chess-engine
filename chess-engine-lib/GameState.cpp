@@ -52,51 +52,49 @@ void generatePawnMoves(
 
     const int promotionRank = side == Side::White ? 7 : 0;
 
-    auto generateMoves =
-            [&](BitBoard targetBitBoard, const int originOffset, MoveFlags baseFlags) FORCE_INLINE {
-                while (targetBitBoard != BitBoard::Empty) {
-                    const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
+    auto generateMoves = [&](BitBoard targetBitBoard,
+                             const int originOffset,
+                             MoveFlags baseFlags) FORCE_INLINE {
+        while (targetBitBoard != BitBoard::Empty) {
+            const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
 
-                    const int originIdx                = (int)targetPosition - originOffset;
-                    const BoardPosition originPosition = (BoardPosition)originIdx;
+            const int originIdx                = (int)targetPosition - originOffset;
+            const BoardPosition originPosition = (BoardPosition)originIdx;
 
-                    if (isSet(pinBitBoard, originPosition)) [[unlikely]] {
-                        // Find pin bit board
-                        BitBoard pawnPiecePinBitBoard = BitBoard::Empty;
-                        for (const auto piecePinBitBoard : piecePinBitBoards) {
-                            if (isSet(piecePinBitBoard, originPosition)) {
-                                pawnPiecePinBitBoard = piecePinBitBoard;
-                                break;
-                            }
-                        }
-                        MY_ASSERT(pawnPiecePinBitBoard != BitBoard::Empty);
-
-                        if (!isSet(pawnPiecePinBitBoard, targetPosition)) {
-                            // Pin is not along the move direction, so move is impossible
-                            continue;
-                        }
-                    }
-
-                    MoveFlags flags = baseFlags;
-                    if (targetPosition == enPassantTarget) {
-                        MY_ASSERT(isCapture(flags));
-                        flags = getFlags(flags, MoveFlags::IsEnPassant);
-                    }
-
-                    int toRank = rankFromPosition(targetPosition);
-                    if (toRank == promotionRank) {
-                        for (const auto promotionPiece : kPromotionPieces) {
-                            moves.emplace_back(
-                                    Piece::Pawn,
-                                    originPosition,
-                                    targetPosition,
-                                    getFlags(flags, promotionPiece));
-                        }
-                    } else {
-                        moves.emplace_back(Piece::Pawn, originPosition, targetPosition, flags);
+            if (isSet(pinBitBoard, originPosition)) [[unlikely]] {
+                // Find pin bit board
+                BitBoard pawnPiecePinBitBoard = BitBoard::Empty;
+                for (const auto piecePinBitBoard : piecePinBitBoards) {
+                    if (isSet(piecePinBitBoard, originPosition)) {
+                        pawnPiecePinBitBoard = piecePinBitBoard;
+                        break;
                     }
                 }
-            };
+                MY_ASSERT(pawnPiecePinBitBoard != BitBoard::Empty);
+
+                if (!isSet(pawnPiecePinBitBoard, targetPosition)) {
+                    // Pin is not along the move direction, so move is impossible
+                    continue;
+                }
+            }
+
+            MoveFlags flags = baseFlags;
+            if (targetPosition == enPassantTarget) {
+                MY_ASSERT(isCapture(flags));
+                flags = flags | MoveFlags::IsEnPassant;
+            }
+
+            int toRank = rankFromPosition(targetPosition);
+            if (toRank == promotionRank) {
+                for (const auto promotionPiece : kPromotionPieces) {
+                    moves.emplace_back(
+                            Piece::Pawn, originPosition, targetPosition, flags | promotionPiece);
+                }
+            } else {
+                moves.emplace_back(Piece::Pawn, originPosition, targetPosition, flags);
+            }
+        }
+    };
 
     if (!capturesOnly) {
         BitBoard singlePushes = subtract(forwardShift(pawnBitBoard), anyPiece);

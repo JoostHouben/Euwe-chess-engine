@@ -15,6 +15,18 @@ enum class MoveFlags : std::uint8_t {
     IsCastle    = 1 << 5,
 };
 
+[[nodiscard]] constexpr MoveFlags operator|(const MoveFlags lhs, const MoveFlags rhs) {
+    return static_cast<MoveFlags>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+[[nodiscard]] constexpr MoveFlags operator|(const MoveFlags flags, const Piece promotionPiece) {
+    return static_cast<MoveFlags>(static_cast<int>(flags) | static_cast<int>(promotionPiece));
+}
+
+[[nodiscard]] constexpr bool operator&(const MoveFlags lhs, const MoveFlags rhs) {
+    return (static_cast<int>(lhs) & static_cast<int>(rhs)) != 0;
+}
+
 [[nodiscard]] constexpr Piece getPromotionPiece(MoveFlags flags) {
     return static_cast<Piece>((int)flags & 7);
 }
@@ -24,21 +36,15 @@ enum class MoveFlags : std::uint8_t {
 }
 
 [[nodiscard]] constexpr bool isCapture(MoveFlags flags) {
-    return (int)flags & (int)MoveFlags::IsCapture;
+    return flags & MoveFlags::IsCapture;
 }
 
 [[nodiscard]] constexpr bool isEnPassant(MoveFlags flags) {
-    return (int)flags & (int)MoveFlags::IsEnPassant;
+    return flags & MoveFlags::IsEnPassant;
 }
 
 [[nodiscard]] constexpr bool isCastle(MoveFlags flags) {
-    return (int)flags & (int)MoveFlags::IsCastle;
-}
-
-template <typename... FlagTs>
-[[nodiscard]] constexpr MoveFlags getFlags(FlagTs... flags) {
-    static_assert(((std::is_same_v<FlagTs, MoveFlags> || std::is_same_v<FlagTs, Piece>)&&...));
-    return static_cast<MoveFlags>((static_cast<int>(flags) | ...));
+    return flags & MoveFlags::IsCastle;
 }
 
 struct Move {

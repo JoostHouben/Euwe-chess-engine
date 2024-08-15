@@ -179,17 +179,17 @@ auto testCases = ::testing::Values(
         SEETestConfig{
                 .name = "enPassant",
                 .fen  = "2k5/8/8/8/3pP3/8/8/2K5 b - e3 0 1",
-                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)},
+                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = MoveFlags::IsCapture | MoveFlags::IsEnPassant},
                 .expectedScore = getPieceValue(Piece::Pawn)},
         SEETestConfig{
                 .name = "enPassantDiscovered",
                 .fen  = "2k5/8/4R3/8/3pP3/8/8/2K5 b - e3 0 1",
-                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)},
+                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = MoveFlags::IsCapture | MoveFlags::IsEnPassant},
                 .expectedScore = 0},
         SEETestConfig{
                 .name = "enPassantDiscoveryBlocked",
                 .fen  = "2k5/8/4R3/4P3/3pP3/8/8/2K5 b - e3 0 1",
-                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = getFlags(MoveFlags::IsCapture, MoveFlags::IsEnPassant)},
+                .move = Move{.pieceToMove = Piece::Pawn, .from = BoardPosition::D4, .to = BoardPosition::E3, .flags = MoveFlags::IsCapture | MoveFlags::IsEnPassant},
                 .expectedScore = getPieceValue(Piece::Pawn)},
         SEETestConfig{
                 .name = "somethingWithAKnight",
@@ -214,7 +214,11 @@ auto testCases = ::testing::Values(
                 .fen  = "r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 1",
                 .move = Move{.pieceToMove = Piece::Bishop, .from = BoardPosition::B6, .to = BoardPosition::C5, .flags = MoveFlags::IsCapture},
                 .expectedScore = getPieceValue(Piece::Pawn)},
-        SEETestConfig{.name = "perftPosition4ContinuationLosingQueenCapture", .fen = "r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 1", .move = Move{.pieceToMove = Piece::Queen, .from = BoardPosition::A3, .to = BoardPosition::F3, .flags = MoveFlags::IsCapture}, .expectedScore = getPieceValue(Piece::Knight) - getPieceValue(Piece::Queen)});
+        SEETestConfig{
+                .name = "perftPosition4ContinuationLosingQueenCapture",
+                .fen  = "r3k2r/Pppp1ppp/1b3nbN/nPP5/BB2P3/q4N2/Pp1P2PP/R2Q1RK1 b kq - 0 1",
+                .move = Move{.pieceToMove = Piece::Queen, .from = BoardPosition::A3, .to = BoardPosition::F3, .flags = MoveFlags::IsCapture},
+                .expectedScore = getPieceValue(Piece::Knight) - getPieceValue(Piece::Queen)});
 
 INSTANTIATE_TEST_CASE_P(SEETests, SEETests, testCases, getTestName);
 
