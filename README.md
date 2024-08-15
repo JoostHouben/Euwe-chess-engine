@@ -4,7 +4,7 @@ Euwe Chess Engine
 **Author: Joost Houben**
 
 Euwe is a UCI chess engine written in modern C++. It is named after
-[Max Euwe](https://en.wikipedia.org/wiki/Max_Euwe), a Dutch chess player, Mathematician, former
+[Max Euwe](https://en.wikipedia.org/wiki/Max_Euwe), a Dutch chess player, mathematician, former
 FIDE president, and the fifth World Chess Champion.
 
 ## Hardware requirements
