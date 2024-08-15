@@ -1,5 +1,3 @@
-#include "ClangDiagnosticIgnore.h"
-
 #pragma once
 
 #ifndef NDEBUG

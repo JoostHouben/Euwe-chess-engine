@@ -24,9 +24,6 @@
     <ClInclude Include="MyAssert.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ClangDiagnosticIgnore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Intrinsics.h">
       <Filter>Header Files</Filter>
     </ClInclude>

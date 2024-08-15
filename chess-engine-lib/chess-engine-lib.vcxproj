@@ -15,7 +15,6 @@
     <ClInclude Include="BoardConstants.h" />
     <ClInclude Include="BoardHash.h" />
     <ClInclude Include="BoardPosition.h" />
-    <ClInclude Include="ClangDiagnosticIgnore.h" />
     <ClInclude Include="ConsoleColor.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Eval.h" />

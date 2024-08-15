@@ -1,5 +1,3 @@
-#include "chess-engine-lib/ClangDiagnosticIgnore.h"
-
 #pragma once
 
 #ifdef _MSC_VER

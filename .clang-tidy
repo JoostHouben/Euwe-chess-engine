@@ -1,0 +1,14 @@
+# Not (yet) enabled:
+#  - cppcoreguidelines
+#  - modernize
+#  - bugprone
+#  - misc
+#  - performance
+#  - readability
+Checks:
+    - clang-analyzer-*
+ExtraArgs:
+    # Incorrectly triggers because Visual Studio runs clang-tidy directly on headers
+    - -Wno-pragma-once-outside-header
+    # Triggers on pragmas in the MSVC stdlib
+    - -Wno-unknown-pragmas
