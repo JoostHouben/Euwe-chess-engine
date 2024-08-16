@@ -228,7 +228,8 @@ FORCE_INLINE bool getFileRankIncrement(
 }  // namespace
 
 GameState GameState::startingPosition() {
-    return fromFen(getStartingPositionFen());
+    static const GameState startingPosition = fromFen(getStartingPositionFen());
+    return startingPosition;
 }
 
 bool GameState::isInCheck() const {

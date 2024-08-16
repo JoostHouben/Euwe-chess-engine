@@ -287,7 +287,13 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
             lineSStream >> token;
         }
         fen.pop_back();  // remove trailing space
-        gameState_ = GameState::fromFen(fen);
+
+        try {
+            gameState_ = GameState::fromFen(fen);
+        } catch (const std::exception& e) {
+            writeDebug("Error: Failed to parse FEN: {}", e.what());
+            return;
+        }
     }
 
     // Allow for the 'moves' token to be omitted at the end of the line.

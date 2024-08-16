@@ -12,6 +12,7 @@
 
 #include <array>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <cstdint>
@@ -47,7 +48,7 @@ class GameState {
         BitBoard enemyPiece = BitBoard::Empty;
     };
 
-    [[nodiscard]] static GameState fromFen(const std::string& fenString);
+    [[nodiscard]] static GameState fromFen(std::string_view fenString);
     [[nodiscard]] static GameState startingPosition();
 
     [[nodiscard]] std::string toFen() const;

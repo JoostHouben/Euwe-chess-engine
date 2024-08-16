@@ -2,14 +2,17 @@
 
 #include "MyAssert.h"
 
+#include <format>
+#include <stdexcept>
+
 namespace {
 
 constexpr char kLowerCaseBit = 1 << 5;
 
 }  // namespace
 
-Piece pieceFromFenChar(char c) {
-    char upperCase = c & ~kLowerCaseBit;
+Piece pieceFromFenChar(const char c) {
+    const char upperCase = c & ~kLowerCaseBit;
     switch (upperCase) {
         case 'P':
             return Piece::Pawn;
@@ -23,15 +26,16 @@ Piece pieceFromFenChar(char c) {
             return Piece::Queen;
         case 'K':
             return Piece::King;
+        default:
+            throw std::invalid_argument(std::format("Invalid FEN piece character: {}", c));
     }
-    UNREACHABLE;
 }
 
-ColoredPiece coloredPieceFromFenChar(char c) {
+ColoredPiece coloredPieceFromFenChar(const char c) {
     return getColoredPiece(pieceFromFenChar(c), sideFromFenChar(c));
 }
 
-char toFenChar(Piece piece) {
+char toFenChar(const Piece piece) {
     switch (piece) {
         case Piece::Pawn:
             return 'P';
@@ -50,11 +54,11 @@ char toFenChar(Piece piece) {
     }
 }
 
-char toLowerCaseFenChar(Piece piece) {
+char toLowerCaseFenChar(const Piece piece) {
     return toFenChar(piece) | kLowerCaseBit;
 }
 
-char toFenChar(ColoredPiece coloredPiece) {
+char toFenChar(const ColoredPiece coloredPiece) {
     char c = toFenChar(getPiece(coloredPiece));
     if (getSide(coloredPiece) == Side::Black) {
         c |= kLowerCaseBit;

@@ -2,11 +2,51 @@
 
 #include "MyAssert.h"
 
+#include <charconv>
+#include <sstream>
+#include <stdexcept>
+
 #include <cstdlib>
 
-#include <sstream>
-
 namespace {
+
+template <typename IteratorT, typename EndIteratorT>
+bool safeAdvance(IteratorT& it, const EndIteratorT end) {
+    if (it == end) {
+        return false;
+    }
+    ++it;
+    return true;
+}
+
+template <typename IteratorT, typename EndIteratorT>
+void tryAdvance(IteratorT& it, const EndIteratorT end) {
+    if (!safeAdvance(it, end)) {
+        throw std::range_error("Unexpected end of input");
+    }
+}
+
+[[nodiscard]] int parseIntInFenString(
+        std::string_view::const_iterator& strIt,
+        const std::string_view::const_iterator endIt,
+        std::string_view valueDescription) {
+    int value{};
+    const auto result = std::from_chars(&*strIt, &*endIt, value);
+
+    if (result.ec != std::errc{}) {
+        throw std::invalid_argument(std::format(
+                "Invalid {} in FEN string: unable to parse integer from: {}",
+                valueDescription,
+                std::string_view(strIt, endIt)));
+    }
+
+    const std::size_t charsRead = result.ptr - &*strIt;
+    for (std::size_t i = 0; i < charsRead; ++i) {
+        tryAdvance(strIt, endIt);
+    }
+
+    return value;
+}
 
 constexpr bool isNumber(char c) {
     return c >= '0' && c <= '9';
@@ -17,12 +57,13 @@ struct BoardConfigurationInfo {
     std::array<ColoredPiece, kSquares> pieceOnSquare                           = {};
 };
 
-BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterator& strIt) {
+BoardConfigurationInfo parseBoardConfigurationFromFen(
+        std::string_view::const_iterator& strIt, const std::string_view::const_iterator endIt) {
     BoardConfigurationInfo boardConfiguration = {};
     boardConfiguration.pieceOnSquare.fill(ColoredPiece::Invalid);
 
     for (int rank = 7; rank >= 0; --rank) {
-        for (int file = 0; file < 8; ++strIt) {
+        for (int file = 0; file < 8; tryAdvance(strIt, endIt)) {
             if (isNumber(*strIt)) {
                 file += (*strIt - '0');
                 continue;
@@ -38,37 +79,49 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(std::string::const_iterato
 
             file += 1;
         }
-        MY_ASSERT((rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' '));
+
+        const bool validChar = (rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' ');
+        if (!validChar) {
+            throw std::invalid_argument(
+                    std::format("Unexpected character in FEN string: {}", *strIt));
+        }
+
         if (rank > 0) {
-            ++strIt;
+            tryAdvance(strIt, endIt);
         }
     }
 
     return boardConfiguration;
 }
 
-Side parseSideToMoveFromFen(std::string::const_iterator& strIt) {
-    switch (*(strIt++)) {
+Side parseSideToMoveFromFen(
+        std::string_view::const_iterator& strIt, const std::string_view::const_iterator endIt) {
+    const char c = *strIt;
+    tryAdvance(strIt, endIt);
+    switch (c) {
         case 'w':
             return Side::White;
         case 'b':
             return Side::Black;
+        default:
+            throw std::invalid_argument(std::format("Invalid side to move in FEN string: {}", c));
     }
-    UNREACHABLE;
 }
 
 void parseCastlingRightsFromFen(
-        std::string::const_iterator& strIt, GameState::CastlingRights& castlingRights) {
+        std::string_view::const_iterator& strIt,
+        const std::string_view::const_iterator endIt,
+        GameState::CastlingRights& castlingRights) {
     if (*strIt == '-') {
-        ++strIt;
+        tryAdvance(strIt, endIt);
         return;
     }
 
-    for (; *strIt != ' '; ++strIt) {
-        Side side   = sideFromFenChar(*strIt);
-        Piece piece = pieceFromFenChar(*strIt);
+    for (; *strIt != ' '; tryAdvance(strIt, endIt)) {
+        const Side side   = sideFromFenChar(*strIt);
+        const Piece piece = pieceFromFenChar(*strIt);
 
-        int bit;
+        int bit{};
         switch (piece) {
             case Piece::King:
                 bit = (int)GameState::CastlingRights::KingSide << ((int)side * 2);
@@ -77,34 +130,45 @@ void parseCastlingRightsFromFen(
                 bit = (int)GameState::CastlingRights::QueenSide << ((int)side * 2);
                 break;
             default:
-                UNREACHABLE;
+                throw std::invalid_argument(
+                        std::format("Invalid character for castling rights: {}", *strIt));
         }
 
         castlingRights = (GameState::CastlingRights)((int)castlingRights | bit);
     }
 }
 
-BoardPosition parseEnPassantTargetFromFen(std::string::const_iterator& strIt) {
+BoardPosition parseEnPassantTargetFromFen(
+        std::string_view::const_iterator& strIt, const std::string_view::const_iterator endIt) {
     if (*strIt == '-') {
-        ++strIt;
+        tryAdvance(strIt, endIt);
         return BoardPosition::Invalid;
     }
 
-    BoardPosition enPassantTarget = positionFromAlgebraic({strIt, strIt + 2});
-    strIt += 2;
+    const std::size_t charsRemaining = endIt - strIt;
+    if (charsRemaining < 2) {
+        throw std::invalid_argument("Invalid FEN string: en passant target is too short");
+    }
+
+    const BoardPosition enPassantTarget = positionFromAlgebraic({strIt, strIt + 2});
+    tryAdvance(strIt, endIt);
+    tryAdvance(strIt, endIt);
+
     return enPassantTarget;
 }
 
-std::uint8_t parsePlySinceCaptureOrPawnFromFen(std::string::const_iterator& strIt) {
-    int plySinceCaptureOrPawn = std::atoi(&*strIt);
-    do {
-        ++strIt;
-    } while (*strIt != ' ');
+std::uint8_t parsePlySinceCaptureOrPawnFromFen(
+        std::string_view::const_iterator& strIt, const std::string_view::const_iterator endIt) {
+    const int plySinceCaptureOrPawn =
+            parseIntInFenString(strIt, endIt, "ply since capture or pawn");
+
     return static_cast<std::uint8_t>(plySinceCaptureOrPawn);
 }
 
-std::uint16_t parseHalfMoveClockFromFen(std::string::const_iterator& strIt) {
-    const int moveClock = std::atoi(&*strIt);
+std::uint16_t parseHalfMoveClockFromFen(
+        std::string_view::const_iterator& strIt, const std::string_view::const_iterator endIt) {
+    const int moveClock = parseIntInFenString(strIt, endIt, "move clock");
+
     // multiply by two to convert to half move clock; minus one because the fen counter starts at 1
     return static_cast<std::uint16_t>(moveClock - 1) * 2;
 }
@@ -217,34 +281,48 @@ HashT computeBoardHash(const GameState& gameState) {
 
 }  // namespace
 
-GameState GameState::fromFen(const std::string& fenString) {
+GameState GameState::fromFen(std::string_view fenString) {
     GameState gameState{};
 
-    auto strIt = fenString.begin();
+    auto strIt       = fenString.begin();
+    const auto endIt = fenString.end();
 
-    BoardConfigurationInfo boardConfig = parseBoardConfigurationFromFen(strIt);
+    const auto advanceWordEnd = [&]() {
+        const std::size_t position = (strIt - fenString.begin()) + 1;
+        if (*strIt != ' ') {
+            throw std::invalid_argument(
+                    std::format("Invalid FEN string: expected space at character #{}", position));
+        }
+        if (!safeAdvance(strIt, endIt)) {
+            throw std::invalid_argument(std::format(
+                    "Invalid FEN string: unexpected end of string at character #{}", position));
+        }
+    };
+
+    BoardConfigurationInfo boardConfig = parseBoardConfigurationFromFen(strIt, endIt);
     gameState.pieceBitBoards_          = boardConfig.pieceBitBoards;
     gameState.pieceOnSquare_           = boardConfig.pieceOnSquare;
-    MY_ASSERT(*strIt == ' ');
-    ++strIt;
+    advanceWordEnd();
 
-    gameState.sideToMove_ = parseSideToMoveFromFen(strIt);
-    MY_ASSERT(*strIt == ' ');
-    ++strIt;
+    gameState.sideToMove_ = parseSideToMoveFromFen(strIt, endIt);
+    advanceWordEnd();
 
-    parseCastlingRightsFromFen(strIt, gameState.castlingRights_);
-    MY_ASSERT(*strIt == ' ');
-    ++strIt;
+    parseCastlingRightsFromFen(strIt, endIt, gameState.castlingRights_);
+    advanceWordEnd();
 
-    gameState.enPassantTarget_ = parseEnPassantTargetFromFen(strIt);
-    MY_ASSERT(*strIt == ' ');
-    ++strIt;
+    gameState.enPassantTarget_ = parseEnPassantTargetFromFen(strIt, endIt);
+    advanceWordEnd();
 
-    gameState.plySinceCaptureOrPawn_ = parsePlySinceCaptureOrPawnFromFen(strIt);
-    MY_ASSERT(*strIt == ' ');
-    ++strIt;
+    gameState.plySinceCaptureOrPawn_ = parsePlySinceCaptureOrPawnFromFen(strIt, endIt);
+    advanceWordEnd();
 
-    gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt);
+    gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt, endIt);
+
+    if (strIt != endIt) {
+        throw std::invalid_argument(std::format(
+                "Invalid FEN string: unexpected characters at end of string: {}",
+                std::string_view(strIt, endIt)));
+    }
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig, gameState.sideToMove_);
 

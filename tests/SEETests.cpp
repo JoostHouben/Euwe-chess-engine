@@ -211,13 +211,13 @@ auto testCases = ::testing::Values(
         // https://www.chessprogramming.org/SEE_-_The_Swap_Algorithm#Position_1
         SEETestConfig{
                 .name = "cpwSeeSwapPosition1",
-                .fen  = "1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - -  0 1",
+                .fen  = "1k1r4/1pp4p/p7/4p3/8/P5P1/1PP4P/2K1R3 w - - 0 1",
                 .move = Move{.pieceToMove = Piece::Rook, .from = BoardPosition::E1, .to = BoardPosition::E5, .flags = MoveFlags::IsCapture},
                 .expectedScore = getStaticPieceValue(Piece::Pawn)},
         // https://www.chessprogramming.org/SEE_-_The_Swap_Algorithm#Position_2
         SEETestConfig{
                 .name = "cpwSeeSwapPosition2",
-                .fen  = "1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - -  0 1",
+                .fen  = "1k1r3q/1ppn3p/p4b2/4p3/8/P2N2P1/1PP1R1BP/2K1Q3 w - - 0 1",
                 .move = Move{.pieceToMove = Piece::Knight, .from = BoardPosition::D3, .to = BoardPosition::E5, .flags = MoveFlags::IsCapture},
                 .expectedScore =
                         getStaticPieceValue(Piece::Pawn) - getStaticPieceValue(Piece::Knight)},
