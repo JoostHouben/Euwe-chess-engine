@@ -31,7 +31,9 @@ void tryAdvance(IteratorT& it, const EndIteratorT end) {
         const std::string_view::const_iterator endIt,
         std::string_view valueDescription) {
     int value{};
-    const auto result = std::from_chars(&*strIt, &*endIt, value);
+    const std::size_t distanceToEnd = endIt - strIt;
+    const char* strStart            = &*strIt;
+    const auto result               = std::from_chars(strStart, strStart + distanceToEnd, value);
 
     if (result.ec != std::errc{}) {
         throw std::invalid_argument(std::format(
@@ -287,6 +289,10 @@ HashT computeBoardHash(const GameState& gameState) {
 }  // namespace
 
 GameState GameState::fromFen(std::string_view fenString) {
+    if (fenString.empty()) {
+        throw std::invalid_argument("FEN string invalid: empty");
+    }
+
     GameState gameState{};
 
     auto strIt       = fenString.begin();
@@ -294,7 +300,7 @@ GameState GameState::fromFen(std::string_view fenString) {
 
     const auto advanceWordEnd = [&]() {
         const std::size_t position = (strIt - fenString.begin()) + 1;
-        if (*strIt != ' ') {
+        if ((strIt != endIt) && *strIt != ' ') {
             throw std::invalid_argument(
                     std::format("Invalid FEN string: expected space at character #{}", position));
         }
