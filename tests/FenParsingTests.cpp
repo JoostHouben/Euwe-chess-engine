@@ -3,6 +3,7 @@
 #include "MyGTest.h"
 
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -160,6 +161,63 @@ TEST(FenParsing, HalfMoveClock) {
     EXPECT_EQ(GameState::fromFen(fen9).getPlySinceCaptureOrPawn(), 9);
     EXPECT_EQ(GameState::fromFen(fen42).getPlySinceCaptureOrPawn(), 42);
     EXPECT_EQ(GameState::fromFen(fen314).getPlySinceCaptureOrPawn(), 75);
+}
+
+TEST(FenParsing, ErrorHandling) {
+    // string too short
+    EXPECT_THROW((void)GameState::fromFen(""), std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0"),
+            std::invalid_argument);
+
+    // string has extra stuff
+    EXPECT_THROW(
+            (void)GameState::fromFen(
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 blah"),
+            std::invalid_argument);
+
+    // invalid board configuration
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/ppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/xppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/1/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w KQkq - 0 1"),
+            std::invalid_argument);
+
+    // invalid side to move
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x KQkq - 0 1"),
+            std::invalid_argument);
+
+    // invalid castling rights
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KBkq - 0 1"),
+            std::invalid_argument);
+
+    // invalid en passant target
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq x9 0 1"),
+            std::invalid_argument);
+
+    // invalid move clocks
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - x 1"),
+            std::invalid_argument);
+    EXPECT_THROW(
+            (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 x"),
+            std::invalid_argument);
 }
 
 }  // namespace FenParsingTests

@@ -74,6 +74,80 @@ TEST(MoveTests, TestMoveFromUciString) {
     EXPECT_EQ(parsedCastle, expectedCastle);
 }
 
+TEST(MoveTests, TestMoveFromUciStringErrorHandling) {
+    const GameState gameState = GameState::startingPosition();
+
+    // string too short
+    EXPECT_THROW((void)Move::fromUci("e2", gameState), std::invalid_argument);
+
+    // string too long
+    EXPECT_THROW((void)Move::fromUci("e2e4e4", gameState), std::invalid_argument);
+
+    // invalid square
+    EXPECT_THROW((void)Move::fromUci("e9e4", gameState), std::invalid_argument);
+}
+
+TEST(MoveTests, TestBasicSanityChecks) {
+    GameState gameState = GameState::startingPosition();
+
+    // valid
+    {
+        const Move move = Move::fromUci("e2e4", gameState);
+        EXPECT_NO_THROW(doBasicSanityChecks(move, gameState));
+    }
+
+    // no piece on position
+    {
+        const Move move = Move::fromUci("e3e4", gameState);
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // side not to move
+    {
+        const Move move = Move::fromUci("e7e5", gameState);
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // trying to capture own piece
+    {
+        const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::IsCapture};
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // blocked by own piece
+    {
+        const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::None};
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // nothing to capture
+    {
+        const Move move{Piece::Pawn, BoardPosition::E2, BoardPosition::D3, MoveFlags::IsCapture};
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // promoting non-pawn
+    {
+        const Move move = Move::fromUci("b2b3q", gameState);
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // promoting pawn not on last rank
+    {
+        const Move move = Move::fromUci("e2e4q", gameState);
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // Valid capture and promotion
+    {
+        // Position 5 from https://www.chessprogramming.org/Perft_Results
+        const GameState position5 =
+                GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+        const Move move = Move::fromUci("d7c8q", position5);
+        EXPECT_NO_THROW(doBasicSanityChecks(move, position5));
+    }
+}
+
 TEST(MoveTests, TestMoveFromUciStringEnPassant) {
     // Position 3 from https://www.chessprogramming.org/Perft_Results
     GameState gameState = GameState::fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
@@ -207,6 +281,10 @@ TEST(AlgebraicNotation, TestMoveFromAlgebraicPosition5) {
     const Move ambiguousKnightMove2 = Move::fromAlgebraic("Nec3", gameState);
     const Move expectedAmbiguousKnightMove2{Piece::Knight, BoardPosition::E2, BoardPosition::C3};
     EXPECT_EQ(ambiguousKnightMove2, expectedAmbiguousKnightMove2);
+
+    // Not a valid move
+    EXPECT_THROW((void)Move::fromAlgebraic("a5", gameState), std::invalid_argument);
+    EXPECT_THROW((void)Move::fromAlgebraic("dxc8=Q+", gameState), std::invalid_argument);
 }
 
 }  // namespace MoveTests

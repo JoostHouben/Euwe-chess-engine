@@ -66,6 +66,9 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(
         for (int file = 0; file < 8; tryAdvance(strIt, endIt)) {
             if (isNumber(*strIt)) {
                 file += (*strIt - '0');
+                if (file > 8) {
+                    throw std::invalid_argument("Invalid FEN string: too many pieces in rank");
+                }
                 continue;
             }
             const ColoredPiece coloredPiece = coloredPieceFromFenChar(*strIt);
@@ -82,8 +85,10 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(
 
         const bool validChar = (rank > 0 && *strIt == '/') || (rank == 0 && *strIt == ' ');
         if (!validChar) {
-            throw std::invalid_argument(
-                    std::format("Unexpected character in FEN string: {}", *strIt));
+            throw std::invalid_argument(std::format(
+                    "Unexpected character {} in FEN string, starting at: {}",
+                    *strIt,
+                    std::string_view(strIt, endIt)));
         }
 
         if (rank > 0) {
@@ -147,7 +152,7 @@ BoardPosition parseEnPassantTargetFromFen(
 
     const std::size_t charsRemaining = endIt - strIt;
     if (charsRemaining < 2) {
-        throw std::invalid_argument("Invalid FEN string: en passant target is too short");
+        throw std::invalid_argument("Unexpected end of FEN string.");
     }
 
     const BoardPosition enPassantTarget = positionFromAlgebraic({strIt, strIt + 2});
