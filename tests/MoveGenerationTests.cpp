@@ -233,6 +233,9 @@ inline const std::string kInCheckByPawnWithPinnedPawn = "8/2p5/3p4/KP5r/1R3p1k/6
 inline const std::string kBlackAboutToPromote =
         "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P1RPP/R2Q2K1 b kq - 1 1";  // Promotion b2a1Q
 inline const std::string kEnPassantNoDiscoveredCheck = "8/8/3p4/KPp1P2r/1R3p2/6k1/6P1/8 w - c6 0 1";
+inline const std::string kEnPassantDiscoveredCheckBishop = "8/8/k7/8/2Pp4/8/8/5B1K b - c3 0 1";
+inline const std::string kEnPassantNoDiscoveredCheckVerticalRook =
+        "8/8/2k5/8/2Pp4/8/8/2R4K b - c3 0 1";
 
 // Position 5: white about to promote (d7c8B), black captures promoted piece (d8c8)
 
@@ -258,6 +261,10 @@ std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig
         fenName = "blackAboutToPromote";
     } else if (info.param.fen == kEnPassantNoDiscoveredCheck) {
         fenName = "enPassantNoDiscoveredCheck";
+    } else if (info.param.fen == kEnPassantDiscoveredCheckBishop) {
+        fenName = "enPassantDiscoveredCheckBishop";
+    } else if (info.param.fen == kEnPassantNoDiscoveredCheckVerticalRook) {
+        fenName = "enPassantNoDiscoveredCheckVerticalRook";
     }
 
     return fenName + "_depth" + std::to_string(info.param.depth);
@@ -426,11 +433,31 @@ auto testCasesFast = ::testing::Values(
                          .numPromotions = 20}},
         // enPassantNoDiscoveredCheck
         TestStatsConfig{
-                .fen           = kEnPassantNoDiscoveredCheck,
+                .fen   = kEnPassantNoDiscoveredCheck,
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves      = 15,
+                         .numCaptures   = 3,
+                         .numEnPassant  = 1,
+                         .numCastle     = 0,
+                         .numPromotions = 0}},
+        // enPassantDiscoveredCheckBishop
+        TestStatsConfig{
+                .fen   = kEnPassantDiscoveredCheckBishop,
+                .depth = 1,
+                .expectedStats =
+                        {.numMoves      = 5,
+                         .numCaptures   = 0,
+                         .numEnPassant  = 0,
+                         .numCastle     = 0,
+                         .numPromotions = 0}},
+        // enPassantDiscoveredCheckVerticalRook
+        TestStatsConfig{
+                .fen           = kEnPassantNoDiscoveredCheckVerticalRook,
                 .depth         = 1,
                 .expectedStats = {
-                        .numMoves      = 15,
-                        .numCaptures   = 3,
+                        .numMoves      = 8,
+                        .numCaptures   = 1,
                         .numEnPassant  = 1,
                         .numCastle     = 0,
                         .numPromotions = 0}});

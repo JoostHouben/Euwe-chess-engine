@@ -58,7 +58,7 @@ class GameState {
     [[nodiscard]] BitBoard getEnemyControl() const;
 
     [[nodiscard]] bool isInCheck() const;
-    bool isInCheck(BitBoard enemyControl) const;
+    [[nodiscard]] bool isInCheck(BitBoard enemyControl) const;
     [[nodiscard]] bool isRepetition(int repetitionsForDraw = 2) const;
     [[nodiscard]] bool isFiftyMoves() const;
 

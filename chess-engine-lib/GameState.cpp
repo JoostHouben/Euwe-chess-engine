@@ -943,17 +943,10 @@ GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
 bool GameState::enPassantWillPutUsInCheck() const {
     MY_ASSERT(enPassantTarget_ != BoardPosition::Invalid);
 
+    const BoardPosition enPassantPiecePosition =
+            getEnPassantPiecePosition(enPassantTarget_, sideToMove_);
     const auto [enPassantTargetFile, enPassantOriginRank] =
-            fileRankFromPosition(getEnPassantPiecePosition(enPassantTarget_, sideToMove_));
-
-    const BoardPosition kingPosition =
-            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
-    const auto [kingFile, kingRank] = fileRankFromPosition(kingPosition);
-    if (kingRank != enPassantOriginRank) {
-        return false;
-    }
-
-    const bool kingIsLeft = kingFile < enPassantTargetFile;
+            fileRankFromPosition(enPassantPiecePosition);
 
     BitBoard nextToEnPassantOriginMask = BitBoard::Empty;
     if (enPassantTargetFile > 0) {
@@ -965,107 +958,42 @@ bool GameState::enPassantWillPutUsInCheck() const {
                 positionFromFileRank(enPassantTargetFile + 1, enPassantOriginRank);
     }
     const BitBoard& ownPawnBitBoard = getPieceBitBoard(sideToMove_, Piece::Pawn);
-    const BitBoard neighboringPawns = ownPawnBitBoard & nextToEnPassantOriginMask;
+    BitBoard neighboringPawns       = ownPawnBitBoard & nextToEnPassantOriginMask;
     const int numOwnPawns           = std::popcount((std::uint64_t)neighboringPawns);
 
-    if (numOwnPawns != 1) {
-        // If zero: no en passant capture is possible.
-        // If greater than 1: rank would still be blocked after en passant capture
-        return false;
+    if (numOwnPawns == 2) {
+        // If there's two neighboring own pawns, the en passant capture can't put us in check because
+        // of a discovered attack by a rook along the rank.
+        // However, we could still be put in check because of a discovered attack by a queen or
+        // bishop along the diagonal. But for those the vacating of the own pawns doesn't matter.
+        // So we can zero out the neighboringPawns.
+        neighboringPawns = BitBoard::Empty;
     }
 
-    // Mask for squares on the other side of the king from the en passant target
-    std::uint64_t otherSideRankMask;
-    // Mask for squares between the king and the en passant target
-    std::uint64_t kingSideBlockerMask;
-    if (kingIsLeft) {
-        // Set bits for file > enPassantTargetFile on rank 0
-        otherSideRankMask = (0xffULL << (enPassantTargetFile + 1)) & 0xffUL;
+    // Check whether a rook, bishop, or queen can attack the king after vacating the en passant
+    // target and own neighboring pawns.
+    // This assumes we're not currently in check by a rook/bishop/queen.
 
-        // Set bits for file < enPassantTargetFile on rank 0
-        kingSideBlockerMask = 0xffULL >> (kFiles - enPassantTargetFile);
-        // Clear bits for file <= kingFile on rank 0
-        kingSideBlockerMask &= ~(0xffULL >> (kFiles - kingFile - 1));
-    } else {
-        // Set bits for file < enPassantTargetFile on rank 0
-        otherSideRankMask = 0xffULL >> (kFiles - enPassantTargetFile);
+    BitBoard occupancyAfterEnPassant = (occupancy_.ownPiece | occupancy_.enemyPiece);
+    occupancyAfterEnPassant &= ~neighboringPawns;
+    occupancyAfterEnPassant &= ~enPassantPiecePosition;
+    occupancyAfterEnPassant |= enPassantTarget_;
 
-        // Set bits for file > enPassantTargetFile on rank 0
-        kingSideBlockerMask = (0xffULL << (enPassantTargetFile + 1)) & 0xffUL;
-        // Clear bits for file >= kingFile on rank 0
-        kingSideBlockerMask &= ~((0xffULL << kingFile) & 0xffUL);
-    }
-    otherSideRankMask <<= enPassantOriginRank * kFiles;
-    kingSideBlockerMask <<= enPassantOriginRank * kFiles;
+    const BoardPosition kingPosition =
+            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
+    const BitBoard enemyQueens = getPieceBitBoard(nextSide(sideToMove_), Piece::Queen);
 
-    MY_ASSERT(!((BitBoard)otherSideRankMask & enPassantTarget_));
-    MY_ASSERT(!((BitBoard)otherSideRankMask & kingPosition));
-    MY_ASSERT(!((BitBoard)kingSideBlockerMask & enPassantTarget_));
-    MY_ASSERT(!((BitBoard)kingSideBlockerMask & kingPosition));
-
-    // Enemy rooks or queens on the other side of the king
-    BitBoard enemyRookOrQueenBitBoard = getPieceBitBoard(nextSide(sideToMove_), Piece::Rook)
-                                      | getPieceBitBoard(nextSide(sideToMove_), Piece::Queen);
-    enemyRookOrQueenBitBoard = enemyRookOrQueenBitBoard & (BitBoard)otherSideRankMask;
-
-    if (enemyRookOrQueenBitBoard == BitBoard::Empty) {
-        // No enemy rook or queen on the other side of the king
-        return false;
+    const BitBoard bishopAttackFromKing = getBishopAttack(kingPosition, occupancyAfterEnPassant);
+    const BitBoard enemyBishops         = getPieceBitBoard(nextSide(sideToMove_), Piece::Bishop);
+    const BitBoard enemyDiagonalMovers  = enemyBishops | enemyQueens;
+    if ((bishopAttackFromKing & enemyDiagonalMovers) != BitBoard::Empty) {
+        return true;
     }
 
-    // Any piece on the en passant rank that isn't an enemy rook or queen on the other side of the
-    // king, or an immediately neighboring own pawn
-    BitBoard potentialBlockersBitBoard = occupancy_.ownPiece | occupancy_.enemyPiece;
-    potentialBlockersBitBoard          = potentialBlockersBitBoard & ~enemyRookOrQueenBitBoard;
-    potentialBlockersBitBoard          = potentialBlockersBitBoard & ~neighboringPawns;
-
-    // Potential blockers on the other side of the king
-    const BitBoard otherSideBitBoard = potentialBlockersBitBoard & (BitBoard)otherSideRankMask;
-
-    // Potential blockers between the king and the double-moved pawn
-    const BitBoard kingSideBlockers = potentialBlockersBitBoard & (BitBoard)kingSideBlockerMask;
-
-    if (kingSideBlockers != BitBoard::Empty) {
-        // Found a piece between the king and the double-moved pawn (that isn't an immediately neighboring own pawn)
-        // This piece blocks any would-be discovered check
-        return false;
-    }
-
-    int closestEnemyRookOrQueenDistance = kFiles;
-    int closestOtherDistance            = kFiles;
-
-    if (kingIsLeft) {
-        // King is on the LSB side: find lowest set bit
-        const int closestPosition       = std::countr_zero((std::uint64_t)enemyRookOrQueenBitBoard);
-        const int closestFile           = fileFromPosition((BoardPosition)closestPosition);
-        closestEnemyRookOrQueenDistance = closestFile - enPassantTargetFile;
-    } else {
-        // King is on the MSB side: find highest set bit
-        const int closestPosition =
-                kSquares - 1 - std::countl_zero((std::uint64_t)enemyRookOrQueenBitBoard);
-        const int closestFile           = fileFromPosition((BoardPosition)closestPosition);
-        closestEnemyRookOrQueenDistance = enPassantTargetFile - closestFile;
-    }
-    MY_ASSERT(closestEnemyRookOrQueenDistance < kFiles);
-
-    if (otherSideBitBoard != BitBoard::Empty) {
-        if (kingIsLeft) {
-            // King is on the LSB side: find lowest set bit
-            const int closestPosition = std::countr_zero((std::uint64_t)otherSideBitBoard);
-            const int closestFile     = fileFromPosition((BoardPosition)closestPosition);
-            closestOtherDistance      = closestFile - enPassantTargetFile;
-        } else {
-            // King is on the MSB side: find highest set bit
-            const int closestPosition =
-                    kSquares - 1 - std::countl_zero((std::uint64_t)otherSideBitBoard);
-            const int closestFile = fileFromPosition((BoardPosition)closestPosition);
-            closestOtherDistance  = enPassantTargetFile - closestFile;
-        }
-        MY_ASSERT(closestOtherDistance > 0);
-    }
-
-    if (closestEnemyRookOrQueenDistance < closestOtherDistance) {
-        // Capturing en passant would put the king in check
+    const BitBoard rookAttackFromKing  = getRookAttack(kingPosition, occupancyAfterEnPassant);
+    const BitBoard enemyRooks          = getPieceBitBoard(nextSide(sideToMove_), Piece::Rook);
+    const BitBoard enemyStraightMovers = enemyRooks | enemyQueens;
+    if ((rookAttackFromKing & enemyStraightMovers) != BitBoard::Empty) {
         return true;
     }
 
