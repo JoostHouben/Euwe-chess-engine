@@ -146,6 +146,24 @@ TEST(MoveTests, TestBasicSanityChecks) {
         const Move move = Move::fromUci("d7c8q", position5);
         EXPECT_NO_THROW(doBasicSanityChecks(move, position5));
     }
+
+    // Invalid en passant target
+    {
+        const Move move{
+                Piece::Pawn,
+                BoardPosition::D2,
+                BoardPosition::E3,
+                MoveFlags::IsEnPassant | MoveFlags::IsCapture};
+        EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
+    }
+
+    // valid en passant
+    {
+        const GameState position = GameState::fromFen(
+                "r1b1r1k1/2p2ppp/p7/1pqPp3/PnPp4/3P1N2/1P2QPPP/R1B2RK1 b - c3 0 15");
+        const Move move = Move::fromUci("d4c3", position);
+        EXPECT_NO_THROW(doBasicSanityChecks(move, position));
+    }
 }
 
 TEST(MoveTests, TestMoveFromUciStringEnPassant) {

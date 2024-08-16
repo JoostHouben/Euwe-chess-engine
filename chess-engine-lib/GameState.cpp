@@ -431,12 +431,8 @@ StackVector<Move> GameState::generateMovesInCheck(
 
     bool canTakeCheckingPieceEnPassant = false;
     if (enPassantTarget_ != BoardPosition::Invalid) {
-        // TODO extract some helper function(s) for en passant position calculations
-        const auto [enPassantFile, enPassantRank] = fileRankFromPosition(enPassantTarget_);
-        const int enPassantPieceRank =
-                sideToMove_ == Side::White ? enPassantRank - 1 : enPassantRank + 1;
         const BoardPosition enPassantPiecePosition =
-                positionFromFileRank(enPassantFile, enPassantPieceRank);
+                getEnPassantPiecePosition(enPassantTarget_, sideToMove_);
 
         canTakeCheckingPieceEnPassant = enPassantPiecePosition == checkingPieceId.position;
         MY_ASSERT(IMPLIES(canTakeCheckingPieceEnPassant, checkingPieceId.piece == Piece::Pawn));
@@ -947,9 +943,8 @@ GameState::calculatePiecePinOrKingAttackBitBoards(const Side kingSide) const {
 bool GameState::enPassantWillPutUsInCheck() const {
     MY_ASSERT(enPassantTarget_ != BoardPosition::Invalid);
 
-    const auto [enPassantTargetFile, enPassantTargetRank] = fileRankFromPosition(enPassantTarget_);
-    const int enPassantOriginRank =
-            sideToMove_ == Side::White ? enPassantTargetRank - 1 : enPassantTargetRank + 1;
+    const auto [enPassantTargetFile, enPassantOriginRank] =
+            fileRankFromPosition(getEnPassantPiecePosition(enPassantTarget_, sideToMove_));
 
     const BoardPosition kingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));

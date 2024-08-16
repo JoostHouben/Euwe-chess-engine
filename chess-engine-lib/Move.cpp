@@ -197,18 +197,33 @@ void doBasicSanityChecks(const Move& move, const GameState& gameState) {
         throw std::invalid_argument("Invalid piece to move.");
     }
 
+    const Side sideToMove = gameState.getSideToMove();
+
     const ColoredPiece coloredPieceToMove = gameState.getPieceOnSquare(move.from);
-    if (getSide(coloredPieceToMove) != gameState.getSideToMove()) [[unlikely]] {
+    if (getSide(coloredPieceToMove) != sideToMove) [[unlikely]] {
         throw std::invalid_argument("Piece to move is of the wrong side.");
     }
 
     if (isCapture(move.flags)) {
-        const ColoredPiece capturedPiece = gameState.getPieceOnSquare(move.to);
+        if (isEnPassant(move.flags)) {
+            if (move.pieceToMove != Piece::Pawn) [[unlikely]] {
+                throw std::invalid_argument("Only pawns can capture en passant.");
+            }
+            if (move.to != gameState.getEnPassantTarget()) [[unlikely]] {
+                throw std::invalid_argument("En passant target square is incorrect.");
+            }
+        }
+
+        const BoardPosition captureTarget =
+                isEnPassant(move.flags) ? getEnPassantPiecePosition(move.to, sideToMove) : move.to;
+
+        const ColoredPiece capturedPiece = gameState.getPieceOnSquare(captureTarget);
         if (getPiece(capturedPiece) == Piece::Invalid) [[unlikely]] {
             throw std::invalid_argument(std::format(
-                    "No piece to capture on the 'to' square {}.", algebraicFromPosition(move.to)));
+                    "No piece to capture on the capture target square {}.",
+                    algebraicFromPosition(captureTarget)));
         }
-        if (getSide(capturedPiece) == gameState.getSideToMove()) [[unlikely]] {
+        if (getSide(capturedPiece) == sideToMove) [[unlikely]] {
             throw std::invalid_argument("Capture target is of own side.");
         }
     } else {
@@ -223,7 +238,7 @@ void doBasicSanityChecks(const Move& move, const GameState& gameState) {
             throw std::invalid_argument("Only pawns can be promoted.");
         }
 
-        const int expectedRank = gameState.getSideToMove() == Side::White ? 7 : 0;
+        const int expectedRank = sideToMove == Side::White ? 7 : 0;
         if (rankFromPosition(move.to) != expectedRank) [[unlikely]] {
             throw std::invalid_argument("Only pawns on the last rank can be promoted.");
         }

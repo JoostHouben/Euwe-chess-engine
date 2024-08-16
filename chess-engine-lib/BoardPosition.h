@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Macros.h"
+#include "Side.h"
 
 #include <stdexcept>
 #include <string>
@@ -35,6 +36,14 @@ enum class BoardPosition : std::uint8_t {
 [[nodiscard]] FORCE_INLINE constexpr std::pair<int, int> fileRankFromPosition(
         BoardPosition position) {
     return {fileFromPosition(position), rankFromPosition(position)};
+}
+
+[[nodiscard]] FORCE_INLINE constexpr BoardPosition getEnPassantPiecePosition(
+        const BoardPosition enPassantTarget, const Side sideToMove) {
+    const auto [enPassantFile, enPassantRank] = fileRankFromPosition(enPassantTarget);
+    const int enPassantPieceRank =
+            sideToMove == Side::White ? enPassantRank - 1 : enPassantRank + 1;
+    return positionFromFileRank(enPassantFile, enPassantPieceRank);
 }
 
 [[nodiscard]] constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
