@@ -270,6 +270,14 @@ void UciFrontEnd::Impl::handleNewGame() {
 void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
     waitForGoToComplete();
 
+    if (!lineSStream.view().contains("moves")) {
+        writeDebug(
+                "Warning: did not find token 'moves' in position command. Position commands "
+                "without 'moves' are accepted as a non-standard extension when no move list is "
+                "specified. If a move list was specified but the 'moves' token was omitted, the "
+                "command may be parsed incorrectly.");
+    }
+
     std::string token;
     lineSStream >> token;
 
@@ -288,7 +296,9 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
         gameState_ = GameState::fromFen(fen);
     }
 
-    if (token != "moves") {
+    // Non-standard extension: allow for the 'moves' token to be omitted at the end of the line.
+    // This allows things like 'position startpos' as a short-hand for 'position startpos moves'.
+    if (lineSStream && token != "moves") {
         writeDebug("Error: Unrecognized token '{}'. Expected 'moves'.", token);
         return;
     }
