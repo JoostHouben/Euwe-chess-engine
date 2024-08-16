@@ -46,6 +46,8 @@ class MoveSearcher {
     // Reset the search statistics.
     void resetSearchStatistics();
 
+    [[nodiscard]] int getDefaultTTableSizeInMb() const;
+
     void setTTableSize(int requestedSizeInMb);
 
   private:

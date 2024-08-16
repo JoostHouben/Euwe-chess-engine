@@ -16,6 +16,8 @@ class Engine::Impl {
 
     void interruptSearch();
 
+    [[nodiscard]] int getDefaultTTableSizeInMb() const;
+
     void setTTableSize(int requestedSizeInMb);
 
   private:
@@ -126,6 +128,10 @@ void Engine::Impl::interruptSearch() {
     moveSearcher_.interruptSearch();
 }
 
+int Engine::Impl::getDefaultTTableSizeInMb() const {
+    return moveSearcher_.getDefaultTTableSizeInMb();
+}
+
 void Engine::Impl::setTTableSize(const int requestedSizeInMb) {
     moveSearcher_.setTTableSize(requestedSizeInMb);
 }
@@ -154,6 +160,10 @@ SearchInfo Engine::findMove(const GameState& gameState) {
 
 void Engine::interruptSearch() {
     impl_->interruptSearch();
+}
+
+int Engine::getDefaultTTableSizeInMb() const {
+    return impl_->getDefaultTTableSizeInMb();
 }
 
 void Engine::setTTableSize(const int requestedSizeInMb) {

@@ -125,9 +125,11 @@ UciFrontEnd::Impl::Impl(IEngine& engine, std::istream& in, std::ostream& out, st
 
     // Add UCI hard-coded options
     addOption(FrontEndOption::createInteger(
-            "Hash", 0, 0, 1 * 1024 * 1024, [this](const int requestedSizeInMb) {
-                engine_.setTTableSize(requestedSizeInMb);
-            }));
+            "Hash",
+            engine_.getDefaultTTableSizeInMb(),
+            0,
+            1 * 1024 * 1024,
+            [this](const int requestedSizeInMb) { engine_.setTTableSize(requestedSizeInMb); }));
 }
 
 UciFrontEnd::Impl::~Impl() {

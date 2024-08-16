@@ -89,6 +89,11 @@ e.g., [here](https://gist.github.com/DOBRO/2592c6dad754ba67e6dcaec8c90165bf) for
 interface. To aid with playing, you can enable printing of the board after each move by enabling
 debug mode. To do this, send the command `debug on`.
 
+**NOTE:** to minimize resources on startup, Euwe allocates only a small a transposition table on
+start-up. This significantly reduces its playing strength. It is strongly recommended to set the
+UCI option 'Hash' to an appopriate value. For example, to use a transposition table of size 512 MB,
+run the command `setoption name Hash value 512` (or configure this through a chess GUI).
+
 ## Technical details
 
 Euwe targets the C++23 standard. It is designed to have minimal external dependencies. Currently, the

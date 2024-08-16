@@ -22,6 +22,8 @@ class Engine final : public IEngine {
 
     void interruptSearch() override;
 
+    [[nodiscard]] int getDefaultTTableSizeInMb() const override;
+
     void setTTableSize(int requestedSizeInMb) override;
 
   private:

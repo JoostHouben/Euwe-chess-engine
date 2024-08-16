@@ -22,5 +22,7 @@ class IEngine {
 
     virtual void interruptSearch() = 0;
 
+    [[nodiscard]] virtual int getDefaultTTableSizeInMb() const = 0;
+
     virtual void setTTableSize(int requestedSizeInMb) = 0;
 };

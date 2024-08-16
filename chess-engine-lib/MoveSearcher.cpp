@@ -36,6 +36,8 @@ class MoveSearcher::Impl {
 
     void resetSearchStatistics();
 
+    int getDefaultTTableSizeInMb() const;
+
     void setTTableSize(int requestedSizeInMb);
 
   private:
@@ -261,6 +263,7 @@ void updateMateDistance(EvalT& score) {
 MoveSearcher::Impl::Impl(const TimeManager& timeManager) : timeManager_(timeManager) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
+    setTTableSize(getDefaultTTableSizeInMb());
 }
 
 void MoveSearcher::Impl::setFrontEnd(IFrontEnd* frontEnd) {
@@ -1151,6 +1154,10 @@ void MoveSearcher::Impl::resetSearchStatistics() {
     searchStatistics_ = {};
 }
 
+int MoveSearcher::Impl::getDefaultTTableSizeInMb() const {
+    return 16;
+}
+
 void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
     if (requestedSizeInMb == 0) {
         tTable_ = SearchTTable();
@@ -1199,6 +1206,10 @@ SearchStatistics MoveSearcher::getSearchStatistics() const {
 
 void MoveSearcher::resetSearchStatistics() {
     impl_->resetSearchStatistics();
+}
+
+int MoveSearcher::getDefaultTTableSizeInMb() const {
+    return impl_->getDefaultTTableSizeInMb();
 }
 
 void MoveSearcher::setTTableSize(const int requestedSizeInMb) {
