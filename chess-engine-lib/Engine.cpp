@@ -44,6 +44,17 @@ void Engine::Impl::newGame() {
 }
 
 SearchInfo Engine::Impl::findMove(const GameState& gameState) {
+    int maxDepth = MoveSearcher::kMaxDepth;
+
+    {
+        const auto moves = gameState.generateMoves(moveStack_);
+        if (moves.size() == 1) {
+            // Only one legal move. We still search to get a score and a PV.
+            // Search to depth 2 to get a guess for the opponent's follow-up move.
+            maxDepth = 2;
+        }
+    }
+
     moveSearcher_.prepareForNewSearch(gameState);
 
     GameState copyState(gameState);
@@ -56,7 +67,7 @@ SearchInfo Engine::Impl::findMove(const GameState& gameState) {
     auto startTime = std::chrono::high_resolution_clock::now();
 
     int depth;
-    for (depth = 1; depth < MoveSearcher::kMaxDepth; ++depth) {
+    for (depth = 1; depth <= maxDepth; ++depth) {
         const auto searchResult =
                 moveSearcher_.searchForBestMove(copyState, depth, moveStack_, evalGuess);
 

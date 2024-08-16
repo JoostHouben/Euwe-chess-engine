@@ -135,7 +135,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name Euwe v1.0.1");
+    writeUci("id name singular-early-exit");
     writeUci("id author Joost Houben");
 
     writeOptions();
