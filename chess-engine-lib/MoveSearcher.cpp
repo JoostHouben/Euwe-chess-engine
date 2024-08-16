@@ -212,12 +212,29 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     return piecesBitBoard != BitBoard::Empty;
 }
 
+[[nodiscard]] FORCE_INLINE int getDepthExtension(const bool isInCheck, const Move& lastMove) {
+    // Check extension
+    if (isInCheck) {
+        return 1;
+    }
+
+    // 7th rank extension
+    if (lastMove.pieceToMove == Piece::Pawn) {
+        const int toRank = rankFromPosition(lastMove.to);
+        if (toRank == 1 || toRank == 6) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 [[nodiscard]] FORCE_INLINE int getDepthReduction(
         const Move& move,
         const int moveIdx,
         const bool isPvNode,
         const int depth,
-        const bool isInCheck) {
+        const int extension) {
     static constexpr int kMovesSearchedFullDepth = 4;
     static constexpr int kMinDepthForReduction   = 3;
 
@@ -225,7 +242,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     const bool moveIsTactical  = isCapture(move.flags) || promotionPiece == Piece::Queen;
     const bool tooShallow      = depth < kMinDepthForReduction;
 
-    if (isInCheck || isPvNode || moveIdx < kMovesSearchedFullDepth || moveIsTactical
+    if (extension > 0 || isPvNode || moveIdx < kMovesSearchedFullDepth || moveIsTactical
         || tooShallow) {
         return 0;
     }
@@ -511,9 +528,9 @@ EvalT MoveSearcher::Impl::search(
 
     const bool isPvNode = beta - alpha > 1;
 
-    if (isInCheck) {
-        // Check extension
-        depth += 1;
+    const int extension = getDepthExtension(isInCheck, lastMove);
+    if (ply > 0) {
+        depth += extension;
     }
 
     constexpr int kNullMoveReduction = 3;
@@ -661,7 +678,7 @@ EvalT MoveSearcher::Impl::search(
     for (; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
-        const int reduction = getDepthReduction(move, moveIdx, isPvNode, depth, isInCheck);
+        const int reduction = getDepthReduction(move, moveIdx, isPvNode, depth, extension);
 
         const auto outcome = searchMove(
                 gameState,

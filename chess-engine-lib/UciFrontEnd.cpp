@@ -135,7 +135,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name bishop-pair");
+    writeUci("id name 7th-rank-extension");
     writeUci("id author Joost Houben");
 
     writeOptions();
