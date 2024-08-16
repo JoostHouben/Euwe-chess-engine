@@ -305,6 +305,7 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
     }
 
     if (debugMode_) {
+        writeDebug("FEN: {}", gameState_.toFen());
         writeDebugNonUci("Position:\n{}", gameState_.toVisualString());
     }
 }

@@ -1,5 +1,6 @@
 #include "EvalT.h"
 
+#include "Math.h"
 #include "MyAssert.h"
 
 #include <cmath>
@@ -12,8 +13,14 @@ bool isValid(const EvalT eval) {
     return -kMateEval <= eval && eval <= kMateEval;
 }
 
-int getMateDistanceInPly(EvalT eval) {
+int getMateDistanceInPly(const EvalT eval) {
     MY_ASSERT(isMate(eval));
 
     return kMateEval - std::abs(eval);
+}
+
+EvalT mateDistancePlus1(const EvalT eval) {
+    MY_ASSERT(isMate(eval));
+
+    return eval - signum(eval);
 }

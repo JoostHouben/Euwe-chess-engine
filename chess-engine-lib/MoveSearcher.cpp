@@ -190,12 +190,13 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
 [[nodiscard]] FORCE_INLINE bool nullMovePruningAllowed(
         const GameState& gameState,
         const bool isPvNode,
+        const EvalT beta,
         const bool isInCheck,
         const int depth,
         const int ply,
         const int lastNullMovePly) {
-    const bool basicConditions =
-            !isPvNode && !isInCheck && ply > 0 && depth >= 3 && ply != lastNullMovePly + 2;
+    const bool basicConditions = !isPvNode && !isInCheck && !isMate(beta) && ply > 0 && depth >= 3
+                              && ply != lastNullMovePly + 2;
     if (!basicConditions) {
         return false;
     }
@@ -230,6 +231,12 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     }
 
     return 1;
+}
+
+void updateMateDistance(EvalT& score) {
+    if (isMate(score)) {
+        score = mateDistancePlus1(score);
+    }
 }
 
 }  // namespace
@@ -510,7 +517,7 @@ EvalT MoveSearcher::Impl::search(
     }
 
     constexpr int kNullMoveReduction = 3;
-    if (nullMovePruningAllowed(gameState, isPvNode, isInCheck, depth, ply, lastNullMovePly)) {
+    if (nullMovePruningAllowed(gameState, isPvNode, beta, isInCheck, depth, ply, lastNullMovePly)) {
         const int nullMoveSearchDepth = max(1, depth - kNullMoveReduction - 1);
 
         const auto unmakeInfo = gameState.makeNullMove();
@@ -527,9 +534,7 @@ EvalT MoveSearcher::Impl::search(
 
         gameState.unmakeNullMove(unmakeInfo);
 
-        if (isMate(nullMoveScore)) {
-            nullMoveScore -= signum(nullMoveScore);
-        }
+        updateMateDistance(nullMoveScore);
 
         if (wasInterrupted_) {
             return -kInfiniteEval;
@@ -540,7 +545,7 @@ EvalT MoveSearcher::Impl::search(
             // bound on the score.
 
             // Null move failed high, don't bother searching other moves.
-            // Return a conservative lower bound.
+            // Return a conservative lower bound (fail-hard).
             return beta;
         }
     }
@@ -843,9 +848,7 @@ EvalT MoveSearcher::Impl::quiesce(
             return bestScore;
         }
 
-        if (isMate(score)) {
-            score -= signum(score);
-        }
+        updateMateDistance(score);
 
         if (score >= beta) {
             return score;
@@ -880,7 +883,13 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     if (reducedDepth > 0) {
         const bool isPvNode              = beta - alpha > 1;
         const bool likelyNullMoveAllowed = nullMovePruningAllowed(
-                gameState, isPvNode, /*isInCheck =*/false, reducedDepth, ply + 1, lastNullMovePly);
+                gameState,
+                isPvNode,
+                /*beta*/ -alpha,
+                /*isInCheck =*/false,
+                reducedDepth,
+                ply + 1,
+                lastNullMovePly);
 
         HashT hashToPrefetch = gameState.getBoardHash();
         if (likelyNullMoveAllowed) {
@@ -926,9 +935,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
         return SearchMoveOutcome::Interrupted;
     }
 
-    if (isMate(score)) {
-        score -= signum(score);
-    }
+    updateMateDistance(score);
 
     updateHistoryForUse(move, depth, gameState.getSideToMove());
     if (score > bestScore) {
@@ -961,11 +968,15 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     static constexpr EvalT kInitialTolerance      = 25;
     static constexpr int kToleranceIncreaseFactor = 4;
 
-    EvalT lowerTolerance = kInitialTolerance;
-    EvalT upperTolerance = kInitialTolerance;
+    int lowerTolerance = kInitialTolerance;
+    int upperTolerance = kInitialTolerance;
 
-    EvalT lowerBound = initialGuess - lowerTolerance;
-    EvalT upperBound = initialGuess + upperTolerance;
+    auto toEval = [](int v) {
+        return (EvalT)(clamp(v, (int)-kInfiniteEval, (int)kInfiniteEval));
+    };
+
+    EvalT lowerBound = toEval(initialGuess - lowerTolerance);
+    EvalT upperBound = toEval(initialGuess + upperTolerance);
 
     bool everFailedLow = false;
 
@@ -1033,10 +1044,11 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 lowerBound = -kInfiniteEval;
             } else {
                 // Exponentially grow the tolerance.
+                const int oldTolerance = lowerTolerance;
                 lowerTolerance *= kToleranceIncreaseFactor;
                 // Expand the lower bound based on the increased tolerance or the search result,
                 // whichever is lower.
-                lowerBound = min(searchEval - 1, initialGuess - lowerTolerance);
+                lowerBound = toEval(min(searchEval - oldTolerance, initialGuess - lowerTolerance));
             }
         } else {
             // Failed high
@@ -1046,10 +1058,11 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 upperBound = kInfiniteEval;
             } else {
                 // Exponentially grow the tolerance.
+                const int oldTolerance = upperTolerance;
                 upperTolerance *= kToleranceIncreaseFactor;
                 // Expand the upper bound based on the increased tolerance or the search result,
                 // whichever is higher.
-                upperBound = max(searchEval + 1, initialGuess + upperTolerance);
+                upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
             }
         }
 
