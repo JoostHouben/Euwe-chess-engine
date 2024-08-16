@@ -7,6 +7,8 @@ Euwe is a UCI chess engine written in modern C++. It is named after
 [Max Euwe](https://en.wikipedia.org/wiki/Max_Euwe), a Dutch chess player, mathematician, former
 FIDE president, and the fifth World Chess Champion.
 
+You can play against it online on [lichess](https://lichess.org/@/Euwe-chess-engine).
+
 ## Hardware requirements
 
 Euwe uses BMI2 instructions for bitboard manipulation. This means that it requires a CPU that
@@ -74,7 +76,8 @@ Other than this the full UCI protocol is supported.
 
 ## Usage
 
-The recommended way to use Euwe is using a UCI chess GUI. Some good choices include:
+Apart from playing against it [on lichess](https://lichess.org/@/Euwe-chess-engine), the recommended
+way to use Euwe is using a UCI chess GUI. Some good choices include:
 
  - [Arena](http://www.playwitharena.com/)
  - [Cute Chess](https://cutechess.com/)
