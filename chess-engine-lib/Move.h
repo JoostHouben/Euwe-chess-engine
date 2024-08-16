@@ -74,6 +74,8 @@ struct Move {
     [[nodiscard]] static Move fromUci(std::string_view uci, const GameState& gameState);
 };
 
+void doBasicSanityChecks(const Move& move, const GameState& gameState);
+
 // For fast initialization
 inline constexpr Move kUninitializedMove =
         Move{.pieceToMove = (Piece)0,

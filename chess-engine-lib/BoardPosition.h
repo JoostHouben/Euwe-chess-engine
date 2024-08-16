@@ -2,6 +2,7 @@
 
 #include "Macros.h"
 
+#include <stdexcept>
 #include <string>
 
 #include <cstdint>
@@ -39,6 +40,11 @@ enum class BoardPosition : std::uint8_t {
 [[nodiscard]] constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
     const int file = algebraic[0] - 'a';
     const int rank = algebraic[1] - '1';
+
+    if (file < 0 || file > 7 || rank < 0 || rank > 7) [[unlikely]] {
+        throw std::invalid_argument("Invalid algebraic position: " + std::string(algebraic));
+    }
+
     return positionFromFileRank(file, rank);
 }
 

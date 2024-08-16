@@ -312,8 +312,15 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
             break;
         }
 
-        const Move move = Move::fromUci(moveString, gameState_);
-        (void)gameState_.makeMove(move);
+        try {
+            const Move move = Move::fromUci(moveString, gameState_);
+            doBasicSanityChecks(move, gameState_);
+
+            (void)gameState_.makeMove(move);
+        } catch (const std::exception& e) {
+            writeDebug("Error: Failed to parse or apply move '{}': {}", moveString, e.what());
+            return;
+        }
     }
 
     if (debugMode_) {
