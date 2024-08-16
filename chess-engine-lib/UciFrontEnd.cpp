@@ -135,7 +135,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name singular-early-exit");
+    writeUci("id name bishop-pair");
     writeUci("id author Joost Houben");
 
     writeOptions();

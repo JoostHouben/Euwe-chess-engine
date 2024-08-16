@@ -11,12 +11,12 @@
 namespace {
 
 constexpr std::array<int, kNumPieceTypes> kPieceValues = {
-        100,     // Pawn
-        305,     // Knight
-        333,     // Bishop
-        563,     // Rook
-        950,     // Queen
-        20'000,  // King (for move ordering)
+        100,  // Pawn
+        305,  // Knight
+        308,  // Bishop
+        563,  // Rook
+        950,  // Queen
+        0,    // King
 };
 
 constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
@@ -189,6 +189,7 @@ constexpr int kIsolatedPawnPenalty    = 30;
 
 // Penalty for having 0...8 own pawns on the same color as a bishop
 constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
+constexpr int kBishopPairBonus                 = 50;
 
 constexpr int kRookSemiOpenFileBonus = 10;
 constexpr int kRookOpenFileBonus     = 20;
@@ -273,13 +274,21 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
                 popCount(ownPawns & kLightSquareBitBoard),
         };
 
+        std::array<bool, 2> hasBishopOfColor = {false, false};
+
         while (pieceBitBoard != BitBoard::Empty) {
             BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Bishop, position, side, result);
 
             const int squareColor = getSquareColor(position);
 
+            hasBishopOfColor[squareColor] = true;
+
             result.material -= kBadBishopPenalty[ownPawnsPerSquareColor[squareColor]];
+        }
+
+        if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
+            result.material += kBishopPairBonus;
         }
     }
 
@@ -543,8 +552,17 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
 }  // namespace
 
-FORCE_INLINE int getPieceValue(const Piece piece) {
-    return kPieceValues[(int)piece];
+FORCE_INLINE int getStaticPieceValue(const Piece piece) {
+    static constexpr std::array<int, kNumPieceTypes> kStaticPieceValues = {
+            100,     // Pawn
+            305,     // Knight
+            308,     // Bishop
+            563,     // Rook
+            950,     // Queen
+            20'000,  // King
+    };
+
+    return kStaticPieceValues[(int)piece];
 }
 
 FORCE_INLINE int getPieceSquareValue(const Piece piece, BoardPosition position, const Side side) {
@@ -558,10 +576,7 @@ FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     return whiteInsufficientMaterial && blackInsufficientMaterial;
 }
 
-[[nodiscard]]
-
-FORCE_INLINE EvalT
-evaluateNoLegalMoves(const GameState& gameState) {
+[[nodiscard]] FORCE_INLINE EvalT evaluateNoLegalMoves(const GameState& gameState) {
     if (gameState.isInCheck()) {
         // We're in check and there are no legal moves so we're in checkmate.
         return -kMateEval;

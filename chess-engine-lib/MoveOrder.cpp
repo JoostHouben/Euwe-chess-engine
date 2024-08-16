@@ -28,8 +28,8 @@ constexpr int kCounterMoveBonus = 500;
     // We achieve this by adding the value of the victim, and then subtracting the value of
     // the aggressor, but divided by a large enough factor so that the victim's value
     // dominates for all but the king.
-    moveScore += getPieceValue(capturedPiece);
-    moveScore -= (getPieceValue(move.pieceToMove) >> 5);
+    moveScore += getStaticPieceValue(capturedPiece);
+    moveScore -= (getStaticPieceValue(move.pieceToMove) >> 5);
 
     moveScore +=
             getPieceSquareValue(capturedPiece, captureTarget, nextSide(gameState.getSideToMove()));
@@ -41,8 +41,8 @@ constexpr int kCounterMoveBonus = 500;
 scoreQueenPromotion(const Move& move, const GameState& gameState) {
     MoveEvalT moveScore = kPromotionBonus;
 
-    moveScore += getPieceValue(Piece::Queen);
-    moveScore -= getPieceValue(Piece::Pawn);
+    moveScore += getStaticPieceValue(Piece::Queen);
+    moveScore -= getStaticPieceValue(Piece::Pawn);
 
     return moveScore;
 }

@@ -152,7 +152,7 @@ template <bool ReturnBound, bool ReturnMeets>
 
     std::array<int, kNumTotalPieces> gain{};
     int exchangeIdx     = 0;
-    gain[exchangeIdx++] = getPieceValue(targetPiece);
+    gain[exchangeIdx++] = getStaticPieceValue(targetPiece);
 
     if constexpr (ReturnBound) {
         if (gain[0] < threshold) {
@@ -180,7 +180,7 @@ template <bool ReturnBound, bool ReturnMeets>
     const Side sideToMove = gameState.getSideToMove();
     for (;; ++exchangeIdx) {
         // Gain from the perspective of current side to move if the target piece is taken
-        gain[exchangeIdx] = getPieceValue(targetPiece) - gain[exchangeIdx - 1ULL];
+        gain[exchangeIdx] = getStaticPieceValue(targetPiece) - gain[exchangeIdx - 1ULL];
 
         const Side side = (Side)((exchangeIdx + (int)sideToMove) & 1);
 

@@ -30,7 +30,7 @@ Euwe uses a very simple evaluation function that takes into account the followin
  - Piece square tables.
  - Tapered evaluation.
  - Pawn structure: doubled, isolated, and passed pawns.
- - Piece quality: 'bad bishops', rooks on (semi-)open files.
+ - Piece quality: bishop pair, 'bad bishops', rooks on (semi-)open files.
 
 ### Search function
 

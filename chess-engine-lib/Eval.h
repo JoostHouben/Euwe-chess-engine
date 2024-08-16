@@ -3,7 +3,7 @@
 #include "EvalT.h"
 #include "GameState.h"
 
-[[nodiscard]] int getPieceValue(Piece piece);
+[[nodiscard]] int getStaticPieceValue(Piece piece);
 
 [[nodiscard]] int getPieceSquareValue(Piece piece, BoardPosition position, Side side);
 
