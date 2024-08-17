@@ -552,45 +552,11 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
     --halfMoveClock_;
 
-    updateHashForSideToMove(boardHash_);
-
-    if (castlingRights_ != unmakeMoveInfo.castlingRights) {
-        for (int sideIdx = 0; sideIdx < kNumSides; ++sideIdx) {
-            const std::uint8_t kingSideFlag  = (uint8_t)CastlingRights::KingSide << (sideIdx * 2);
-            const std::uint8_t queenSideFlag = (uint8_t)CastlingRights::QueenSide << (sideIdx * 2);
-
-            if (((std::uint8_t)castlingRights_ & kingSideFlag)
-                != ((std::uint8_t)unmakeMoveInfo.castlingRights & kingSideFlag)) {
-                updateHashForKingSideCastlingRights((Side)sideIdx, boardHash_);
-            }
-
-            if (((std::uint8_t)castlingRights_ & queenSideFlag)
-                != ((std::uint8_t)unmakeMoveInfo.castlingRights & queenSideFlag)) {
-                updateHashForQueenSideCastlingRights((Side)sideIdx, boardHash_);
-            }
-        }
-
-        castlingRights_ = unmakeMoveInfo.castlingRights;
-    }
-
-    if (enPassantTarget_ != unmakeMoveInfo.enPassantTarget) {
-        if (enPassantTarget_ != BoardPosition::Invalid) {
-            updateHashForEnPassantFile(fileFromPosition(enPassantTarget_), boardHash_);
-        }
-
-        enPassantTarget_ = unmakeMoveInfo.enPassantTarget;
-
-        if (enPassantTarget_ != BoardPosition::Invalid) {
-            updateHashForEnPassantFile(fileFromPosition(enPassantTarget_), boardHash_);
-        }
-    }
+    castlingRights_  = unmakeMoveInfo.castlingRights;
+    enPassantTarget_ = unmakeMoveInfo.enPassantTarget;
 
     lastReversiblePositionHashIdx_ = unmakeMoveInfo.lastReversiblePositionHashIdx;
     previousHashes_.pop_back();
-
-#ifndef NDEBUG
-    const HashT expectedHash = previousHashes_.back();
-#endif
 
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
@@ -598,7 +564,7 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
         unmakeSinglePieceMove(move, unmakeMoveInfo);
     }
 
-    MY_ASSERT_DEBUG(boardHash_ == expectedHash);
+    boardHash_ = previousHashes_.back();
 }
 
 void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
@@ -653,9 +619,6 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     getPieceOnSquare(kingToPosition)   = getPieceOnSquare(kingFromPosition);
     getPieceOnSquare(kingFromPosition) = ColoredPiece::Invalid;
 
-    updateHashForPiecePosition(sideToMove_, Piece::King, kingFromPosition, boardHash_);
-    updateHashForPiecePosition(sideToMove_, Piece::King, kingToPosition, boardHash_);
-
     // Update rook
     BitBoard& rookBitBoard = getPieceBitBoard(sideToMove_, Piece::Rook);
     rookBitBoard &= ~rookFromPosition;
@@ -664,10 +627,13 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     getPieceOnSquare(rookToPosition)   = getPieceOnSquare(rookFromPosition);
     getPieceOnSquare(rookFromPosition) = ColoredPiece::Invalid;
 
-    updateHashForPiecePosition(sideToMove_, Piece::Rook, rookFromPosition, boardHash_);
-    updateHashForPiecePosition(sideToMove_, Piece::Rook, rookToPosition, boardHash_);
-
     if (!reverse) {
+        updateHashForPiecePosition(sideToMove_, Piece::King, kingFromPosition, boardHash_);
+        updateHashForPiecePosition(sideToMove_, Piece::King, kingToPosition, boardHash_);
+
+        updateHashForPiecePosition(sideToMove_, Piece::Rook, rookFromPosition, boardHash_);
+        updateHashForPiecePosition(sideToMove_, Piece::Rook, rookToPosition, boardHash_);
+
         if (canCastleKingSide(sideToMove_)) {
             setCanCastleKingSide(sideToMove_, false);
             updateHashForKingSideCastlingRights(sideToMove_, boardHash_);
@@ -785,16 +751,10 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
     // Can't use getPieceOnSquare(move.to) here because that fails when undoing a promotion.
     getPieceOnSquare(move.from) = getColoredPiece(move.pieceToMove, sideToMove_);
 
-    updateHashForPiecePosition(sideToMove_, move.pieceToMove, move.from, boardHash_);
-
     const Piece promotionPiece = getPromotionPiece(move.flags);
     if (promotionPiece != Piece::Pawn) {
         BitBoard& promotionBitBoard = getPieceBitBoard(sideToMove_, promotionPiece);
         promotionBitBoard &= ~move.to;
-
-        updateHashForPiecePosition(sideToMove_, promotionPiece, move.to, boardHash_);
-    } else {
-        updateHashForPiecePosition(sideToMove_, move.pieceToMove, move.to, boardHash_);
     }
 
     if (isCapture(move.flags)) {
@@ -818,9 +778,6 @@ void GameState::unmakeSinglePieceMove(const Move& move, const UnmakeMoveInfo& un
         if (isEnPassant(move.flags)) {
             getPieceOnSquare(move.to) = ColoredPiece::Invalid;
         }
-
-        updateHashForPiecePosition(
-                nextSide(sideToMove_), unmakeMoveInfo.capturedPiece, captureTarget, boardHash_);
     } else {
         getPieceOnSquare(move.to) = ColoredPiece::Invalid;
     }
