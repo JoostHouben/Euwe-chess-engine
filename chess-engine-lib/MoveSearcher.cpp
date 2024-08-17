@@ -693,6 +693,10 @@ EvalT MoveSearcher::Impl::search(
         const int futilityValue                       = staticEval + futilityMarginPerDepth * depth;
         if (futilityPruningEnabled && futilityValue <= alpha && !isCapture(move.flags)) {
             if (!gameState.givesCheck(move)) {
+                if (futilityValue > bestScore) {
+                    bestScore = futilityValue;
+                    bestMove  = move;
+                }
                 continue;
             }
         }
@@ -712,7 +716,7 @@ EvalT MoveSearcher::Impl::search(
                 bestMove,
                 lastMove,
                 lastNullMovePly,
-                /*useScoutSearch =*/completedAnySearch);
+                /*useScoutSearch =*/isPvNode && completedAnySearch);
 
         if (outcome != SearchMoveOutcome::Interrupted) {
             completedAnySearch = true;
@@ -956,7 +960,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                     gameState, fullDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
         }
     } else {
-        MY_ASSERT(reduction == 0);
+        MY_ASSERT(beta == alpha + 1 || reduction == 0);
 
         score = -search(
                 gameState, reducedDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);

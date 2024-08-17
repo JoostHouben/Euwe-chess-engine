@@ -103,7 +103,7 @@ void countMoveStatisticsAtPlyWithUnmake(
         return;
     };
 
-    HashT hash = gameState.getBoardHash();
+    const HashT hash = gameState.getBoardHash();
     EXPECT_NE(hash, 0);
 
     for (const Move move : moves) {

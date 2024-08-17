@@ -3,6 +3,7 @@
 #include "MyGTest.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 namespace HashingTests {
 
@@ -37,9 +38,9 @@ struct HashCollisionTestConfig {
     int depth;
 };
 
-class HashingTests : public ::testing::TestWithParam<HashCollisionTestConfig> {};
+class HashCollisionTests : public ::testing::TestWithParam<HashCollisionTestConfig> {};
 
-TEST_P(HashingTests, FindHashCollisions) {
+TEST_P(HashCollisionTests, FindHashCollisions) {
     const HashCollisionTestConfig config = GetParam();
 
     GameState gameState = GameState::fromFen(config.fen);
@@ -84,6 +85,57 @@ auto testCases = ::testing::Values(
         HashCollisionTestConfig{.fen = kPosition5Fen, .depth = 3},
         HashCollisionTestConfig{.fen = kPosition6Fen, .depth = 3});
 
-INSTANTIATE_TEST_CASE_P(HashingTests, HashingTests, testCases, hashTestName);
+INSTANTIATE_TEST_CASE_P(HashCollisionTests, HashCollisionTests, testCases, hashTestName);
+
+TEST(HashingTests, NullMoveEnPassantHashing) {
+    const HashT withEnPassantTarget =
+            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - c3 0 1").getBoardHash();
+    const HashT withoutEnPassantTarget =
+            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - - 0 1").getBoardHash();
+
+    EXPECT_NE(withEnPassantTarget, withoutEnPassantTarget);
+
+    GameState gameState = GameState::fromFen("8/5k2/2n1R3/6K1/1p1p1B2/pP1P4/P1P5/8 b - - 0 1");
+
+    const HashT startHash = gameState.getBoardHash();
+
+    const Move movef7e6       = Move::fromUci("f7e6", gameState);
+    const auto movef7e6Unmake = gameState.makeMove(movef7e6);
+    const HashT afterf7e6Hash = gameState.getBoardHash();
+
+    const Move doublePush{
+            .pieceToMove = Piece::Pawn, .from = BoardPosition::C2, .to = BoardPosition::C4};
+    const auto gameStateUnmake      = gameState.makeMove(doublePush);
+    const HashT afterDoublePushHash = gameState.getBoardHash();
+
+    const auto nullMoveUnmake     = gameState.makeNullMove();
+    const HashT afterNullMoveHash = gameState.getBoardHash();
+
+    const Move moveg5g4       = Move::fromUci("g5g4", gameState);
+    const auto moveg5gfUnmake = gameState.makeMove(moveg5g4);
+    const HashT afterg5g4Hash = gameState.getBoardHash();
+
+    EXPECT_EQ(afterg5g4Hash, withoutEnPassantTarget);
+
+    gameState.unmakeMove(moveg5g4, moveg5gfUnmake);
+    const HashT afterUnmakingg5g4Hash = gameState.getBoardHash();
+    EXPECT_EQ(afterUnmakingg5g4Hash, afterNullMoveHash);
+
+    gameState.unmakeNullMove(nullMoveUnmake);
+    const HashT afterUnmakingNullMoveHash = gameState.getBoardHash();
+    EXPECT_EQ(afterUnmakingNullMoveHash, afterDoublePushHash);
+
+    gameState.unmakeMove(doublePush, gameStateUnmake);
+    const HashT afterUnmakingDoublePushHash = gameState.getBoardHash();
+    EXPECT_EQ(afterUnmakingDoublePushHash, afterf7e6Hash);
+
+    gameState.unmakeMove(movef7e6, movef7e6Unmake);
+    const HashT afterUnmakingf7e6Hash = gameState.getBoardHash();
+    EXPECT_EQ(afterUnmakingf7e6Hash, startHash);
+
+    std::set<HashT> hashes = {
+            startHash, afterf7e6Hash, afterDoublePushHash, afterNullMoveHash, afterg5g4Hash};
+    EXPECT_EQ(hashes.size(), 5);
+}
 
 }  // namespace HashingTests

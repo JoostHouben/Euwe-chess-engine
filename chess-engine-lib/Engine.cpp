@@ -28,7 +28,7 @@ class Engine::Impl {
 };
 
 Engine::Impl::Impl() : moveSearcher_(timeManager_) {
-    moveStack_.reserve(1'000);
+    //moveStack_.reserve(1'000);
 }
 
 TimeManager& Engine::Impl::getTimeManager() {

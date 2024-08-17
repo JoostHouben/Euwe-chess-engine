@@ -525,6 +525,10 @@ GameState::UnmakeMoveInfo GameState::makeNullMove() {
             .plySinceCaptureOrPawn         = plySinceCaptureOrPawn_,
             .lastReversiblePositionHashIdx = lastReversiblePositionHashIdx_};
 
+    if (enPassantTarget_ != BoardPosition::Invalid) {
+        updateHashForEnPassantFile(fileFromPosition(enPassantTarget_), boardHash_);
+    }
+
     sideToMove_      = nextSide(sideToMove_);
     enPassantTarget_ = BoardPosition::Invalid;
     std::swap(occupancy_.ownPiece, occupancy_.enemyPiece);
@@ -584,11 +588,17 @@ void GameState::unmakeMove(const Move& move, const UnmakeMoveInfo& unmakeMoveInf
     lastReversiblePositionHashIdx_ = unmakeMoveInfo.lastReversiblePositionHashIdx;
     previousHashes_.pop_back();
 
+#ifndef NDEBUG
+    const HashT expectedHash = previousHashes_.back();
+#endif
+
     if (isCastle(move.flags)) {
         makeCastleMove(move, /*reverse*/ true);
     } else {
         unmakeSinglePieceMove(move, unmakeMoveInfo);
     }
+
+    MY_ASSERT_DEBUG(boardHash_ == expectedHash);
 }
 
 void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
@@ -603,6 +613,10 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
     previousHashes_.pop_back();
 
     updateHashForSideToMove(boardHash_);
+
+    if (enPassantTarget_ != BoardPosition::Invalid) {
+        updateHashForEnPassantFile(fileFromPosition(enPassantTarget_), boardHash_);
+    }
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {
