@@ -606,8 +606,7 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {
-    const int kingFromFile = 4;  // e
-    const int kingFromRank = sideToMove_ == Side::White ? 0 : 7;
+    const auto [kingFromFile, kingFromRank] = fileRankFromPosition(move.from);
 
     const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
     const bool isQueenSide              = kingToFile == 2;  // c
@@ -620,7 +619,7 @@ void GameState::makeCastleMove(const Move& move, const bool reverse) {
     BoardPosition rookToPosition =
             positionFromFileRank((kingFromFile + kingToFile) / 2, kingFromRank);
 
-    BoardPosition kingFromPosition = positionFromFileRank(kingFromFile, kingFromRank);
+    BoardPosition kingFromPosition = move.from;
     BoardPosition kingToPosition   = move.to;
 
     if (reverse) {
@@ -1047,6 +1046,71 @@ bool GameState::isRepetition(int repetitionsForDraw) const {
 bool GameState::isFiftyMoves() const {
     // 50 move rule
     if (plySinceCaptureOrPawn_ >= 100) {
+        return true;
+    }
+
+    return false;
+}
+
+bool GameState::givesCheck(const Move& move) const {
+    const BitBoard enemyKingBitBoard = getPieceBitBoard(nextSide(sideToMove_), Piece::King);
+    const BitBoard occupied          = occupancy_.ownPiece | occupancy_.enemyPiece;
+
+    const Piece movedPiece =
+            isPromotion(move.flags) ? getPromotionPiece(move.flags) : move.pieceToMove;
+
+    BitBoard occupancyAfterMove = occupied & ~move.from | move.to;
+    if (isEnPassant(move.flags)) {
+        const BoardPosition enPassantPiecePosition =
+                getEnPassantPiecePosition(move.to, sideToMove_);
+        occupancyAfterMove &= ~enPassantPiecePosition;
+    }
+
+    // Check for direct attacks
+    if (isCastle(move.flags)) {
+        const auto [kingFromFile, kingFromRank] = fileRankFromPosition(move.from);
+
+        const auto [kingToFile, kingToRank] = fileRankFromPosition(move.to);
+
+        const BoardPosition rookToPosition =
+                positionFromFileRank((kingFromFile + kingToFile) / 2, kingFromRank);
+
+        const BitBoard rookAttack = getRookAttack(rookToPosition, occupancyAfterMove);
+        if ((rookAttack & enemyKingBitBoard) != BitBoard::Empty) {
+            return true;
+        }
+
+        // Castling can't give a discovered check
+        return false;
+    } else if (movedPiece == Piece::Pawn) {
+        const BitBoard newPositionBB    = BitBoard::Empty | move.to;
+        const BitBoard movedPawnControl = getPawnControlledSquares(newPositionBB, sideToMove_);
+        if ((movedPawnControl & enemyKingBitBoard) != BitBoard::Empty) {
+            return true;
+        }
+    } else {
+        const BitBoard newControl =
+                getPieceControlledSquares(movedPiece, move.to, occupancyAfterMove);
+        if ((newControl & enemyKingBitBoard) != BitBoard::Empty) {
+            return true;
+        }
+    }
+
+    // Check for discovered checks
+    const BoardPosition kingPosition = getFirstSetPosition(enemyKingBitBoard);
+    const BitBoard ownQueens         = getPieceBitBoard(sideToMove_, Piece::Queen);
+
+    const BitBoard bishopAttackFromKing = getBishopAttack(kingPosition, occupancyAfterMove);
+    const BitBoard ownBishops           = getPieceBitBoard(sideToMove_, Piece::Bishop);
+    const BitBoard ownDiagonalMovers    = ownBishops | ownQueens;
+    if ((bishopAttackFromKing & ownDiagonalMovers) != BitBoard::Empty) {
+        return true;
+    }
+
+    const BitBoard rookAttackFromKing = getRookAttack(kingPosition, occupancyAfterMove);
+    const BitBoard ownRooks           = getPieceBitBoard(sideToMove_, Piece::Rook);
+    const BitBoard ownStraightMovers  = ownRooks | ownQueens;
+    if ((rookAttackFromKing & ownStraightMovers) != BitBoard::Empty) {
         return true;
     }
 

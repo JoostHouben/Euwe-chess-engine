@@ -183,7 +183,7 @@ Move Move::fromAlgebraic(std::string_view algebraic, const GameState& gameState)
     StackOfVectors<Move> stack;
 
     const StackVector<Move> moves = gameState.generateMoves(stack);
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         if (move.toAlgebraic(gameState) == algebraic) {
             return move;
         }

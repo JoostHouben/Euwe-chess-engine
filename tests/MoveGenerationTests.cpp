@@ -16,6 +16,7 @@ struct MoveStatistics {
     std::size_t numEnPassant  = 0;
     std::size_t numCastle     = 0;
     std::size_t numPromotions = 0;
+    std::size_t numChecks     = 0;
 
     int ply = 0;  // only used in ttable tests
 };
@@ -26,6 +27,7 @@ struct ExpectedMoveStatistics {
     std::optional<std::size_t> numEnPassant  = std::nullopt;
     std::optional<std::size_t> numCastle     = std::nullopt;
     std::optional<std::size_t> numPromotions = std::nullopt;
+    std::optional<std::size_t> numChecks     = std::nullopt;
 };
 
 void compareStatistics(const MoveStatistics& actual, const ExpectedMoveStatistics& expected) {
@@ -44,15 +46,23 @@ void compareStatistics(const MoveStatistics& actual, const ExpectedMoveStatistic
     if (expected.numPromotions.has_value()) {
         EXPECT_EQ(actual.numPromotions, expected.numPromotions.value());
     }
+    if (expected.numChecks.has_value()) {
+        EXPECT_EQ(actual.numChecks, expected.numChecks.value());
+    }
 }
 
-void updateStatistics(const StackVector<Move>& moves, MoveStatistics& statistics) {
+void updateStatistics(
+        const StackVector<Move>& moves, const GameState& gameState, MoveStatistics& statistics) {
     statistics.numMoves += moves.size();
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         statistics.numCaptures += isCapture(move.flags);
         statistics.numEnPassant += isEnPassant(move.flags);
         statistics.numCastle += isCastle(move.flags);
         statistics.numPromotions += isPromotion(move.flags);
+
+        if (gameState.givesCheck(move)) {
+            statistics.numChecks++;
+        }
     }
 }
 
@@ -62,6 +72,7 @@ void updateStatistics(const MoveStatistics& statisticsToAdd, MoveStatistics& sta
     statistics.numEnPassant += statisticsToAdd.numEnPassant;
     statistics.numCastle += statisticsToAdd.numCastle;
     statistics.numPromotions += statisticsToAdd.numPromotions;
+    statistics.numChecks += statisticsToAdd.numChecks;
 }
 
 void countMoveStatisticsAtPly(
@@ -71,10 +82,10 @@ void countMoveStatisticsAtPly(
         return;
     }
     if (ply == 1) {
-        updateStatistics(moves, statistics);
+        updateStatistics(moves, gameState, statistics);
         return;
     };
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         GameState copyState(gameState);
         (void)copyState.makeMove(move);
         countMoveStatisticsAtPly(copyState, ply - 1, statistics, stack);
@@ -88,14 +99,14 @@ void countMoveStatisticsAtPlyWithUnmake(
         return;
     }
     if (ply == 1) {
-        updateStatistics(moves, statistics);
+        updateStatistics(moves, gameState, statistics);
         return;
     };
 
     HashT hash = gameState.getBoardHash();
     EXPECT_NE(hash, 0);
 
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
 
         EXPECT_NE(hash, gameState.getBoardHash());
@@ -104,11 +115,6 @@ void countMoveStatisticsAtPlyWithUnmake(
         gameState.unmakeMove(move, unmakeInfo);
 
         EXPECT_EQ(hash, gameState.getBoardHash());
-
-        if (hash != gameState.getBoardHash()) {
-            std::cerr << move.toExtendedString() << std::endl;
-            hash = gameState.getBoardHash();
-        }
     }
 }
 
@@ -133,13 +139,13 @@ MoveStatistics countMoveStatisticsAtPlyWithTTable(
         return statistics;
     }
     if (ply == 1) {
-        updateStatistics(moves, statistics);
+        updateStatistics(moves, gameState, statistics);
         return statistics;
     };
 
     HashT hash = gameState.getBoardHash();
 
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         auto unmakeInfo = gameState.makeMove(move);
 
         EXPECT_NE(hash, gameState.getBoardHash());
@@ -183,7 +189,6 @@ TEST_P(ValidateMoveStats, TestMoveStats) {
     MoveStatistics statistics{};
     GameState gameState = GameState::fromFen(config.fen);
     StackOfVectors<Move> stack;
-    stack.reserve(300);
     countMoveStatisticsAtPly(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
 }
@@ -195,7 +200,6 @@ TEST_P(ValidateMoveStatsWithUnmake, TestMoveStats) {
     MoveStatistics statistics{};
     GameState gameState = GameState::fromFen(config.fen);
     StackOfVectors<Move> stack;
-    stack.reserve(300);
     countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
 }
@@ -208,7 +212,6 @@ TEST_P(ValidateMoveStatsWithTTable, TestMoveStats) {
     GameState gameState = GameState::fromFen(config.fen);
 
     StackOfVectors<Move> stack;
-    stack.reserve(300);
 
     const MoveStatistics statistics =
             countMoveStatisticsAtPlyWithTTable(gameState, config.depth, stack);
@@ -280,7 +283,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 0,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 0}},
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 2,
@@ -289,7 +293,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 0,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 0}},
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 3,
@@ -298,7 +303,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 34,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 12}},
         // kiwipete
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
@@ -308,7 +314,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 8,
                          .numEnPassant  = 0,
                          .numCastle     = 2,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 0}},
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 2,
@@ -317,7 +324,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 351,
                          .numEnPassant  = 1,
                          .numCastle     = 91,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 3}},
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 3,
@@ -326,7 +334,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 17'102,
                          .numEnPassant  = 45,
                          .numCastle     = 3'162,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 993}},
         // position3
         TestStatsConfig{
                 .fen   = kPosition3Fen,
@@ -336,7 +345,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 1,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 2}},
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 2,
@@ -345,7 +355,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 14,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 10}},
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 3,
@@ -354,7 +365,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 209,
                          .numEnPassant  = 2,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 267}},
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 4,
@@ -363,7 +375,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 3'348,
                          .numEnPassant  = 123,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 1'680}},
         // position4
         TestStatsConfig{
                 .fen   = kPosition4Fen,
@@ -373,7 +386,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 0,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
+                         .numPromotions = 0,
+                         .numChecks     = 0}},
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 2,
@@ -382,7 +396,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 87,
                          .numEnPassant  = 0,
                          .numCastle     = 6,
-                         .numPromotions = 48}},
+                         .numPromotions = 48,
+                         .numChecks     = 10}},
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 3,
@@ -391,7 +406,8 @@ auto testCasesFast = ::testing::Values(
                          .numCaptures   = 1'021,
                          .numEnPassant  = 4,
                          .numCastle     = 0,
-                         .numPromotions = 120}},
+                         .numPromotions = 120,
+                         .numChecks     = 38}},
         // position5
         TestStatsConfig{.fen = kPosition5Fen, .depth = 1, .expectedStats = {.numMoves = 44}},
         TestStatsConfig{.fen = kPosition5Fen, .depth = 2, .expectedStats = {.numMoves = 1'486}},
@@ -462,9 +478,7 @@ auto testCasesFast = ::testing::Values(
                         .numCastle     = 0,
                         .numPromotions = 0}});
 
-// Total in release mode: ~5.6s
 auto testCasesSlow = ::testing::Values(
-        // Release mode: ~2ms
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 4,
@@ -473,8 +487,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 1'576,
                          .numEnPassant  = 0,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
-        // Release mode: ~50ms
+                         .numPromotions = 0,
+                         .numChecks     = 469}},
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 5,
@@ -483,8 +497,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 8'2719,
                          .numEnPassant  = 258,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
-        // Release mode: ~1.3s
+                         .numPromotions = 0,
+                         .numChecks     = 27'351}},
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 6,
@@ -493,8 +507,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 2'812'008,
                          .numEnPassant  = 5248,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
-        // Release mode: ~40ms
+                         .numPromotions = 0,
+                         .numChecks     = 809'099}},
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 4,
@@ -503,8 +517,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 757'163,
                          .numEnPassant  = 1'929,
                          .numCastle     = 128'013,
-                         .numPromotions = 15'172}},
-        // Release mode: ~1.6s
+                         .numPromotions = 15'172,
+                         .numChecks     = 25'523}},
         TestStatsConfig{
                 .fen   = kKiwipeteFen,
                 .depth = 5,
@@ -513,8 +527,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 35'043'416,
                          .numEnPassant  = 73'365,
                          .numCastle     = 4'993'637,
-                         .numPromotions = 8'392}},
-        // Release mode: ~10ms
+                         .numPromotions = 8'392,
+                         .numChecks     = 3'309'887}},
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 5,
@@ -523,8 +537,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 52'051,
                          .numEnPassant  = 1'165,
                          .numCastle     = 0,
-                         .numPromotions = 0}},
-        // Release mode: ~140ms
+                         .numPromotions = 0,
+                         .numChecks     = 52'950}},
         TestStatsConfig{
                 .fen   = kPosition3Fen,
                 .depth = 6,
@@ -533,8 +547,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 940'350,
                          .numEnPassant  = 33'325,
                          .numCastle     = 0,
-                         .numPromotions = 7'552}},
-        // Release mode: ~4ms
+                         .numPromotions = 7'552,
+                         .numChecks     = 452'473}},
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 4,
@@ -543,8 +557,8 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 131'393,
                          .numEnPassant  = 0,
                          .numCastle     = 7'795,
-                         .numPromotions = 60'032}},
-        // Release mode: ~180ms
+                         .numPromotions = 60'032,
+                         .numChecks     = 15'492}},
         TestStatsConfig{
                 .fen   = kPosition4Fen,
                 .depth = 5,
@@ -553,15 +567,12 @@ auto testCasesSlow = ::testing::Values(
                          .numCaptures   = 2'046'173,
                          .numEnPassant  = 6'512,
                          .numCastle     = 0,
-                         .numPromotions = 329'464}},
-        // Release mode: ~20ms
+                         .numPromotions = 329'464,
+                         .numChecks     = 200'568}},
         TestStatsConfig{.fen = kPosition5Fen, .depth = 4, .expectedStats = {.numMoves = 2'103'487}},
-        // Release mode: ~800ms
         TestStatsConfig{
                 .fen = kPosition5Fen, .depth = 5, .expectedStats = {.numMoves = 89'941'194}},
-        // Release mode: ~30ms
         TestStatsConfig{.fen = kPosition6Fen, .depth = 4, .expectedStats = {.numMoves = 3'894'594}},
-        // Release mode: ~1.5s
         TestStatsConfig{
                 .fen = kPosition6Fen, .depth = 5, .expectedStats = {.numMoves = 164'075'551}});
 

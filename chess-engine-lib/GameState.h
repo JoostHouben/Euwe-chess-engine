@@ -62,6 +62,8 @@ class GameState {
     [[nodiscard]] bool isRepetition(int repetitionsForDraw = 2) const;
     [[nodiscard]] bool isFiftyMoves() const;
 
+    [[nodiscard]] bool givesCheck(const Move& move) const;
+
     [[nodiscard]] StackVector<Move> generateMoves(
             StackOfVectors<Move>& stack, bool capturesOnly = false) const;
     [[nodiscard]] StackVector<Move> generateMoves(

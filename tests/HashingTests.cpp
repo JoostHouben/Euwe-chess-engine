@@ -25,7 +25,7 @@ void findHashCollisions(GameState& gameState, const int depth, StackOfVectors<Mo
 
     const StackVector<Move> moves = gameState.generateMoves(stack);
 
-    for (const auto& move : moves) {
+    for (const Move move : moves) {
         const auto unmakeInfo = gameState.makeMove(move);
         findHashCollisions(gameState, depth - 1, stack);
         gameState.unmakeMove(move, unmakeInfo);
@@ -44,7 +44,6 @@ TEST_P(HashingTests, FindHashCollisions) {
 
     GameState gameState = GameState::fromFen(config.fen);
     StackOfVectors<Move> stack;
-    stack.reserve(1000);
     findHashCollisions(gameState, config.depth, stack);
 }
 
