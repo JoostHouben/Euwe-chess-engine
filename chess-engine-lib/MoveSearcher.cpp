@@ -104,11 +104,7 @@ class MoveSearcher::Impl {
     // Continue until no more capture are available or we get a beta cutoff.
     // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
     [[nodiscard]] EvalT quiesce(
-            GameState& gameState,
-            EvalT alpha,
-            EvalT beta,
-            StackOfVectors<Move>& stack,
-            bool returnIfNotInCheck = false);
+            GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack);
 
     // Subroutine for search.
     // Search a single move, updating alpha, bestScore and bestMove as necessary.
@@ -753,11 +749,7 @@ EvalT MoveSearcher::Impl::search(
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 EvalT MoveSearcher::Impl::quiesce(
-        GameState& gameState,
-        EvalT alpha,
-        EvalT beta,
-        StackOfVectors<Move>& stack,
-        const bool returnIfNotInCheck) {
+        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
 
@@ -779,10 +771,6 @@ EvalT MoveSearcher::Impl::quiesce(
 
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
-
-    if (returnIfNotInCheck && !isInCheck) {
-        return kInfiniteEval;
-    }
 
     EvalT standPat;
     if (!isInCheck) {
@@ -829,8 +817,7 @@ EvalT MoveSearcher::Impl::quiesce(
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
-        bool shouldOnlyConsiderCheck = false;
-        if (!isInCheck) {
+        if (!isInCheck && !gameState.givesCheck(move)) {
             // Delta pruning
 
             MY_ASSERT(isCapture(move.flags));
@@ -845,9 +832,7 @@ EvalT MoveSearcher::Impl::quiesce(
             const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold);
 
             if (seeBound < seeThreshold) {
-                // Delta pruning: this move looks like it has no hope of raising alpha. We should
-                // only consider it if it gives check.
-                shouldOnlyConsiderCheck = true;
+                // This move looks like it has no hope of raising alpha, so we can prune it.
 
                 // If our optimistic estimate of the score of this move is above bestScore, raise
                 // bestScore to match. This should mean that an upper bound returned from this
@@ -855,12 +840,14 @@ EvalT MoveSearcher::Impl::quiesce(
                 // alpha.
                 const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
                 bestScore                     = max(bestScore, deltaPruningScore);
+
+                continue;
             }
         }
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, stack, shouldOnlyConsiderCheck);
+        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
