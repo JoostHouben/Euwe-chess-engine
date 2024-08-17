@@ -137,7 +137,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name 7th-rank-extension");
+    writeUci("id name delta-pruning-gives-check");
     writeUci("id author Joost Houben");
 
     writeOptions();

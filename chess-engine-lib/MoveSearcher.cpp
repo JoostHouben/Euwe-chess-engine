@@ -805,7 +805,7 @@ EvalT MoveSearcher::Impl::quiesce(
         // Note that this ignores repetitions and 50 move rule.
         const auto allMoves = gameState.generateMoves(stack, enemyControl);
         if (allMoves.size() == 0) {
-            return evaluateNoLegalMoves(gameState);
+            return evaluateNoLegalMoves(gameState);  // TODO: just return 0 here (stalemate)
         }
 
         // If we're not in an end state return the stand pat evaluation.
@@ -817,7 +817,7 @@ EvalT MoveSearcher::Impl::quiesce(
     for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
-        if (!isInCheck && !gameState.givesCheck(move)) {
+        if (!isInCheck) {
             // Delta pruning
 
             MY_ASSERT(isCapture(move.flags));
@@ -832,7 +832,9 @@ EvalT MoveSearcher::Impl::quiesce(
             const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold);
 
             if (seeBound < seeThreshold) {
-                // This move looks like it has no hope of raising alpha, so we can prune it.
+                // This move looks like it has no hope of raising alpha, so unless it's a check we
+                // can prune it. For some reason still calculating the upper bound for bestScore
+                // helps even for moves that give check...
 
                 // If our optimistic estimate of the score of this move is above bestScore, raise
                 // bestScore to match. This should mean that an upper bound returned from this
@@ -841,7 +843,9 @@ EvalT MoveSearcher::Impl::quiesce(
                 const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
                 bestScore                     = max(bestScore, deltaPruningScore);
 
-                continue;
+                if (!gameState.givesCheck(move)) {
+                    continue;
+                }
             }
         }
 
