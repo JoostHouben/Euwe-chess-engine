@@ -795,8 +795,9 @@ EvalT MoveSearcher::Impl::quiesce(
     auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
     if (moves.size() == 0) {
         if (isInCheck) {
-            // We ran full move generation, so no legal moves exist.
-            return evaluateNoLegalMoves(gameState);
+            // We ran full move generation, so no legal moves exist, and we're in check, so it's a
+            // checkmate.
+            return -kMateEval;
         }
 
         // No captures are available.
@@ -805,7 +806,8 @@ EvalT MoveSearcher::Impl::quiesce(
         // Note that this ignores repetitions and 50 move rule.
         const auto allMoves = gameState.generateMoves(stack, enemyControl);
         if (allMoves.size() == 0) {
-            return evaluateNoLegalMoves(gameState);  // TODO: just return 0 here (stalemate)
+            // No legal moves, not in check, so stalemate.
+            return 0;
         }
 
         // If we're not in an end state return the stand pat evaluation.
