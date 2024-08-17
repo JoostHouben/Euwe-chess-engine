@@ -137,7 +137,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name delta-pruning-gives-check");
+    writeUci("id name futility-pruning");
     writeUci("id author Joost Houben");
 
     writeOptions();

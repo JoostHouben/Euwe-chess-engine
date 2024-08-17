@@ -606,7 +606,7 @@ EvalT MoveSearcher::Impl::search(
         }
 
         // Try hash move first.
-        // TODO: do we need a legality check here for hash collisions?
+        // Do we need a legality check here for hash collisions?
         const auto outcome = searchMove(
                 gameState,
                 ttInfo.bestMove,
@@ -647,6 +647,15 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
+    const int maxFutilityPruningDepth = 3;
+    const bool futilityPruningEnabled =
+            depth <= maxFutilityPruningDepth && !isMate(alpha) && !isMate(beta);
+
+    EvalT staticEval = -kInfiniteEval;
+    if (futilityPruningEnabled) {
+        staticEval = evaluate(gameState, stack, /*checkEndState =*/false);
+    }
+
     auto moves = gameState.generateMoves(stack, enemyControl);
     if (moves.size() == 0) {
         // Exact value
@@ -676,6 +685,15 @@ EvalT MoveSearcher::Impl::search(
 
     for (; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
+
+        // Futility pruning
+        static constexpr EvalT futilityMarginPerDepth = 140;
+        const int futilityValue                       = staticEval + futilityMarginPerDepth * depth;
+        if (futilityPruningEnabled && futilityValue <= alpha && !isCapture(move.flags)) {
+            if (!gameState.givesCheck(move)) {
+                continue;
+            }
+        }
 
         const int reduction = getDepthReduction(move, moveIdx, isPvNode, depth, extension);
 
