@@ -580,6 +580,8 @@ EvalT MoveSearcher::Impl::search(
         if (ttInfo.depth >= depth) {
             if (ttInfo.scoreType == ScoreType::Exact) {
                 // Exact value
+                searchStatistics_.selectiveDepth =
+                        max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
                 return ttInfo.score;
             } else if (ttInfo.scoreType == ScoreType::LowerBound) {
                 // Can safely raise the lower bound for our search window, because the true value
