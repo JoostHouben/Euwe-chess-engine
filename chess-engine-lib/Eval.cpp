@@ -1,8 +1,10 @@
 #include "Eval.h"
 
+#include "BitBoard.h"
 #include "Macros.h"
 #include "Math.h"
 #include "PawnMasks.h"
+#include "PieceControl.h"
 
 #include <array>
 #include <optional>
@@ -194,6 +196,8 @@ constexpr int kBishopPairBonus                 = 50;
 constexpr int kRookSemiOpenFileBonus = 10;
 constexpr int kRookOpenFileBonus     = 20;
 
+constexpr int kKingVirtualMobilityPenalty = 3;
+
 constexpr SquareTable getReflectedSquareTable(const SquareTable& table) {
     SquareTable result{};
 
@@ -236,7 +240,7 @@ struct PiecePositionEvaluation {
 
 FORCE_INLINE void updatePiecePositionEvaluation(
         const int pieceIdx,
-        BoardPosition position,
+        const BoardPosition position,
         const Side side,
         PiecePositionEvaluation& result) {
 
@@ -247,11 +251,47 @@ FORCE_INLINE void updatePiecePositionEvaluation(
     result.endGamePosition += kPieceSquareTablesLate[(int)side][pieceIdx][(int)position];
 }
 
+[[nodiscard]] FORCE_INLINE int manhattanDistance(const BoardPosition a, const BoardPosition b) {
+    const auto [aFile, aRank] = fileRankFromPosition(a);
+    const auto [bFile, bRank] = fileRankFromPosition(b);
+
+    return std::abs(aFile - bFile) + std::abs(aRank - bRank);
+}
+
+[[nodiscard]] FORCE_INLINE int manhattanDistanceToCenter(const BoardPosition position) {
+    const auto [file, rank] = fileRankFromPosition(position);
+
+    return min(std::abs(file - kFiles / 2), std::abs(rank - kRanks / 2));
+}
+
+[[nodiscard]] FORCE_INLINE int bishopDistance(const BoardPosition a, const BoardPosition b) {
+    const auto [aFile, aRank] = fileRankFromPosition(a);
+    const auto [bFile, bRank] = fileRankFromPosition(b);
+
+    const int aDiag = aFile + aRank;
+    const int bDiag = bFile + bRank;
+
+    const int aAntiDiag = aFile - aRank;
+    const int bAntiDiag = bFile - bRank;
+
+    return std::abs(aDiag - bDiag) + std::abs(aAntiDiag - bAntiDiag);
+}
+
+[[nodiscard]] FORCE_INLINE int queenDistance(const BoardPosition a, const BoardPosition b) {
+    const auto [aFile, aRank] = fileRankFromPosition(a);
+    const auto [bFile, bRank] = fileRankFromPosition(b);
+
+    return max(std::abs(aFile - bFile), std::abs(aRank - bRank));
+}
+
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
 evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
     const BitBoard anyPawn    = ownPawns | enemyPawns;
+
+    const BoardPosition enemyKingPosition =
+            getFirstSetPosition(gameState.getPieceBitBoard(nextSide(side), Piece::King));
 
     PiecePositionEvaluation result{};
 
@@ -260,8 +300,13 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Knight);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            BoardPosition position = popFirstSetPosition(pieceBitBoard);
+            const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Knight, position, side, result);
+
+            const int kingDistance = manhattanDistance(position, enemyKingPosition);
+            const int tropismBonus = max(0, 7 - kingDistance);
+            result.earlyGamePosition += tropismBonus;
+            result.endGamePosition += tropismBonus;
         }
     }
 
@@ -277,7 +322,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         std::array<bool, 2> hasBishopOfColor = {false, false};
 
         while (pieceBitBoard != BitBoard::Empty) {
-            BoardPosition position = popFirstSetPosition(pieceBitBoard);
+            const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Bishop, position, side, result);
 
             const int squareColor = getSquareColor(position);
@@ -285,6 +330,11 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             hasBishopOfColor[squareColor] = true;
 
             result.material -= kBadBishopPenalty[ownPawnsPerSquareColor[squareColor]];
+
+            const int kingDistance = bishopDistance(position, enemyKingPosition);
+            const int tropismBonus = (14 - kingDistance) / 2;
+            result.earlyGamePosition += tropismBonus;
+            result.endGamePosition += tropismBonus;
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
@@ -297,7 +347,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Rook);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            BoardPosition position = popFirstSetPosition(pieceBitBoard);
+            const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Rook, position, side, result);
 
             const BitBoard fileBitBoard = getFileBitBoard(position);
@@ -311,18 +361,34 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
                 result.earlyGamePosition += kRookSemiOpenFileBonus;
                 result.endGamePosition += kRookSemiOpenFileBonus;
             }
+
+            const int kingDistance = manhattanDistance(position, enemyKingPosition);
+            const int tropismBonus = 14 - kingDistance;
+            result.earlyGamePosition += tropismBonus;
+            result.endGamePosition += tropismBonus;
         }
     }
 
-    // Queens, King
-    for (int pieceIdx = (int)Piece::Queen; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        const Piece piece      = (Piece)pieceIdx;
-        BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
+    // Queens
+    {
+        BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Queen);
 
         while (pieceBitBoard != BitBoard::Empty) {
-            BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation(pieceIdx, position, side, result);
+            const BoardPosition position = popFirstSetPosition(pieceBitBoard);
+            updatePiecePositionEvaluation((int)Piece::Queen, position, side, result);
+
+            const int kingDistance = queenDistance(position, enemyKingPosition);
+            const int tropismBonus = (7 - kingDistance) * 4;
+            result.earlyGamePosition += tropismBonus;
+            result.endGamePosition += tropismBonus;
         }
+    }
+
+    // King
+    {
+        const BoardPosition kingPosition =
+                getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
+        updatePiecePositionEvaluation((int)Piece::King, kingPosition, side, result);
     }
 
     return result;
@@ -376,25 +442,36 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     return result;
 }
 
-[[nodiscard]] FORCE_INLINE int manhattanDistance(BoardPosition a, BoardPosition b) {
-    const auto [aFile, aRank] = fileRankFromPosition(a);
-    const auto [bFile, bRank] = fileRankFromPosition(b);
+[[nodiscard]] FORCE_INLINE int evaluateKingSafety(const GameState& gameState, const Side side) {
+    const BoardPosition kingPosition =
+            getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
 
-    return std::abs(aFile - bFile) + std::abs(aRank - bRank);
-}
+    const BitBoard ownOccupancy = side == gameState.getSideToMove()
+                                        ? gameState.getOccupancy().ownPiece
+                                        : gameState.getOccupancy().enemyPiece;
 
-[[nodiscard]] FORCE_INLINE int manhattanDistanceToCenter(BoardPosition position) {
-    const auto [file, rank] = fileRankFromPosition(position);
+    // Consider all of our own pieces as blockers, but for the enemy pieces we only consider pawns.
+    // This is to account for the fact that the other enemy pieces are likely mobile and so should
+    // not be relied upon to protect the king from sliding attacks.
+    const BitBoard blockers =
+            ownOccupancy | gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
 
-    return min(std::abs(file - kFiles / 2), std::abs(rank - kRanks / 2));
+    // We're only interested in squares from which an enemy slider could attack the king, so we
+    // exclude the occupied squares themselves.
+    const BitBoard virtualKingControl =
+            getPieceControlledSquares(Piece::Queen, kingPosition, blockers) & ~blockers;
+
+    const int virtualKingMobility = popCount(virtualKingControl);
+
+    return -kKingVirtualMobilityPenalty * virtualKingMobility;
 }
 
 [[nodiscard]] FORCE_INLINE int evaluateKingSwarming(
         const GameState& gameState,
-        Side swarmingSide,
-        int swarmingMaterial,
-        int defendingMaterial,
-        float endGameFactor) {
+        const Side swarmingSide,
+        const int swarmingMaterial,
+        const int defendingMaterial,
+        const float endGameFactor) {
     if (defendingMaterial >= swarmingMaterial) {
         return 0;
     }
@@ -433,7 +510,8 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     const int phaseMaterial =
             min(whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
                 kMaxPhaseMaterial);
-    const float endGameFactor = 1.f - (float)phaseMaterial / (float)kMaxPhaseMaterial;
+    const float earlyGameFactor = (float)phaseMaterial / (float)kMaxPhaseMaterial;
+    const float endGameFactor   = 1.f - earlyGameFactor;
 
     const int earlyGameWhitePositionEval =
             whitePiecePositionEval.earlyGamePosition + whitePawnEval.earlyGamePosition;
@@ -447,8 +525,12 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
     const int earlyGamePositionEval = earlyGameWhitePositionEval - earlyGameBlackPositionEval;
     const int endGamePositionEval   = endGameWhitePositionEval - endGameBlackPositionEval;
-    const int positionEval          = (int)(earlyGamePositionEval * (1.f - endGameFactor)
-                                   + endGamePositionEval * endGameFactor);
+    const int positionEval =
+            (int)(earlyGamePositionEval * earlyGameFactor + endGamePositionEval * endGameFactor);
+
+    const int whiteKingSafety = evaluateKingSafety(gameState, Side::White);
+    const int blackKingSafety = evaluateKingSafety(gameState, Side::Black);
+    const int kingSafety      = (int)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
 
     const int whiteSwarmingValue = evaluateKingSwarming(
             gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
@@ -456,7 +538,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
             gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
     const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
-    const int eval = materialEval + positionEval + swarmingEval;
+    const int eval = materialEval + positionEval + kingSafety + swarmingEval;
 
     return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
 }

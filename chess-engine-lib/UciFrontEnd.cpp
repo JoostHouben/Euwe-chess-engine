@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name pawn-eval-fixes");
+    writeUci("id name king-tropism-virt-mobil");
     writeUci("id author Joost Houben");
 
     writeOptions();
