@@ -1,6 +1,7 @@
 #include "UciFrontEnd.h"
 
 #include "ConsoleColor.h"
+#include "Eval.h"
 #include "GameState.h"
 #include "Math.h"
 #include "MyAssert.h"
@@ -84,6 +85,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleDebug(std::stringstream& lineSStream);
     void handleRegister() const;
     void handleSetOption(const std::string& line);
+
+    void handleEval();
 
     void waitForGoToComplete();
 
@@ -176,6 +179,8 @@ void UciFrontEnd::Impl::run() {
             handleRegister();
         } else if (command == "setoption") {
             handleSetOption(inputLine);
+        } else if (command == "eval") {
+            handleEval();
         } else if (command.empty()) {
             continue;
         } else {
@@ -524,6 +529,23 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
                 *optionParseResult->optionValue,
                 e.what());
     }
+}
+
+void UciFrontEnd::Impl::handleEval() {
+    StackOfVectors<Move> stack;
+    const EvalT eval = evaluate(gameState_, stack);
+
+    std::string scoreString;
+    if (isMate(eval)) {
+        const int mateInPly           = getMateDistanceInPly(eval);
+        const int mateInMoves         = (mateInPly + 1) / 2;
+        const int relativeMateInMoves = signum(eval) * mateInMoves;
+        scoreString                   = std::format("#{}", relativeMateInMoves);
+    } else {
+        scoreString = std::format("{:+}", (float)eval / 100);
+    }
+
+    writeDebug("Eval: {:+}", (float)eval / 100);
 }
 
 void UciFrontEnd::Impl::waitForGoToComplete() {
