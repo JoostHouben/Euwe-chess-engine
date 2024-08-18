@@ -137,7 +137,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name Euwe v1.1.0");
+    writeUci("id name pawn-eval-fixes");
     writeUci("id author Joost Houben");
 
     writeOptions();

@@ -6,6 +6,22 @@
 
 namespace {
 
+[[nodiscard]] constexpr std::uint64_t computeWhiteForwardField(const int rank) {
+    if (rank == 7) {
+        return 0ULL;
+    }
+
+    return allMask << ((rank + 1) * 8);
+}
+
+[[nodiscard]] constexpr std::uint64_t computeBlackForwardField(const int rank) {
+    if (rank == 0) {
+        return 0ULL;
+    }
+
+    return allMask >> ((8 - rank) * 8);
+}
+
 [[nodiscard]] constexpr std::uint64_t computeFileMask(const int file) {
     const std::uint64_t fileMask = westFileMask << file;
     return fileMask;
@@ -15,7 +31,7 @@ namespace {
     const auto [file, rank] = fileRankFromPosition(position);
 
     const std::uint64_t fileMask    = computeFileMask(file);
-    const std::uint64_t forwardMask = allMask << (rank + 1);
+    const std::uint64_t forwardMask = computeWhiteForwardField(rank);
 
     return (BitBoard)(forwardMask & fileMask);
 }
@@ -24,7 +40,7 @@ namespace {
     const auto [file, rank] = fileRankFromPosition(position);
 
     const std::uint64_t fileMask    = computeFileMask(file);
-    const std::uint64_t forwardMask = allMask >> (8 - rank);
+    const std::uint64_t forwardMask = computeBlackForwardField(rank);
 
     return (BitBoard)(forwardMask & fileMask);
 }
@@ -61,7 +77,7 @@ constexpr std::array<std::array<BitBoard, kSquares>, kNumSides> kForwardMasks = 
     const auto [file, rank] = fileRankFromPosition(position);
 
     const std::uint64_t tripleFileMask = computeTripleFileMask(file);
-    const std::uint64_t forwardMask    = allMask << (rank + 1);
+    const std::uint64_t forwardMask    = computeWhiteForwardField(rank);
 
     return (BitBoard)(forwardMask & tripleFileMask);
 }
@@ -70,7 +86,7 @@ constexpr std::array<std::array<BitBoard, kSquares>, kNumSides> kForwardMasks = 
     const auto [file, rank] = fileRankFromPosition(position);
 
     const std::uint64_t tripleFileMask = computeTripleFileMask(file);
-    const std::uint64_t forwardMask    = allMask >> (8 - rank);
+    const std::uint64_t forwardMask    = computeBlackForwardField(rank);
 
     return (BitBoard)(forwardMask & tripleFileMask);
 }
