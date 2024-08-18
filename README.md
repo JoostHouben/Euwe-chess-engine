@@ -51,6 +51,7 @@ with the following enhancements and heuristics.
  - Pruning:
     - Null move pruning
     - Delta pruning
+    - Futility pruning
  - Selectivity:
     - Late move reduction
     - Check extensions
@@ -109,6 +110,19 @@ tested yet.
 ### Build instructions
 
 Open [Euwe.sln](Euwe.sln) in Visual Studio 2022 and build the solution.
+
+## Release history
+
+### Version 1.1
+
+ - Several bugfixes, including issues #1 and #2.
+ - Adds bishop pair to evaluation.
+ - Adds futility pruning to search.
+ - Approximate strength gain: 64.8 +/- 28.3 Elo.
+
+### Version 1.0
+
+ - Initial release.
 
 ## Acknowledgements
 
