@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name king-tropism-virt-mobil");
+    writeUci("id name material-adjustment");
     writeUci("id author Joost Houben");
 
     writeOptions();

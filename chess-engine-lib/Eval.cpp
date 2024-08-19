@@ -14,10 +14,10 @@ namespace {
 
 constexpr std::array<int, kNumPieceTypes> kPieceValues = {
         100,  // Pawn
-        305,  // Knight
-        308,  // Bishop
-        563,  // Rook
-        950,  // Queen
+        325,  // Knight
+        335,  // Bishop
+        500,  // Rook
+        975,  // Queen
         0,    // King
 };
 
@@ -191,10 +191,16 @@ constexpr int kIsolatedPawnPenalty    = 30;
 
 // Penalty for having 0...8 own pawns on the same color as a bishop
 constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
-constexpr int kBishopPairBonus                 = 50;
+
+constexpr int kBishopPairBonus   = 30;
+constexpr int kKnightPairPenalty = 8;
+constexpr int kRookPairPenalty   = 16;
 
 constexpr int kRookSemiOpenFileBonus = 10;
 constexpr int kRookOpenFileBonus     = 20;
+
+constexpr std::array<int, 9> kKnightPawnAdjustment = {-20, -16, -12, -8, -4, 0, 4, 8, 12};
+constexpr std::array<int, 9> kRookPawnAdjustment   = {15, 12, 9, 6, 3, 0, -3, -6, -9};
 
 constexpr int kKingVirtualMobilityPenalty = 3;
 
@@ -290,6 +296,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
     const BitBoard anyPawn    = ownPawns | enemyPawns;
 
+    const int numOwnPawns = popCount(ownPawns);
+
     const BoardPosition enemyKingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(nextSide(side), Piece::King));
 
@@ -299,6 +307,11 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     {
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Knight);
 
+        const int numKnights = popCount(pieceBitBoard);
+        if (numKnights >= 2) {
+            result.material -= kKnightPairPenalty;
+        }
+
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Knight, position, side, result);
@@ -307,6 +320,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const int tropismBonus = max(0, 7 - kingDistance);
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
+
+            result.material += kKnightPawnAdjustment[numOwnPawns];
         }
     }
 
@@ -317,6 +332,10 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         const std::array<int, 2> ownPawnsPerSquareColor = {
                 popCount(ownPawns & kDarkSquareBitBoard),
                 popCount(ownPawns & kLightSquareBitBoard),
+        };
+        const std::array<int, 2> badBishopIndex = {
+                ownPawnsPerSquareColor[0] + (8 - numOwnPawns) / 2,
+                ownPawnsPerSquareColor[1] + (8 - numOwnPawns) / 2,
         };
 
         std::array<bool, 2> hasBishopOfColor = {false, false};
@@ -329,7 +348,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
             hasBishopOfColor[squareColor] = true;
 
-            result.material -= kBadBishopPenalty[ownPawnsPerSquareColor[squareColor]];
+            result.material -= kBadBishopPenalty[badBishopIndex[squareColor]];
 
             const int kingDistance = bishopDistance(position, enemyKingPosition);
             const int tropismBonus = (14 - kingDistance) / 2;
@@ -345,6 +364,11 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     // Rooks
     {
         BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, Piece::Rook);
+
+        const int numRooks = popCount(pieceBitBoard);
+        if (numRooks >= 2) {
+            result.material -= kRookPairPenalty;
+        }
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
@@ -366,6 +390,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const int tropismBonus = 14 - kingDistance;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
+
+            result.material += kRookPawnAdjustment[numOwnPawns];
         }
     }
 
