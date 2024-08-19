@@ -998,14 +998,34 @@ bool GameState::isInCheck(const BitBoard enemyControl) const {
     return enemyControl & getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 }
 
-bool GameState::isRepetition(int repetitionsForDraw) const {
-    // Three-fold repetition
+bool GameState::isThreeFoldRepetition() const {
     int repetitions = 0;
     for (int hashIdx = (int)previousHashes_.size() - 3; hashIdx >= lastReversiblePositionHashIdx_;
          hashIdx -= 2) {
         if (previousHashes_[hashIdx] == boardHash_) {
             ++repetitions;
-            if (repetitions == repetitionsForDraw) {
+            if (repetitions == 2) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool GameState::isRepetitionForSearch(const int ply) const {
+    // return true if it's either a three-fold repetition or the first repetition within the search
+    int repetitions = 0;
+    for (int hashIdx = (int)previousHashes_.size() - 3; hashIdx >= lastReversiblePositionHashIdx_;
+         hashIdx -= 2) {
+        if (previousHashes_[hashIdx] == boardHash_) {
+            const int plyAgo = (int)previousHashes_.size() - 1 - hashIdx;
+            if (plyAgo <= ply) {
+                return true;
+            }
+
+            ++repetitions;
+            if (repetitions == 2) {
                 return true;
             }
         }

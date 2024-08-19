@@ -463,7 +463,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> evaluateEndState(
         const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetition()) {
+    if (gameState.isThreeFoldRepetition()) {
         return 0;
     }
 

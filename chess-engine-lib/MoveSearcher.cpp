@@ -500,7 +500,7 @@ EvalT MoveSearcher::Impl::search(
     const EvalT alphaOrig = alpha;
 
     if (ply > 0) {
-        if (gameState.isRepetition(/* repetitionsForDraw = */ 1)) {
+        if (gameState.isRepetitionForSearch(ply)) {
             // Exact value
             return 0;
         }
