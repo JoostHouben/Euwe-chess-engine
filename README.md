@@ -26,11 +26,13 @@ Euwe uses a bitboard representation. For move generation it uses
 
 Euwe uses a very simple evaluation function that takes into account the following factors:
 
- - Material balance.
- - Piece square tables.
- - Tapered evaluation.
- - Pawn structure: doubled, isolated, and passed pawns.
- - Piece quality: bishop pair, 'bad bishops', rooks on (semi-)open files.
+ - Material balance
+ - Piece square tables
+ - Tapered evaluation
+ - Pawn structure: doubled, isolated, and passed pawns
+ - Piece quality: bishop pair, 'bad bishops', rooks on (semi-)open files, decreasing value of knights and increasing value of rooks as pawns disappear
+ - King safety: king tropism and virtual king mobility
+ - Mobility
 
 ### Search function
 
@@ -40,6 +42,7 @@ with the following enhancements and heuristics.
  - Iterative deepening
  - Transposition table
     - Two-tier system: depth-preferred and always-replace
+    - Aging: depth preference is reduced by the age of the entry
  - Quiescence search
  - Aspiration windows
  - Move ordering:
@@ -113,12 +116,25 @@ Open [Euwe.sln](Euwe.sln) in Visual Studio 2022 and build the solution.
 
 ## Release history
 
+### Version 1.2
+
+ - Bugfixes:
+   - Fixes to bugs in pawn structure evaluation that caused isolated and passed pawn detection to work incorrectly.
+   - Fixed bug in bad bishop evaluation that unintentionally caused bishop values to increase as pawns disappeared.
+ - New evaluation features:
+   - King tropism
+   - Virtual king mobility
+   - Mobility
+   - Adjust values of knights and rooks based on number of own pawns on the board
+ - Add transposition table aging
+ - Approximate strength gain (on ultrafast time control): 109.1 +/- 38.2 Elo.
+
 ### Version 1.1
 
  - Several bugfixes, including issues #1 and #2.
  - Adds bishop pair to evaluation.
  - Adds futility pruning to search.
- - Approximate strength gain: 64.8 +/- 28.3 Elo.
+ - Approximate strength gain (on ultrafast time control):: 64.8 +/- 28.3 Elo.
 
 ### Version 1.0
 
