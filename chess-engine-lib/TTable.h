@@ -20,10 +20,13 @@ struct TTEntry {
 };
 
 struct SearchTTPayload {
-    std::uint8_t depth  = 0;
-    ScoreType scoreType = ScoreType::NotSet;
-    EvalT score         = 0;
-    Move bestMove       = kUninitializedMove;  // TODO: could store smaller move representation
+    EvalT score            = 0;
+    std::uint8_t depth     = 0;
+    std::uint8_t tick      = 0;
+    ScoreType scoreType    = ScoreType::NotSet;
+    BoardPosition moveFrom = (BoardPosition)0;
+    BoardPosition moveTo   = (BoardPosition)0;
+    MoveFlags moveFlags    = MoveFlags::None;
 };
 
 using SearchTTEntry = TTEntry<SearchTTPayload>;

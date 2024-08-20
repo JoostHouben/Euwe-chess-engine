@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name mobility");
+    writeUci("id name ttable-aging");
     writeUci("id author Joost Houben");
 
     writeOptions();

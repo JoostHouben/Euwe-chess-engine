@@ -13,6 +13,7 @@
 #include <limits>
 
 #include <cstdint>
+#include <cstring>
 
 class MoveSearcher::Impl {
   public:
@@ -135,6 +136,8 @@ class MoveSearcher::Impl {
     std::atomic<bool> stopSearch_ = false;
     mutable bool wasInterrupted_  = false;
 
+    std::uint8_t tTableTick_ = 0;
+
     SearchTTable tTable_ = {};
 
     StackOfVectors<MoveEvalT> moveScoreStack_ = {};
@@ -254,6 +257,26 @@ void updateMateDistance(EvalT& score) {
     }
 }
 
+// Compute the delta between two wrapping counters
+FORCE_INLINE std::int8_t computeWrappingTickDelta(std::uint8_t tickA, std::uint8_t tickB) {
+    const std::uint8_t wrappingTickDelta = tickA - tickB;
+    std::int8_t signedTickDelta;
+    // 2's complement is guaranteed
+    // if the absolute value of the true tick difference is <= 127, the resulting signedTickDelta
+    // is correct
+    std::memcpy(&signedTickDelta, &wrappingTickDelta, sizeof(wrappingTickDelta));
+    return signedTickDelta;
+}
+
+FORCE_INLINE Move getTTableMove(const SearchTTPayload payload, const GameState& gameState) {
+    return Move{
+            .pieceToMove = getPiece(gameState.getPieceOnSquare(payload.moveFrom)),
+            .from        = payload.moveFrom,
+            .to          = payload.moveTo,
+            .flags       = payload.moveFlags,
+    };
+}
+
 }  // namespace
 
 MoveSearcher::Impl::Impl(const TimeManager& timeManager) : timeManager_(timeManager) {
@@ -273,6 +296,7 @@ void MoveSearcher::Impl::newGame() {
     wasInterrupted_ = false;
 
     tTable_.clear();
+    tTableTick_ = 0;
 
     resetSearchStatistics();
 
@@ -383,14 +407,19 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
     const SearchTTable::EntryT entry = {
             .hash    = hash,
             .payload = {
-                    .depth     = (std::uint8_t)depth,
-                    .scoreType = scoreType,
                     .score     = bestScore,
-                    .bestMove  = bestMove,
+                    .depth     = (std::uint8_t)depth,
+                    .tick      = tTableTick_,
+                    .scoreType = scoreType,
+                    .moveFrom  = bestMove.from,
+                    .moveTo    = bestMove.to,
+                    .moveFlags = bestMove.flags,
             }};
 
-    auto isMoreValuable = [](const SearchTTPayload& newPayload, const SearchTTPayload& oldPayload) {
-        return newPayload.depth >= oldPayload.depth;
+    const auto isMoreValuable = [](const SearchTTPayload& newPayload,
+                                   const SearchTTPayload& oldPayload) FORCE_INLINE {
+        const int tickDelta = computeWrappingTickDelta(newPayload.tick, oldPayload.tick);
+        return (int)newPayload.depth + tickDelta >= (int)oldPayload.depth;
     };
 
     tTable_.store(entry, isMoreValuable);
@@ -410,8 +439,10 @@ StackVector<Move> MoveSearcher::Impl::extractPv(
             break;
         }
 
-        pv.push_back(ttHit->payload.bestMove);
-        (void)gameState.makeMove(ttHit->payload.bestMove);
+        const Move move = getTTableMove(ttHit->payload, gameState);
+
+        pv.push_back(move);
+        (void)gameState.makeMove(move);
     }
 
     pv.lock();
@@ -570,6 +601,8 @@ EvalT MoveSearcher::Impl::search(
     Move bestMove{};
     bool completedAnySearch = false;
 
+    std::optional<Move> hashMove = std::nullopt;
+
     // Probe the transposition table and use the stored score and/or move if we get a hit.
     const auto ttHit = tTable_.probe(gameState.getBoardHash());
     if (ttHit) {
@@ -607,11 +640,13 @@ EvalT MoveSearcher::Impl::search(
             }
         }
 
+        hashMove = getTTableMove(ttInfo, gameState);
+
         // Try hash move first.
         // Do we need a legality check here for hash collisions?
         const auto outcome = searchMove(
                 gameState,
-                ttInfo.bestMove,
+                *hashMove,
                 depth,
                 /*reduction =*/0,
                 ply,
@@ -665,9 +700,8 @@ EvalT MoveSearcher::Impl::search(
     }
 
     int moveIdx = 0;
-    if (ttHit) {
-        const auto& ttInfo    = ttHit->payload;
-        const auto hashMoveIt = std::find(moves.begin(), moves.end(), ttInfo.bestMove);
+    if (hashMove) {
+        const auto hashMoveIt = std::find(moves.begin(), moves.end(), *hashMove);
         MY_ASSERT_DEBUG(hashMoveIt != moves.end());
         if (hashMoveIt != moves.end()) {
             *hashMoveIt = moves.front();
@@ -1141,6 +1175,8 @@ void MoveSearcher::Impl::prepareForNewSearch(const GameState& gameState) {
 
     shiftKillerMoves(gameState.getHalfMoveClock());
     scaleDownHistory();
+
+    ++tTableTick_;
 }
 
 void MoveSearcher::Impl::interruptSearch() {

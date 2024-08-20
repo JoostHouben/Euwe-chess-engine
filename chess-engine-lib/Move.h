@@ -75,10 +75,3 @@ struct Move {
 };
 
 void doBasicSanityChecks(const Move& move, const GameState& gameState);
-
-// For fast initialization
-inline constexpr Move kUninitializedMove =
-        Move{.pieceToMove = (Piece)0,
-             .from        = (BoardPosition)0,
-             .to          = (BoardPosition)0,
-             .flags       = MoveFlags::None};
