@@ -12,7 +12,7 @@ namespace {
 
 [[nodiscard]] bool shouldInterrupt(
         const std::chrono::high_resolution_clock::time_point deadLine, int& interruptCheckCounter) {
-    static constexpr int interruptCheckInterval = 64;
+    static constexpr int interruptCheckInterval = 32;
 
     interruptCheckCounter = (interruptCheckCounter + 1) % interruptCheckInterval;
     if (interruptCheckCounter != 0) {
