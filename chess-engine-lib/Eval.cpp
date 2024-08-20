@@ -204,6 +204,24 @@ constexpr std::array<int, 9> kRookPawnAdjustment   = {15, 12, 9, 6, 3, 0, -3, -6
 
 constexpr int kKingVirtualMobilityPenalty = 3;
 
+constexpr std::array<int, kNumPieceTypes> kMobilityBonusEarly = {
+        0,  // pawns
+        1,  // knights
+        2,  // bishops
+        2,  // rooks
+        1,  // queens
+        0,  // kings
+};
+
+constexpr std::array<int, kNumPieceTypes> kMobilityBonusLate = {
+        0,  // pawns
+        1,  // knights
+        2,  // bishops
+        4,  // rooks
+        2,  // queens
+        0,  // kings
+};
+
 constexpr SquareTable getReflectedSquareTable(const SquareTable& table) {
     SquareTable result{};
 
@@ -257,6 +275,18 @@ FORCE_INLINE void updatePiecePositionEvaluation(
     result.endGamePosition += kPieceSquareTablesLate[(int)side][pieceIdx][(int)position];
 }
 
+FORCE_INLINE void updateMobilityEvaluation(
+        const Piece piece,
+        const BoardPosition position,
+        const BitBoard anyPiece,
+        const BitBoard ownOccupancy,
+        PiecePositionEvaluation& result) {
+    const BitBoard control = getPieceControlledSquares(piece, position, anyPiece);
+    const int mobility     = popCount(control & ~ownOccupancy);
+    result.earlyGamePosition += mobility * kMobilityBonusEarly[(int)piece];
+    result.endGamePosition += mobility * kMobilityBonusLate[(int)piece];
+}
+
 [[nodiscard]] FORCE_INLINE int manhattanDistance(const BoardPosition a, const BoardPosition b) {
     const auto [aFile, aRank] = fileRankFromPosition(a);
     const auto [bFile, bRank] = fileRankFromPosition(b);
@@ -296,6 +326,13 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
     const BitBoard anyPawn    = ownPawns | enemyPawns;
 
+    const BitBoard ownOccupancy = side == gameState.getSideToMove()
+                                        ? gameState.getOccupancy().ownPiece
+                                        : gameState.getOccupancy().enemyPiece;
+
+    const BitBoard anyPiece =
+            gameState.getOccupancy().ownPiece | gameState.getOccupancy().enemyPiece;
+
     const int numOwnPawns = popCount(ownPawns);
 
     const BoardPosition enemyKingPosition =
@@ -322,6 +359,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             result.endGamePosition += tropismBonus;
 
             result.material += kKnightPawnAdjustment[numOwnPawns];
+
+            updateMobilityEvaluation(Piece::Knight, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -354,6 +393,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const int tropismBonus = (14 - kingDistance) / 2;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
+
+            updateMobilityEvaluation(Piece::Bishop, position, anyPiece, ownOccupancy, result);
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
@@ -392,6 +433,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             result.endGamePosition += tropismBonus;
 
             result.material += kRookPawnAdjustment[numOwnPawns];
+
+            updateMobilityEvaluation(Piece::Rook, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -407,6 +450,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const int tropismBonus = (7 - kingDistance) * 4;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
+
+            updateMobilityEvaluation(Piece::Queen, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -415,6 +460,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         const BoardPosition kingPosition =
                 getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
         updatePiecePositionEvaluation((int)Piece::King, kingPosition, side, result);
+
+        // no mobility bonus for king
     }
 
     return result;

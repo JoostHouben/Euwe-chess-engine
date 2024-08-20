@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name material-adjustment");
+    writeUci("id name mobility");
     writeUci("id author Joost Houben");
 
     writeOptions();
