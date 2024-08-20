@@ -134,7 +134,7 @@ Open [Euwe.sln](Euwe.sln) in Visual Studio 2022 and build the solution.
  - Several bugfixes, including issues #1 and #2.
  - Adds bishop pair to evaluation.
  - Adds futility pruning to search.
- - Approximate strength gain (on ultrafast time control):: 64.8 +/- 28.3 Elo.
+ - Approximate strength gain (on ultrafast time control): 64.8 +/- 28.3 Elo.
 
 ### Version 1.0
 
