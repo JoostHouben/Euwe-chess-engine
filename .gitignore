@@ -3,6 +3,7 @@
 Archive/
 ideas.txt
 run-tournament.ps1
+*/venv
 
 
 ## Ignore Visual Studio temporary files, build results, and
