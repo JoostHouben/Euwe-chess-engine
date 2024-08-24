@@ -519,7 +519,7 @@ GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {
 }
 
 GameState::UnmakeMoveInfo GameState::makeNullMove() {
-    UnmakeMoveInfo unmakeInfo = {
+    const UnmakeMoveInfo unmakeInfo = {
             .enPassantTarget               = enPassantTarget_,
             .castlingRights                = castlingRights_,
             .plySinceCaptureOrPawn         = plySinceCaptureOrPawn_,
@@ -578,11 +578,7 @@ void GameState::unmakeNullMove(const UnmakeMoveInfo& unmakeMoveInfo) {
     lastReversiblePositionHashIdx_ = unmakeMoveInfo.lastReversiblePositionHashIdx;
     previousHashes_.pop_back();
 
-    updateHashForSideToMove(boardHash_);
-
-    if (enPassantTarget_ != BoardPosition::Invalid) {
-        updateHashForEnPassantFile(fileFromPosition(enPassantTarget_), boardHash_);
-    }
+    boardHash_ = previousHashes_.back();
 }
 
 void GameState::makeCastleMove(const Move& move, const bool reverse) {

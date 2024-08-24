@@ -105,7 +105,7 @@ class MoveSearcher::Impl {
     // Continue until no more capture are available or we get a beta cutoff.
     // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
     [[nodiscard]] EvalT quiesce(
-            GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack);
+            GameState& gameState, EvalT alpha, EvalT beta, int ply, StackOfVectors<Move>& stack);
 
     // Subroutine for search.
     // Search a single move, updating alpha, bestScore and bestMove as necessary.
@@ -275,6 +275,32 @@ FORCE_INLINE Move getTTableMove(const SearchTTPayload payload, const GameState& 
             .to          = payload.moveTo,
             .flags       = payload.moveFlags,
     };
+}
+
+[[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForEndState(
+        const GameState& gameState, const int ply, StackOfVectors<Move>& stack) {
+    if (gameState.isRepetitionForSearch(ply)) {
+        // Exact value
+        return 0;
+    }
+
+    if (gameState.isFiftyMoves()) {
+        const auto moves = gameState.generateMoves(stack);
+        if (moves.size() == 0) {
+            // Exact value
+            return evaluateNoLegalMoves(gameState);
+        } else {
+            // Exact value
+            return 0;
+        }
+    }
+
+    if (isInsufficientMaterial(gameState)) {
+        // Exact value
+        return 0;
+    }
+
+    return std::nullopt;
 }
 
 }  // namespace
@@ -524,32 +550,16 @@ EvalT MoveSearcher::Impl::search(
     searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
 
     if (depth == 0) {
-        return quiesce(gameState, alpha, beta, stack);
+        return quiesce(gameState, alpha, beta, ply, stack);
     }
 
     // alphaOrig determines whether the value returned is an upper bound
     const EvalT alphaOrig = alpha;
 
     if (ply > 0) {
-        if (gameState.isRepetitionForSearch(ply)) {
+        if (const auto endState = checkForEndState(gameState, ply, stack); endState.has_value()) {
             // Exact value
-            return 0;
-        }
-
-        if (gameState.isFiftyMoves()) {
-            const auto moves = gameState.generateMoves(stack);
-            if (moves.size() == 0) {
-                // Exact value
-                return evaluateNoLegalMoves(gameState);
-            } else {
-                // Exact value
-                return 0;
-            }
-        }
-
-        if (isInsufficientMaterial(gameState)) {
-            // Exact value
-            return 0;
+            return endState.value();
         }
     }
 
@@ -807,7 +817,11 @@ EvalT MoveSearcher::Impl::search(
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 EvalT MoveSearcher::Impl::quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, StackOfVectors<Move>& stack) {
+        GameState& gameState,
+        EvalT alpha,
+        const EvalT beta,
+        const int ply,
+        StackOfVectors<Move>& stack) {
     // TODO:
     //  - Can we use the TTable here?
 
@@ -819,12 +833,8 @@ EvalT MoveSearcher::Impl::quiesce(
 
     ++searchStatistics_.qNodesSearched;
 
-    // No need to check for repetitions and 50 move rule: those are impossible when only doing
-    // captures.
-
-    if (isInsufficientMaterial(gameState)) {
-        // Exact value
-        return 0;
+    if (const auto endState = checkForEndState(gameState, ply, stack); endState.has_value()) {
+        return endState.value();
     }
 
     const BitBoard enemyControl = gameState.getEnemyControl();
@@ -911,7 +921,7 @@ EvalT MoveSearcher::Impl::quiesce(
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
