@@ -256,10 +256,11 @@ constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesLate = {
 };
 
 struct PiecePositionEvaluation {
-    int material          = 0;
-    int phaseMaterial     = 0;
-    int earlyGamePosition = 0;
-    int endGamePosition   = 0;
+    int material           = 0;
+    int materialAdjustment = 0;
+    int phaseMaterial      = 0;
+    int earlyGamePosition  = 0;
+    int endGamePosition    = 0;
 };
 
 FORCE_INLINE void updatePiecePositionEvaluation(
@@ -346,7 +347,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
-            result.material -= kKnightPairPenalty;
+            result.materialAdjustment -= kKnightPairPenalty;
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
@@ -358,7 +359,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            result.material += kKnightPawnAdjustment[numOwnPawns];
+            result.materialAdjustment += kKnightPawnAdjustment[numOwnPawns];
 
             updateMobilityEvaluation(Piece::Knight, position, anyPiece, ownOccupancy, result);
         }
@@ -387,7 +388,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
             hasBishopOfColor[squareColor] = true;
 
-            result.material -= kBadBishopPenalty[badBishopIndex[squareColor]];
+            result.materialAdjustment -= kBadBishopPenalty[badBishopIndex[squareColor]];
 
             const int kingDistance = bishopDistance(position, enemyKingPosition);
             const int tropismBonus = (14 - kingDistance) / 2;
@@ -398,7 +399,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
-            result.material += kBishopPairBonus;
+            result.materialAdjustment += kBishopPairBonus;
         }
     }
 
@@ -408,7 +409,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
-            result.material -= kRookPairPenalty;
+            result.materialAdjustment -= kRookPairPenalty;
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
@@ -432,7 +433,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            result.material += kRookPawnAdjustment[numOwnPawns];
+            result.materialAdjustment += kRookPawnAdjustment[numOwnPawns];
 
             updateMobilityEvaluation(Piece::Rook, position, anyPiece, ownOccupancy, result);
         }
@@ -465,6 +466,53 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     }
 
     return result;
+}
+
+[[nodiscard]] FORCE_INLINE bool isDrawish(
+        const int whiteMaterial,
+        const int whitePawns,
+        const int blackMaterial,
+        const int blackPawns) {
+    static_assert(kPieceValues[(int)Piece::Knight] != kPieceValues[(int)Piece::Bishop]);
+
+    const int materialBalance  = (whiteMaterial + whitePawns) - (blackMaterial + blackPawns);
+    const bool whiteIsStronger = materialBalance >= 0;
+
+    const int strongerSideMaterial = whiteIsStronger ? whiteMaterial : blackMaterial;
+    const int strongerSidePawns    = whiteIsStronger ? whitePawns : blackPawns;
+
+    const int weakerSideMaterial = whiteIsStronger ? blackMaterial : whiteMaterial;
+
+    if (strongerSidePawns > 0) {
+        return false;
+    }
+
+    // With only a minor piece you can't reliably deliver mate.
+    if (strongerSideMaterial < kPieceValues[(int)Piece::Rook]) {
+        return true;
+    }
+
+    // Only two knights; this is insufficient material once the weaker side has lost their material.
+    if (strongerSideMaterial == 2 * kPieceValues[(int)Piece::Knight]) {
+        return true;
+    }
+
+    // Rook vs a minor piece is drawish.
+    if (strongerSideMaterial == kPieceValues[(int)Piece::Rook]
+        && (weakerSideMaterial == kPieceValues[(int)Piece::Knight]
+            || weakerSideMaterial == kPieceValues[(int)Piece::Bishop])) {
+        return true;
+    }
+
+    // Rook and minor vs rook is drawish.
+    if ((strongerSideMaterial == kPieceValues[(int)Piece::Rook] + kPieceValues[(int)Piece::Knight]
+         || strongerSideMaterial
+                    == kPieceValues[(int)Piece::Rook] + kPieceValues[(int)Piece::Bishop])
+        && weakerSideMaterial == kPieceValues[(int)Piece::Rook]) {
+        return true;
+    }
+
+    return false;
 }
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
@@ -575,10 +623,22 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     const auto whitePiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::White);
     const auto blackPiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::Black);
 
-    const int whiteMaterial = whitePiecePositionEval.material + whitePawnEval.material;
-    const int blackMaterial = blackPiecePositionEval.material + blackPawnEval.material;
+    const int whiteMaterial = whitePiecePositionEval.material
+                            + whitePiecePositionEval.materialAdjustment + whitePawnEval.material
+                            + whitePawnEval.materialAdjustment;
+    const int blackMaterial = blackPiecePositionEval.material
+                            + blackPiecePositionEval.materialAdjustment + blackPawnEval.material
+                            + blackPawnEval.materialAdjustment;
 
-    const int materialEval = whiteMaterial - blackMaterial;
+    int materialEval = whiteMaterial - blackMaterial;
+
+    if (isDrawish(
+                whitePiecePositionEval.material,
+                whitePawnEval.material,
+                blackPiecePositionEval.material,
+                blackPawnEval.material)) {
+        materialEval /= 2;
+    }
 
     const int phaseMaterial =
             min(whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,

@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name Euwe v1.2.1");
+    writeUci("id name drawish-material");
     writeUci("id author Joost Houben");
 
     writeOptions();
