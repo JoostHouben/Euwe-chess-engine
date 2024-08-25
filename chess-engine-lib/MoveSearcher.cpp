@@ -546,8 +546,13 @@ EvalT MoveSearcher::Impl::search(
         return -kInfiniteEval;
     }
 
+    const bool isPvNode = beta - alpha > 1;
+
     ++searchStatistics_.normalNodesSearched;
-    searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
 
     if (depth == 0) {
         return quiesce(gameState, alpha, beta, ply, stack);
@@ -565,8 +570,6 @@ EvalT MoveSearcher::Impl::search(
 
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
-
-    const bool isPvNode = beta - alpha > 1;
 
     const int extension = getDepthExtension(isInCheck, lastMove);
     if (ply > 0) {
@@ -622,9 +625,11 @@ EvalT MoveSearcher::Impl::search(
 
         if (ttInfo.depth >= depth) {
             if (ttInfo.scoreType == ScoreType::Exact) {
+                if (isPvNode) {
+                    searchStatistics_.selectiveDepth =
+                            max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
+                }
                 // Exact value
-                searchStatistics_.selectiveDepth =
-                        max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
                 return ttInfo.score;
             } else if (ttInfo.scoreType == ScoreType::LowerBound) {
                 // Can safely raise the lower bound for our search window, because the true value
@@ -832,6 +837,12 @@ EvalT MoveSearcher::Impl::quiesce(
     }
 
     ++searchStatistics_.qNodesSearched;
+
+    const bool isPvNode = beta - alpha > 1;
+
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
 
     if (const auto endState = checkForEndState(gameState, ply, stack); endState.has_value()) {
         return endState.value();
