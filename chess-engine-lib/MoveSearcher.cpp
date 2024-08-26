@@ -444,8 +444,22 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
 
     const auto isMoreValuable = [](const SearchTTPayload& newPayload,
                                    const SearchTTPayload& oldPayload) FORCE_INLINE {
-        const int tickDelta = computeWrappingTickDelta(newPayload.tick, oldPayload.tick);
-        return (int)newPayload.depth + tickDelta >= (int)oldPayload.depth;
+        const int tickDelta        = computeWrappingTickDelta(newPayload.tick, oldPayload.tick);
+        const int compensatedDepth = (int)newPayload.depth + tickDelta;
+        if (compensatedDepth > (int)oldPayload.depth) {
+            // If new entry is deeper (biased for recency), consider it more valuable.
+            return true;
+        } else if (compensatedDepth == (int)oldPayload.depth) {
+            // If the old and new entry are of equal depth:
+            //  - If the new entry is exact, consider it more valuable (if old one is also exact, we
+            //    prefer the new one).
+            //  - If neither the old nor the new entry are exact, we prefer the new one.
+            return newPayload.scoreType == ScoreType::Exact
+                || oldPayload.scoreType != ScoreType::Exact;
+        } else {
+            // Older entry is deeper, retain it.
+            return false;
+        }
     };
 
     tTable_.store(entry, isMoreValuable);
@@ -822,15 +836,11 @@ EvalT MoveSearcher::Impl::search(
 // Continue until no more capture are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 EvalT MoveSearcher::Impl::quiesce(
-        GameState& gameState,
-        EvalT alpha,
-        const EvalT beta,
-        const int ply,
-        StackOfVectors<Move>& stack) {
-    // TODO:
-    //  - Can we use the TTable here?
+        GameState& gameState, EvalT alpha, EvalT beta, const int ply, StackOfVectors<Move>& stack) {
+    constexpr EvalT kDeltaPruningThreshold = 200;
 
     EvalT bestScore = -kInfiniteEval;
+    Move bestMove{};
 
     if (shouldStopSearch()) {
         return bestScore;
@@ -851,6 +861,9 @@ EvalT MoveSearcher::Impl::quiesce(
     const BitBoard enemyControl = gameState.getEnemyControl();
     const bool isInCheck        = gameState.isInCheck(enemyControl);
 
+    bool completedAnySearch = false;
+    const EvalT alphaOrig   = alpha;
+
     EvalT standPat;
     if (!isInCheck) {
         // Stand pat
@@ -869,6 +882,113 @@ EvalT MoveSearcher::Impl::quiesce(
         }
 
         alpha = max(alpha, bestScore);
+    }
+
+    std::optional<Move> hashMove = std::nullopt;
+
+    // Probe the transposition table and use the stored score and/or move if we get a hit.
+    const auto ttHit = tTable_.probe(gameState.getBoardHash());
+    if (ttHit) {
+        const auto& ttInfo = ttHit->payload;
+
+        searchStatistics_.tTableHits++;
+
+        // No need to check depth: in qsearch, depth == 0.
+
+        if (ttInfo.scoreType == ScoreType::Exact) {
+            // Exact value
+            return ttInfo.score;
+        } else if (ttInfo.scoreType == ScoreType::LowerBound) {
+            // Can safely raise the lower bound for our search window, because the true value
+            // is guaranteed to be above this bound.
+            alpha = max(alpha, ttInfo.score);
+        } else if (ttInfo.scoreType == ScoreType::UpperBound) {
+            // Can safely lower the upper bound for our search window, because the true value
+            // is guaranteed to be below this bound.
+            beta = min(beta, ttInfo.score);
+        }
+        // Else: score type not set (result from interrupted search).
+
+        // Check if we can return based on tighter bounds from the transposition table.
+        if (alpha >= beta) {
+            // Based on information from the ttable, we now know that the true value is outside
+            // of the feasibility window.
+            // If alpha was raised by the tt entry this is a lower bound and we want to return
+            // that raised alpha (fail-soft: that's the tightest lower bound we have).
+            // If beta was lowered by the tt entry this is an upper bound and we want to return
+            // that lowered beta (fail-soft: that's the tightest upper bound we have).
+            // So either way we return the tt entry score.
+            return ttInfo.score;
+        }
+
+        hashMove = getTTableMove(ttInfo, gameState);
+
+        bool shouldTryHashMove = true;
+        if (!isInCheck) {
+            if (!isCapture(hashMove->flags)) {
+                shouldTryHashMove = false;
+            } else {
+                // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
+                // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
+                // So we need to check if SEE >= alpha - standPat - kDeltaPruningThreshold
+                const int seeThreshold = alpha - standPat - kDeltaPruningThreshold;
+
+                const int seeBound =
+                        staticExchangeEvaluationBound(gameState, *hashMove, seeThreshold);
+
+                if (seeBound < seeThreshold) {
+                    // This move looks like it has no hope of raising alpha, so unless it's a check we
+                    // can prune it. For some reason still calculating the upper bound for bestScore
+                    // helps even for moves that give check...
+
+                    // If our optimistic estimate of the score of this move is above bestScore, raise
+                    // bestScore to match. This should mean that an upper bound returned from this
+                    // function if we prune moves is still reliable. Note that this is definitely below
+                    // alpha.
+                    const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
+                    bestScore                     = max(bestScore, deltaPruningScore);
+
+                    if (!gameState.givesCheck(*hashMove)) {
+                        shouldTryHashMove = false;
+                    }
+                }
+            }
+        }
+
+        if (shouldTryHashMove) {
+            const auto unmakeInfo = gameState.makeMove(*hashMove);
+
+            tTable_.prefetch(gameState.getBoardHash());
+
+            EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
+
+            gameState.unmakeMove(*hashMove, unmakeInfo);
+
+            if (wasInterrupted_) {
+                return bestScore;
+            }
+
+            updateMateDistance(score);
+
+            completedAnySearch = true;
+            bestScore          = max(bestScore, score);
+            bestMove           = *hashMove;
+
+            if (score >= beta) {
+                updateTTable(
+                        bestScore,
+                        alphaOrig,
+                        beta,
+                        false,
+                        bestMove,
+                        /*depth =*/0,
+                        gameState.getBoardHash());
+
+                return score;
+            }
+
+            alpha = max(alpha, score);
+        }
     }
 
     auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
@@ -893,17 +1013,24 @@ EvalT MoveSearcher::Impl::quiesce(
         return bestScore;
     }
 
-    auto moveScores = scoreMovesQuiesce(moves, /*firstMoveIdx =*/0, gameState, moveScoreStack_);
+    int moveIdx = 0;
+    if (hashMove) {
+        const auto hashMoveIt = std::find(moves.begin(), moves.end(), *hashMove);
+        if (hashMoveIt != moves.end()) {
+            *hashMoveIt = moves.front();
+            ++moveIdx;
+        }
+    }
 
-    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+    auto moveScores = scoreMovesQuiesce(moves, moveIdx, gameState, moveScoreStack_);
+
+    for (; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
 
         if (!isInCheck) {
             // Delta pruning
 
             MY_ASSERT(isCapture(move.flags));
-
-            constexpr EvalT kDeltaPruningThreshold = 200;
 
             // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
             // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
@@ -937,17 +1064,37 @@ EvalT MoveSearcher::Impl::quiesce(
         gameState.unmakeMove(move, unmakeInfo);
 
         if (wasInterrupted_) {
-            return bestScore;
+            break;
         }
 
         updateMateDistance(score);
 
-        if (score >= beta) {
-            return score;
+        if (!completedAnySearch) {
+            completedAnySearch = true;
+            bestMove           = move;
+            // bestScore might be > score due to stand pat
         }
 
-        alpha     = max(alpha, score);
-        bestScore = max(bestScore, score);
+        alpha = max(alpha, score);
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove  = move;
+        }
+
+        if (alpha >= beta) {
+            break;
+        }
+    }
+
+    if (completedAnySearch) {
+        updateTTable(
+                bestScore,
+                alphaOrig,
+                beta,
+                wasInterrupted_,
+                bestMove,
+                /*depth =*/0,
+                gameState.getBoardHash());
     }
 
     return bestScore;
@@ -972,23 +1119,22 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
     const int reducedDepth = depth - reduction - 1;
     const int fullDepth    = depth - 1;
-    if (reducedDepth > 0) {
-        const bool isPvNode              = beta - alpha > 1;
-        const bool likelyNullMoveAllowed = nullMovePruningAllowed(
-                gameState,
-                isPvNode,
-                /*beta*/ -alpha,
-                /*isInCheck =*/false,
-                reducedDepth,
-                ply + 1,
-                lastNullMovePly);
 
-        HashT hashToPrefetch = gameState.getBoardHash();
-        if (likelyNullMoveAllowed) {
-            updateHashForSideToMove(hashToPrefetch);
-        }
-        tTable_.prefetch(hashToPrefetch);
+    const bool isPvNode              = beta - alpha > 1;
+    const bool likelyNullMoveAllowed = nullMovePruningAllowed(
+            gameState,
+            isPvNode,
+            /*beta*/ -alpha,
+            /*isInCheck =*/false,
+            reducedDepth,
+            ply + 1,
+            lastNullMovePly);
+
+    HashT hashToPrefetch = gameState.getBoardHash();
+    if (likelyNullMoveAllowed) {
+        updateHashForSideToMove(hashToPrefetch);
     }
+    tTable_.prefetch(hashToPrefetch);
 
     EvalT score;
     if (useScoutSearch) {
