@@ -1059,6 +1059,8 @@ EvalT MoveSearcher::Impl::quiesce(
 
         const auto unmakeInfo = gameState.makeMove(move);
 
+        tTable_.prefetch(gameState.getBoardHash());
+
         EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
