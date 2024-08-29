@@ -59,8 +59,7 @@ class GameState {
 
     [[nodiscard]] bool isInCheck() const;
     [[nodiscard]] bool isInCheck(BitBoard enemyControl) const;
-    [[nodiscard]] bool isThreeFoldRepetition() const;
-    [[nodiscard]] bool isRepetitionForSearch(int ply) const;
+    [[nodiscard]] bool isRepetition(int repetitionThreshold = 3) const;
     [[nodiscard]] bool isFiftyMoves() const;
 
     [[nodiscard]] bool givesCheck(const Move& move) const;

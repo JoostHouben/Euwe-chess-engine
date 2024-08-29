@@ -140,7 +140,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name quiesce-ttable");
+    writeUci("id name draw-detection");
     writeUci("id author Joost Houben");
 
     writeOptions();

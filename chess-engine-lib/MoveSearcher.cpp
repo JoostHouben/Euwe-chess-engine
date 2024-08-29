@@ -277,30 +277,25 @@ FORCE_INLINE Move getTTableMove(const SearchTTPayload payload, const GameState& 
     };
 }
 
-[[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForEndState(
-        const GameState& gameState, const int ply, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetitionForSearch(ply)) {
-        // Exact value
-        return 0;
+[[nodiscard]] FORCE_INLINE bool isDraw(const GameState& gameState, StackOfVectors<Move>& stack) {
+    if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
+        return true;
     }
 
     if (gameState.isFiftyMoves()) {
         const auto moves = gameState.generateMoves(stack);
         if (moves.size() == 0) {
-            // Exact value
             return evaluateNoLegalMoves(gameState);
         } else {
-            // Exact value
-            return 0;
+            return true;
         }
     }
 
     if (isInsufficientMaterial(gameState)) {
-        // Exact value
-        return 0;
+        return true;
     }
 
-    return std::nullopt;
+    return false;
 }
 
 }  // namespace
@@ -576,9 +571,9 @@ EvalT MoveSearcher::Impl::search(
     const EvalT alphaOrig = alpha;
 
     if (ply > 0) {
-        if (const auto endState = checkForEndState(gameState, ply, stack); endState.has_value()) {
+        if (isDraw(gameState, stack)) {
             // Exact value
-            return endState.value();
+            return 0;
         }
     }
 
@@ -854,8 +849,8 @@ EvalT MoveSearcher::Impl::quiesce(
         searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
     }
 
-    if (const auto endState = checkForEndState(gameState, ply, stack); endState.has_value()) {
-        return endState.value();
+    if (isDraw(gameState, stack)) {
+        return 0;
     }
 
     const BitBoard enemyControl = gameState.getEnemyControl();
