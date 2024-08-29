@@ -389,6 +389,8 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
         }
     }
 
+    waitForGoToComplete();
+
     TimeManager& timeManager = engine_.getTimeManager();
 
     if (isInfinite) {
@@ -409,7 +411,6 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
         timeManager.configureForFixedTimeSearch(std::chrono::seconds(1));
     }
 
-    waitForGoToComplete();
     MY_ASSERT(!goFuture_.valid());
 
     goFuture_ = std::async(std::launch::async, [=, this] {
