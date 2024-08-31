@@ -236,19 +236,35 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
         const bool isPvNode,
         const int depth,
         const int extension) {
-    static constexpr int kMovesSearchedFullDepth = 4;
-    static constexpr int kMinDepthForReduction   = 3;
-
-    const Piece promotionPiece = getPromotionPiece(move.flags);
-    const bool moveIsTactical  = isCapture(move.flags) || promotionPiece == Piece::Queen;
-    const bool tooShallow      = depth < kMinDepthForReduction;
-
-    if (extension > 0 || isPvNode || moveIdx < kMovesSearchedFullDepth || moveIsTactical
-        || tooShallow) {
+    // Don't apply reductions if we're extending the current node.
+    if (extension > 0) {
         return 0;
     }
 
-    return 1;
+    // Don't apply reductions in PV nodes.
+    if (isPvNode) {
+        return 0;
+    }
+
+    // Don't apply reductions too close to the horizon.
+    static constexpr int kMinDepthForReduction = 3;
+    if (depth < kMinDepthForReduction) {
+        return 0;
+    }
+
+    // Don't apply reductions to tactical moves.
+    const Piece promotionPiece = getPromotionPiece(move.flags);
+    if (isCapture(move.flags) || promotionPiece == Piece::Queen) {
+        return 0;
+    }
+
+    // Late Move Reduction (LMR)
+    static constexpr int kMovesForLMR = 4;
+    if (moveIdx >= kMovesForLMR) {
+        return 1;
+    }
+
+    return 0;
 }
 
 void updateMateDistance(EvalT& score) {
@@ -1114,7 +1130,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
     auto unmakeInfo = gameState.makeMove(move);
 
-    const int reducedDepth = depth - reduction - 1;
+    const int reducedDepth = max(depth - reduction - 1, 0);
     const int fullDepth    = depth - 1;
 
     const bool isPvNode              = beta - alpha > 1;
