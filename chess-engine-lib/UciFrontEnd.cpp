@@ -210,7 +210,7 @@ void UciFrontEnd::Impl::reportFullSearch(
             searchInfo.timeMs,
             searchInfo.numNodes,
             optionalNpsString,
-            (int)(searchStatistics.ttableUtilization * 1000),
+            (int)std::round(searchStatistics.ttableUtilization * 1000),
             optionalScoreString,
             pvString);
     std::flush(out_);

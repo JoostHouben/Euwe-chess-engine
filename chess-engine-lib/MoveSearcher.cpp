@@ -1314,6 +1314,8 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
         const int depth,
         StackOfVectors<Move>& stack,
         std::optional<EvalT> evalGuess) {
+    searchStatistics_.selectiveDepth = 0;
+
     if (evalGuess) {
         return aspirationWindowSearch(gameState, depth, stack, *evalGuess);
     } else {
