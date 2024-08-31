@@ -267,7 +267,7 @@ selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int
     return 0;
 }
 
-void updateMateDistance(EvalT& score) {
+FORCE_INLINE void updateMateDistance(EvalT& score) {
     if (isMate(score)) {
         score = mateDistancePlus1(score);
     }
