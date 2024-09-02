@@ -86,7 +86,7 @@ way to use Euwe is using a UCI chess GUI. Some good choices include:
  - [Arena](http://www.playwitharena.com/)
  - [Cute Chess](https://cutechess.com/)
  - [Banksia GUI](https://banksiagui.com/)
- - [Tarrasch](http://www.triplehappy.com/)]
+ - [Tarrasch](http://www.triplehappy.com/)
 
 Alternatively, you can use Euwe directly from the command line by manually sending UCI commands. See,
 e.g., [here](https://gist.github.com/DOBRO/2592c6dad754ba67e6dcaec8c90165bf) for a description of the
