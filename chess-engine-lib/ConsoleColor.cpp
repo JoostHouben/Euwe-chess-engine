@@ -8,7 +8,18 @@
 static_assert(sizeof(WORD) == sizeof(std::uint16_t));
 #endif
 
-ScopedConsoleColor::ScopedConsoleColor(const ConsoleColor color) {
+#ifdef _POSIX_SOURCE
+#include <unistd.h>
+
+#include <stdio.h>
+#endif
+
+ScopedConsoleColor::ScopedConsoleColor(
+        const ConsoleColor color, [[maybe_unused]] std::ostream& stream)
+#ifdef _POSIX_SOURCE
+    : stream_(stream)
+#endif
+{
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO screenBufferInfo;
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -49,7 +60,42 @@ ScopedConsoleColor::ScopedConsoleColor(const ConsoleColor color) {
 
     SetConsoleTextAttribute(hStdout, newAttributes);
 #endif
-    // TODO: implement for other platforms
+
+#ifdef _POSIX_SOURCE
+    isTerminal_ = isatty(fileno(stdout));
+    if (!isTerminal_) {
+        return;
+    }
+
+    switch (color) {
+        case ConsoleColor::White:
+            stream << "\033[37m";
+            break;
+
+        case ConsoleColor::BrightWhite:
+            stream << "\033[1;37m";
+            break;
+
+        case ConsoleColor::Green:
+            stream << "\033[32m";
+            break;
+
+        case ConsoleColor::BrightGreen:
+            stream << "\033[1;32m";
+            break;
+
+        case ConsoleColor::Yellow:
+            stream << "\033[33m";
+            break;
+
+        case ConsoleColor::Red:
+            stream << "\033[31m";
+            break;
+
+        default:
+            UNREACHABLE;
+    }
+#endif
 }
 
 ScopedConsoleColor::~ScopedConsoleColor() {
@@ -57,5 +103,12 @@ ScopedConsoleColor::~ScopedConsoleColor() {
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
     SetConsoleTextAttribute(hStdout, oldAttributes_);
 #endif
-    // TODO: implement for other platforms
+
+#ifdef _POSIX_SOURCE
+    if (!isTerminal_) {
+        return;
+    }
+
+    stream_ << "\033[0m";
+#endif
 }

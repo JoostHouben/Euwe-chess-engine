@@ -647,18 +647,18 @@ std::optional<OptionStringParseResult> UciFrontEnd::Impl ::parseOptionLine(
 
 template <typename... Args>
 void UciFrontEnd::Impl::writeUci(const std::format_string<Args...> fmt, Args&&... args) const {
-    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Green);
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Green, out_);
 
     std::println(out_, fmt, std::forward<Args>(args)...);
 }
 
 template <typename... Args>
 void UciFrontEnd::Impl::writeDebug(const std::format_string<Args...> fmt, Args&&... args) const {
-    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
-
     if (debugMode_) {
+        ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, out_);
         std::println(out_, "info string {}", std::format(fmt, std::forward<Args>(args)...));
     } else {
+        ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, debug_);
         std::println(debug_, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
     }
 }
@@ -666,7 +666,7 @@ void UciFrontEnd::Impl::writeDebug(const std::format_string<Args...> fmt, Args&&
 template <typename... Args>
 void UciFrontEnd::Impl::writeDebugNonUci(
         const std::format_string<Args...> fmt, Args&&... args) const {
-    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow);
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, debug_);
 
     std::println(debug_, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
 }
