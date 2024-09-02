@@ -6,8 +6,6 @@
 #include <iostream>
 #include <print>
 
-#pragma once
-
 void runPerft() {
     GameState gameState = GameState::startingPosition();
 

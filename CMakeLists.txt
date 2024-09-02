@@ -23,11 +23,11 @@ else()
     message(STATUS "IPO / LTO not supported: <${error}>")
 endif()
 
-# Set the architecture to avx2
+# Set the architecture to AVX2 (and BMI2)
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2")
 endif()
 
 enable_testing()
