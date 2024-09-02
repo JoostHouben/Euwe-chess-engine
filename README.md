@@ -104,7 +104,7 @@ Euwe targets the C++23 standard. It is designed to have minimal external depende
 only external dependencies are:
 
  - GTest for unit testing.
- - The Windows API for colored console output.
+ - System APIs (Windows/POSIX) for colored console output.
 
 ### Build instructions
 
