@@ -149,7 +149,7 @@ It also includes several minor improvements:
    - Use rounding to nearest permille for reported hashfull (instead of rounding down).
    - Reset selective depth after each full search to a given depth, instead of keeping a running
      maximum for each 'go' command.
- - Approximate strength gain (on ultrafast time control): 24 +/- 9 Elo.
+ - Approximate strength gain (on ultrafast time control): 27.9 +/- 7.8 Elo.
 
 ### Version 1.2
 
