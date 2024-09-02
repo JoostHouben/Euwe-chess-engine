@@ -133,6 +133,24 @@ The project has been tested with G++ 14.0.
 
 ## Release history
 
+### Version 1.3
+
+Version 1.3 adds Linux build support.
+
+It also includes several minor improvements:
+
+ - Some bugfixes to draw detection code. This fixes issues where Euwe blindly walks into a draw
+   from a winning position.
+ - Detect drawish material configurations in the evaluation function.
+ - Use the transposition table in quiescence search.
+ - The selective depth calculation has been modified to match the Stockfish convention (depth of the
+   deepest PV line, including nodes in quiescence search).
+ - Fixes to reported statistics:
+   - Use rounding to nearest permille for reported hashfull (instead of rounding down).
+   - Reset selective depth after each full search to a given depth, instead of keeping a running
+     maximum for each 'go' command.
+ - Approximate strength gain (on ultrafast time control): 24 +/- 9 Elo.
+
 ### Version 1.2
 
  - Bugfixes:

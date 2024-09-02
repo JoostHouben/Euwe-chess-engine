@@ -141,7 +141,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name draw-detection");
+    writeUci("id name Euwe v1.3.0");
     writeUci("id author Joost Houben");
 
     writeOptions();
