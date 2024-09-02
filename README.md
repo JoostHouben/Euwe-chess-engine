@@ -129,7 +129,7 @@ The project has been tested with Visual Studio 2022 Community Edition, version 1
    file, run `cmake --preset linux-x64-release` to build in release mode.
  - Run `cmake --build` on the output directory. E.g., `cmake --build out/build/linux-x64-release/`.
 
-The project has been tested with G++ 14.0.
+The project has been tested with g++ 14.0.
 
 ## Release history
 
