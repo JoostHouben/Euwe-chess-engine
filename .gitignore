@@ -12,6 +12,7 @@ CMakeUserPresets.json
 
 ## Visual Studio
 .vs
+*.tmp
 
 ## Python
 */venv
