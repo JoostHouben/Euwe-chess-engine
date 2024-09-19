@@ -690,7 +690,9 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
 
     const EvalCalcT eval = materialEval + positionEval + kingSafety + swarmingEval;
 
-    return (EvalT)clamp((int)eval, -kMateEval + 1'000, kMateEval - 1'000);
+    const int roundedEval   = (int)(eval + 0.5f);
+    const EvalT clampedEval = (EvalT)clamp(roundedEval, -kMateEval + 1'000, kMateEval - 1'000);
+    return clampedEval;
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> evaluateEndState(
