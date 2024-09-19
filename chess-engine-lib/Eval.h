@@ -11,5 +11,4 @@
 
 [[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
 
-[[nodiscard]] EvalT evaluate(
-        const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState = true);
+[[nodiscard]] EvalT evaluate(const GameState& gameState);

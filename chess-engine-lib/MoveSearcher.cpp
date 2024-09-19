@@ -730,7 +730,7 @@ EvalT MoveSearcher::Impl::search(
 
     EvalT staticEval = -kInfiniteEval;
     if (futilityPruningEnabled) {
-        staticEval = evaluate(gameState, stack, /*checkEndState =*/false);
+        staticEval = evaluate(gameState);
     }
 
     auto moves = gameState.generateMoves(stack, enemyControl);
@@ -878,7 +878,7 @@ EvalT MoveSearcher::Impl::quiesce(
     EvalT standPat;
     if (!isInCheck) {
         // Stand pat
-        standPat  = evaluate(gameState, stack, /*checkEndState =*/false);
+        standPat  = evaluate(gameState);
         bestScore = standPat;
         if (bestScore >= beta) {
             return bestScore;

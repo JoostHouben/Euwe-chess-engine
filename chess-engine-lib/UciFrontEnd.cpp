@@ -535,18 +535,7 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 
 void UciFrontEnd::Impl::handleEval() {
     StackOfVectors<Move> stack;
-    const EvalT eval = evaluate(gameState_, stack);
-
-    std::string scoreString;
-    if (isMate(eval)) {
-        const int mateInPly           = getMateDistanceInPly(eval);
-        const int mateInMoves         = (mateInPly + 1) / 2;
-        const int relativeMateInMoves = signum(eval) * mateInMoves;
-        scoreString                   = std::format("#{}", relativeMateInMoves);
-    } else {
-        scoreString = std::format("{:+}", (float)eval / 100);
-    }
-
+    const EvalT eval = evaluate(gameState_);
     writeDebug("Eval: {:+}", (float)eval / 100);
 }
 

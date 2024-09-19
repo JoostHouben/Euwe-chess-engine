@@ -695,31 +695,6 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
     return clampedEval;
 }
 
-[[nodiscard]] FORCE_INLINE std::optional<EvalT> evaluateEndState(
-        const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetition()) {
-        return 0;
-    }
-
-    if (isInsufficientMaterial(gameState)) {
-        return 0;
-    }
-
-    const auto moves = gameState.generateMoves(stack);
-
-    if (moves.size() > 0) {
-        if (gameState.isFiftyMoves()) {
-            // If there are legal moves the 50 move rule applies.
-            return 0;
-        }
-
-        // If there are any legal moves and the 50 move rule doesn't apply we're not in an end state.
-        return std::nullopt;
-    }
-
-    return evaluateNoLegalMoves(gameState);
-}
-
 [[nodiscard]] FORCE_INLINE std::pair<bool, bool> insufficientMaterialForSides(
         const GameState& gameState) {
     bool whiteInsufficientMaterial = false;
@@ -820,15 +795,8 @@ FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     return 0;
 }
 
-EvalT evaluate(const GameState& gameState, StackOfVectors<Move>& stack, bool checkEndState) {
-    if (checkEndState) {
-        auto maybeEndEval = evaluateEndState(gameState, stack);
-        if (maybeEndEval) {
-            return *maybeEndEval;
-        }
-    }
-
-    EvalT whiteEval = evaluateForWhite(gameState);
+EvalT evaluate(const GameState& gameState) {
+    const EvalT whiteEval = evaluateForWhite(gameState);
 
     return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
 }
