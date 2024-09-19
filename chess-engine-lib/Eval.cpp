@@ -631,7 +631,7 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
 
     const EvalCalcT swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
 
-    return (EvalCalcT)(int)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
+    return (EvalCalcT)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
 }
 
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
@@ -675,13 +675,12 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
 
     const EvalCalcT earlyGamePositionEval = earlyGameWhitePositionEval - earlyGameBlackPositionEval;
     const EvalCalcT endGamePositionEval   = endGameWhitePositionEval - endGameBlackPositionEval;
-    const EvalCalcT positionEval          = (EvalCalcT)(int)(earlyGamePositionEval * earlyGameFactor
-                                                    + endGamePositionEval * endGameFactor);
+    const EvalCalcT positionEval          = (EvalCalcT)(earlyGamePositionEval * earlyGameFactor
+                                               + endGamePositionEval * endGameFactor);
 
     const EvalCalcT whiteKingSafety = evaluateKingSafety(gameState, Side::White);
     const EvalCalcT blackKingSafety = evaluateKingSafety(gameState, Side::Black);
-    const EvalCalcT kingSafety =
-            (EvalCalcT)(int)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
+    const EvalCalcT kingSafety = (EvalCalcT)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
 
     const EvalCalcT whiteSwarmingValue = evaluateKingSwarming(
             gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
