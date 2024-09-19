@@ -1,5 +1,6 @@
 #pragma once
 
+#include "EvalT.h"
 #include "GameState.h"
 #include "IFrontEnd.h"
 #include "SearchInfo.h"
@@ -25,4 +26,6 @@ class IEngine {
     [[nodiscard]] virtual int getDefaultTTableSizeInMb() const = 0;
 
     virtual void setTTableSize(int requestedSizeInMb) = 0;
+
+    [[nodiscard]] virtual EvalT evaluate(const GameState& gameState) const = 0;
 };

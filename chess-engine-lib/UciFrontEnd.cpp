@@ -535,7 +535,7 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 
 void UciFrontEnd::Impl::handleEval() {
     StackOfVectors<Move> stack;
-    const EvalT eval = evaluate(gameState_);
+    const EvalT eval = engine_.evaluate(gameState_);
     writeDebug("Eval: {:+}", (float)eval / 100);
 }
 

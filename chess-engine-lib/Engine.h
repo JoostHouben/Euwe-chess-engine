@@ -26,6 +26,8 @@ class Engine final : public IEngine {
 
     void setTTableSize(int requestedSizeInMb) override;
 
+    [[nodiscard]] EvalT evaluate(const GameState& gameState) const override;
+
   private:
     class Impl;
 

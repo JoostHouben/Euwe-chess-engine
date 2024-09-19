@@ -11,7 +11,8 @@ constexpr int kPromotionBonus   = 3'000;
 constexpr int kKillerMoveBonus  = 1'000;
 constexpr int kCounterMoveBonus = 500;
 
-[[nodiscard]] FORCE_INLINE MoveEvalT scoreCapture(const Move& move, const GameState& gameState) {
+[[nodiscard]] FORCE_INLINE MoveEvalT
+scoreCapture(const Evaluator& evaluator, const Move& move, const GameState& gameState) {
     MoveEvalT moveScore = kCaptureBonus;
 
     Piece capturedPiece;
@@ -31,8 +32,8 @@ constexpr int kCounterMoveBonus = 500;
     moveScore += getStaticPieceValue(capturedPiece);
     moveScore -= (getStaticPieceValue(move.pieceToMove) >> 5);
 
-    moveScore +=
-            getPieceSquareValue(capturedPiece, captureTarget, nextSide(gameState.getSideToMove()));
+    moveScore += evaluator.getPieceSquareValue(
+            capturedPiece, captureTarget, nextSide(gameState.getSideToMove()));
 
     return moveScore;
 }
@@ -50,6 +51,7 @@ scoreQueenPromotion(const Move& move, const GameState& gameState) {
 }  // namespace
 
 StackVector<MoveEvalT> scoreMoves(
+        const Evaluator& evaluator,
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,
@@ -75,7 +77,7 @@ StackVector<MoveEvalT> scoreMoves(
         moveScore += (cutOffScore << 5) / usedScore;
 
         if (isCapture(move.flags)) {
-            moveScore += scoreCapture(move, gameState);
+            moveScore += scoreCapture(evaluator, move, gameState);
         }
 
         // If promoting to a queen is not a good move, promoting to a knight, bishop, or rook is
@@ -104,6 +106,7 @@ StackVector<MoveEvalT> scoreMoves(
 }
 
 StackVector<MoveEvalT> scoreMovesQuiesce(
+        const Evaluator& evaluator,
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,
@@ -119,11 +122,13 @@ StackVector<MoveEvalT> scoreMovesQuiesce(
 
         MoveEvalT moveScore = 0;
 
-        moveScore -= getPieceSquareValue(move.pieceToMove, move.from, gameState.getSideToMove());
-        moveScore += getPieceSquareValue(move.pieceToMove, move.to, gameState.getSideToMove());
+        moveScore -= evaluator.getPieceSquareValue(
+                move.pieceToMove, move.from, gameState.getSideToMove());
+        moveScore +=
+                evaluator.getPieceSquareValue(move.pieceToMove, move.to, gameState.getSideToMove());
 
         if (isCapture(move.flags)) {
-            moveScore += scoreCapture(move, gameState);
+            moveScore += scoreCapture(evaluator, move, gameState);
         }
 
         // If promoting to a queen is not a good move, promoting to a knight, bishop, or rook is

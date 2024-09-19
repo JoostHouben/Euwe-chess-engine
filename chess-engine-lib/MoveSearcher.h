@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Eval.h"
 #include "EvalT.h"
 #include "GameState.h"
 #include "IFrontEnd.h"
@@ -19,7 +20,7 @@ class MoveSearcher {
   public:
     static constexpr int kMaxDepth = 100;
 
-    MoveSearcher(const TimeManager& timeManager);
+    MoveSearcher(const TimeManager& timeManager, const Evaluator& evaluator);
     ~MoveSearcher();
 
     void setFrontEnd(IFrontEnd* frontEnd);

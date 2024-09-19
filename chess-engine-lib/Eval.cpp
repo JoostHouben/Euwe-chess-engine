@@ -12,249 +12,6 @@
 
 namespace {
 
-constexpr std::array<EvalCalcT, kNumPieceTypes> kPieceValues = {
-        100,  // Pawn
-        325,  // Knight
-        335,  // Bishop
-        500,  // Rook
-        975,  // Queen
-        0,    // King
-};
-
-constexpr std::array<EvalCalcT, kNumPieceTypes> kPhaseMaterialValues = {
-        0,  // Pawn
-        1,  // Knight
-        1,  // Bishop
-        2,  // Rook
-        4,  // Queen
-        0,  // King
-};
-
-constexpr EvalCalcT kMaxPhaseMaterial = 24;
-
-using SquareTable       = std::array<EvalCalcT, kSquares>;
-using PieceSquareTables = std::array<SquareTable, kNumPieceTypes>;
-
-// clang-format off
-constexpr PieceSquareTables kPieceSquareTablesWhiteEarly = {
-    // Pawns - stand in front of king and promote
-    SquareTable {
-         0,  0,  0,  0,  0,  0,  0,  0,
-         5, 10, 10,-20,-20, 10, 10,  5,
-         5, -5,-10,  0,  0,-10, -5,  5,
-         0,  0,  0, 20, 20,  0,  0,  0,
-         5,  5, 10, 25, 25, 10,  5,  5,
-        10, 10, 20, 30, 30, 20, 10, 10,
-        50, 50, 50, 50, 50, 50, 50, 50,
-         0,  0,  0,  0,  0,  0,  0,  0,
-    },
-
-    // Knights
-    SquareTable {
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50,
-    },
-
-    // Bishops 
-    SquareTable {
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20,
-    },
-
-    // Rooks
-    SquareTable {
-          0,  0,  0,  5,  5,  0,  0,  0,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-          5, 10, 10, 10, 10, 10, 10,  5,
-          0,  0,  0,  0,  0,  0,  0,  0,
-    },
-
-    // Queens
-    SquareTable {
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-          0,  0,  5,  5,  5,  5,  0, -5,
-         -5,  0,  5,  5,  5,  5,  0, -5,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20,
-    },
-
-    // King - encourage hiding behind pawns
-    SquareTable {
-         20, 30, 10,  0,  0, 10, 30, 20,
-         20, 20,  0,  0,  0,  0, 20, 20,
-        -10,-20,-20,-20,-20,-20,-20,-10,
-        -20,-30,-30,-40,-40,-30,-30,-20,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-        -30,-40,-40,-50,-50,-40,-40,-30,
-    }
-};
-
-constexpr PieceSquareTables kPieceSquareTablesWhiteLate = {
-    // Pawns - promote
-    SquareTable {
-         0,  0,  0,  0,  0,  0,  0,  0,
-        10, 10, 10, 10, 10, 10, 10, 10,
-        10, 10, 10, 10, 10, 10, 10, 10,
-        20, 20, 20, 20, 20, 20, 20, 20,
-        30, 30, 30, 30, 30, 30, 30, 30,
-        50, 50, 50, 50, 50, 50, 50, 50,
-        80, 80, 80, 80, 80, 80, 80, 80,
-         0,  0,  0,  0,  0,  0,  0,  0,
-    },
-
-    // Knights
-    SquareTable {
-        -50,-40,-30,-30,-30,-30,-40,-50,
-        -40,-20,  0,  5,  5,  0,-20,-40,
-        -30,  5, 10, 15, 15, 10,  5,-30,
-        -30,  0, 15, 20, 20, 15,  0,-30,
-        -30,  5, 15, 20, 20, 15,  5,-30,
-        -30,  0, 10, 15, 15, 10,  0,-30,
-        -40,-20,  0,  0,  0,  0,-20,-40,
-        -50,-40,-30,-30,-30,-30,-40,-50,
-    },
-
-    // Bishops 
-    SquareTable {
-        -20,-10,-10,-10,-10,-10,-10,-20,
-        -10,  5,  0,  0,  0,  0,  5,-10,
-        -10, 10, 10, 10, 10, 10, 10,-10,
-        -10,  0, 10, 10, 10, 10,  0,-10,
-        -10,  5,  5, 10, 10,  5,  5,-10,
-        -10,  0,  5, 10, 10,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10,-10,-10,-10,-10,-20,
-    },
-
-    // Rooks
-    SquareTable {
-          0,  0,  0,  5,  5,  0,  0,  0,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-         -5,  0,  0,  0,  0,  0,  0, -5,
-          5, 10, 10, 10, 10, 10, 10,  5,
-          0,  0,  0,  0,  0,  0,  0,  0,
-    },
-
-    // Queens
-    SquareTable {
-        -20,-10,-10, -5, -5,-10,-10,-20,
-        -10,  0,  5,  0,  0,  0,  0,-10,
-        -10,  5,  5,  5,  5,  5,  0,-10,
-          0,  0,  5,  5,  5,  5,  0, -5,
-         -5,  0,  5,  5,  5,  5,  0, -5,
-        -10,  0,  5,  5,  5,  5,  0,-10,
-        -10,  0,  0,  0,  0,  0,  0,-10,
-        -20,-10,-10, -5, -5,-10,-10,-20,
-    },
-
-    // King - encourage center
-    SquareTable {
-        -50,-30,-30,-30,-30,-30,-30,-50,
-        -30,-30,  0,  0,  0,  0,-30,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 30, 40, 40, 30,-10,-30,
-        -30,-10, 20, 30, 30, 20,-10,-30,
-        -30,-20,-10,  0,  0,-10,-20,-30,
-        -50,-40,-30,-20,-20,-30,-40,-50,
-    }
-};
-// clang-format on
-
-constexpr std::array kPassedPawnBonus    = {0, 90, 60, 40, 25, 15, 15};
-constexpr EvalCalcT kDoubledPawnPenalty  = 20;
-constexpr EvalCalcT kIsolatedPawnPenalty = 30;
-
-// Penalty for having 0...8 own pawns on the same color as a bishop
-constexpr std::array<EvalCalcT, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
-
-constexpr EvalCalcT kBishopPairBonus   = 30;
-constexpr EvalCalcT kKnightPairPenalty = 8;
-constexpr EvalCalcT kRookPairPenalty   = 16;
-
-constexpr EvalCalcT kRookSemiOpenFileBonus = 10;
-constexpr EvalCalcT kRookOpenFileBonus     = 20;
-
-constexpr std::array<EvalCalcT, 9> kKnightPawnAdjustment = {-20, -16, -12, -8, -4, 0, 4, 8, 12};
-constexpr std::array<EvalCalcT, 9> kRookPawnAdjustment   = {15, 12, 9, 6, 3, 0, -3, -6, -9};
-
-constexpr EvalCalcT kKingVirtualMobilityPenalty = 3;
-
-constexpr std::array<EvalCalcT, kNumPieceTypes> kMobilityBonusEarly = {
-        0,  // pawns
-        1,  // knights
-        2,  // bishops
-        2,  // rooks
-        1,  // queens
-        0,  // kings
-};
-
-constexpr std::array<EvalCalcT, kNumPieceTypes> kMobilityBonusLate = {
-        0,  // pawns
-        1,  // knights
-        2,  // bishops
-        4,  // rooks
-        2,  // queens
-        0,  // kings
-};
-
-constexpr SquareTable getReflectedSquareTable(const SquareTable& table) {
-    SquareTable result{};
-
-    for (int i = 0; i < kSquares; ++i) {
-        const BoardPosition position          = (BoardPosition)i;
-        const BoardPosition reflectedPosition = getVerticalReflection(position);
-
-        result[i] = table[(int)reflectedPosition];
-    }
-
-    return result;
-}
-
-constexpr PieceSquareTables getReflectedPieceSquareTables(const PieceSquareTables& tables) {
-    PieceSquareTables result{};
-
-    for (int i = 0; i < kNumPieceTypes; ++i) {
-        result[i] = getReflectedSquareTable(tables[i]);
-    }
-
-    return result;
-}
-
-constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesEarly = {
-        kPieceSquareTablesWhiteEarly,
-        getReflectedPieceSquareTables(kPieceSquareTablesWhiteEarly),
-};
-
-constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesLate = {
-        kPieceSquareTablesWhiteLate,
-        getReflectedPieceSquareTables(kPieceSquareTablesWhiteLate),
-};
-
 struct PiecePositionEvaluation {
     EvalCalcT material           = 0;
     EvalCalcT materialAdjustment = 0;
@@ -264,19 +21,27 @@ struct PiecePositionEvaluation {
 };
 
 FORCE_INLINE void updatePiecePositionEvaluation(
+        const EvalParams& params,
         const int pieceIdx,
         const BoardPosition position,
         const Side side,
         PiecePositionEvaluation& result) {
 
-    result.material += kPieceValues[pieceIdx];
-    result.phaseMaterial += kPhaseMaterialValues[pieceIdx];
+    result.material += params.pieceValues[pieceIdx];
+    result.phaseMaterial += params.phaseMaterialValues[pieceIdx];
 
-    result.earlyGamePosition += kPieceSquareTablesEarly[(int)side][pieceIdx][(int)position];
-    result.endGamePosition += kPieceSquareTablesLate[(int)side][pieceIdx][(int)position];
+    int positionForPieceSquare = (int)position;
+    if (side == Side::Black) {
+        positionForPieceSquare = (int)getVerticalReflection(position);
+    }
+
+    result.earlyGamePosition +=
+            params.pieceSquareTablesWhiteEarly[pieceIdx][positionForPieceSquare];
+    result.endGamePosition += params.pieceSquareTablesWhiteLate[pieceIdx][positionForPieceSquare];
 }
 
 FORCE_INLINE void updateMobilityEvaluation(
+        const EvalParams& params,
         const Piece piece,
         const BoardPosition position,
         const BitBoard anyPiece,
@@ -284,8 +49,8 @@ FORCE_INLINE void updateMobilityEvaluation(
         PiecePositionEvaluation& result) {
     const BitBoard control = getPieceControlledSquares(piece, position, anyPiece);
     const int mobility     = popCount(control & ~ownOccupancy);
-    result.earlyGamePosition += mobility * kMobilityBonusEarly[(int)piece];
-    result.endGamePosition += mobility * kMobilityBonusLate[(int)piece];
+    result.earlyGamePosition += mobility * params.mobilityBonusEarly[(int)piece];
+    result.endGamePosition += mobility * params.mobilityBonusLate[(int)piece];
 }
 
 [[nodiscard]] FORCE_INLINE EvalCalcT
@@ -322,8 +87,8 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
     return (EvalCalcT)max(std::abs(aFile - bFile), std::abs(aRank - bRank));
 }
 
-[[nodiscard]] FORCE_INLINE PiecePositionEvaluation
-evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
+[[nodiscard]] FORCE_INLINE PiecePositionEvaluation evaluatePiecePositionsForSide(
+        const EvalParams& params, const GameState& gameState, const Side side) {
     const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
     const BitBoard anyPawn    = ownPawns | enemyPawns;
@@ -348,21 +113,22 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
-            result.materialAdjustment -= kKnightPairPenalty;
+            result.materialAdjustment -= params.knightPairPenalty;
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation((int)Piece::Knight, position, side, result);
+            updatePiecePositionEvaluation(params, (int)Piece::Knight, position, side, result);
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = max((EvalCalcT)0, 7 - kingDistance);
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            result.materialAdjustment += kKnightPawnAdjustment[numOwnPawns];
+            result.materialAdjustment += params.knightPawnAdjustment[numOwnPawns];
 
-            updateMobilityEvaluation(Piece::Knight, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation(
+                    params, Piece::Knight, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -383,24 +149,25 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation((int)Piece::Bishop, position, side, result);
+            updatePiecePositionEvaluation(params, (int)Piece::Bishop, position, side, result);
 
             const int squareColor = getSquareColor(position);
 
             hasBishopOfColor[squareColor] = true;
 
-            result.materialAdjustment -= kBadBishopPenalty[badBishopIndex[squareColor]];
+            result.materialAdjustment -= params.badBishopPenalty[badBishopIndex[squareColor]];
 
             const EvalCalcT kingDistance = bishopDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = (14 - kingDistance) / 2;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            updateMobilityEvaluation(Piece::Bishop, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation(
+                    params, Piece::Bishop, position, anyPiece, ownOccupancy, result);
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
-            result.materialAdjustment += kBishopPairBonus;
+            result.materialAdjustment += params.bishopPairBonus;
         }
     }
 
@@ -410,23 +177,23 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
-            result.materialAdjustment -= kRookPairPenalty;
+            result.materialAdjustment -= params.rookPairPenalty;
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation((int)Piece::Rook, position, side, result);
+            updatePiecePositionEvaluation(params, (int)Piece::Rook, position, side, result);
 
             const BitBoard fileBitBoard = getFileBitBoard(position);
             const bool blockedByOwnPawn = (ownPawns & fileBitBoard) != BitBoard::Empty;
             const bool blockedByAnyPawn = (anyPawn & fileBitBoard) != BitBoard::Empty;
 
             if (!blockedByAnyPawn) {
-                result.earlyGamePosition += kRookOpenFileBonus;
-                result.endGamePosition += kRookOpenFileBonus;
+                result.earlyGamePosition += params.rookOpenFileBonus;
+                result.endGamePosition += params.rookOpenFileBonus;
             } else if (!blockedByOwnPawn) {
-                result.earlyGamePosition += kRookSemiOpenFileBonus;
-                result.endGamePosition += kRookSemiOpenFileBonus;
+                result.earlyGamePosition += params.rookSemiOpenFileBonus;
+                result.endGamePosition += params.rookSemiOpenFileBonus;
             }
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
@@ -434,9 +201,9 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            result.materialAdjustment += kRookPawnAdjustment[numOwnPawns];
+            result.materialAdjustment += params.rookPawnAdjustment[numOwnPawns];
 
-            updateMobilityEvaluation(Piece::Rook, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation(params, Piece::Rook, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -446,14 +213,15 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation((int)Piece::Queen, position, side, result);
+            updatePiecePositionEvaluation(params, (int)Piece::Queen, position, side, result);
 
             const EvalCalcT kingDistance = queenDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = (7 - kingDistance) * 4;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            updateMobilityEvaluation(Piece::Queen, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation(
+                    params, Piece::Queen, position, anyPiece, ownOccupancy, result);
         }
     }
 
@@ -461,7 +229,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
     {
         const BoardPosition kingPosition =
                 getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
-        updatePiecePositionEvaluation((int)Piece::King, kingPosition, side, result);
+        updatePiecePositionEvaluation(params, (int)Piece::King, kingPosition, side, result);
 
         // no mobility bonus for king
     }
@@ -530,7 +298,7 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 }
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
-evaluatePawnsForSide(const GameState& gameState, const Side side) {
+evaluatePawnsForSide(const EvalParams& params, const GameState& gameState, const Side side) {
     // TODO: should we hash pawn structure and store pawn eval?
 
     PiecePositionEvaluation result{};
@@ -543,7 +311,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     while (pawnBitBoard != BitBoard::Empty) {
         const BoardPosition position = popFirstSetPosition(pawnBitBoard);
 
-        updatePiecePositionEvaluation((int)Piece::Pawn, position, side, result);
+        updatePiecePositionEvaluation(params, (int)Piece::Pawn, position, side, result);
 
         const BitBoard passedPawnOpponentMask = getPassedPawnOpponentMask(position, side);
         const BitBoard forwardMask            = getPawnForwardMask(position, side);
@@ -558,19 +326,19 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
         const bool isIsolated    = ownNeighbors == BitBoard::Empty;
 
         if (isDoubledPawn) {
-            result.earlyGamePosition -= kDoubledPawnPenalty;
-            result.endGamePosition -= kDoubledPawnPenalty;
+            result.earlyGamePosition -= params.doubledPawnPenalty;
+            result.endGamePosition -= params.doubledPawnPenalty;
         } else if (isPassedPawn) {
             const int rank                = rankFromPosition(position);
             const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
 
-            result.earlyGamePosition += kPassedPawnBonus[distanceToPromotion];
-            result.endGamePosition += kPassedPawnBonus[distanceToPromotion];
+            result.earlyGamePosition += params.passedPawnBonus[distanceToPromotion];
+            result.endGamePosition += params.passedPawnBonus[distanceToPromotion];
         }
 
         if (isIsolated) {
-            result.earlyGamePosition -= kIsolatedPawnPenalty;
-            result.endGamePosition -= kIsolatedPawnPenalty;
+            result.earlyGamePosition -= params.isolatedPawnPenalty;
+            result.endGamePosition -= params.isolatedPawnPenalty;
         }
     }
 
@@ -578,7 +346,7 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
 }
 
 [[nodiscard]] FORCE_INLINE EvalCalcT
-evaluateKingSafety(const GameState& gameState, const Side side) {
+evaluateKingSafety(const EvalParams& params, const GameState& gameState, const Side side) {
     const BoardPosition kingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
 
@@ -599,10 +367,11 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
 
     const int virtualKingMobility = popCount(virtualKingControl);
 
-    return -kKingVirtualMobilityPenalty * virtualKingMobility;
+    return -params.kingVirtualMobilityPenalty * virtualKingMobility;
 }
 
 [[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSwarming(
+        const EvalParams& params,
         const GameState& gameState,
         const Side swarmingSide,
         const EvalCalcT swarmingMaterial,
@@ -612,7 +381,7 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
         return 0;
     }
 
-    static constexpr EvalCalcT rookValue = kPieceValues[(int)Piece::Rook];
+    const EvalCalcT rookValue = params.pieceValues[(int)Piece::Rook];
 
     const float materialAdvantageFactor =
             min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
@@ -632,12 +401,15 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
     return (EvalCalcT)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
 }
 
-[[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
-    const auto whitePawnEval = evaluatePawnsForSide(gameState, Side::White);
-    const auto blackPawnEval = evaluatePawnsForSide(gameState, Side::Black);
+[[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(
+        const EvalParams& params, const EvalCalcT maxPhaseMaterial, const GameState& gameState) {
+    const auto whitePawnEval = evaluatePawnsForSide(params, gameState, Side::White);
+    const auto blackPawnEval = evaluatePawnsForSide(params, gameState, Side::Black);
 
-    const auto whitePiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::White);
-    const auto blackPiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::Black);
+    const auto whitePiecePositionEval =
+            evaluatePiecePositionsForSide(params, gameState, Side::White);
+    const auto blackPiecePositionEval =
+            evaluatePiecePositionsForSide(params, gameState, Side::Black);
 
     const EvalCalcT whiteMaterial = whitePiecePositionEval.material
                                   + whitePiecePositionEval.materialAdjustment
@@ -656,9 +428,9 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
     }
 
     const EvalCalcT phaseMaterial =
-            min(whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
-                kMaxPhaseMaterial);
-    const float earlyGameFactor = (float)phaseMaterial / (float)kMaxPhaseMaterial;
+            whitePiecePositionEval.phaseMaterial + whitePawnEval.phaseMaterial
+            + blackPiecePositionEval.phaseMaterial + blackPawnEval.phaseMaterial;
+    const float earlyGameFactor = (float)phaseMaterial / (float)maxPhaseMaterial;
     const float endGameFactor   = 1.f - earlyGameFactor;
 
     const EvalCalcT earlyGameWhitePositionEval =
@@ -676,14 +448,14 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
     const EvalCalcT positionEval          = (EvalCalcT)(earlyGamePositionEval * earlyGameFactor
                                                + endGamePositionEval * endGameFactor);
 
-    const EvalCalcT whiteKingSafety = evaluateKingSafety(gameState, Side::White);
-    const EvalCalcT blackKingSafety = evaluateKingSafety(gameState, Side::Black);
+    const EvalCalcT whiteKingSafety = evaluateKingSafety(params, gameState, Side::White);
+    const EvalCalcT blackKingSafety = evaluateKingSafety(params, gameState, Side::Black);
     const EvalCalcT kingSafety = (EvalCalcT)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
 
     const EvalCalcT whiteSwarmingValue = evaluateKingSwarming(
-            gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
+            params, gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
     const EvalCalcT blackSwarmingValue = evaluateKingSwarming(
-            gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
+            params, gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
     const EvalCalcT swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
     const EvalCalcT eval = materialEval + positionEval + kingSafety + swarmingEval;
@@ -770,10 +542,6 @@ FORCE_INLINE int getStaticPieceValue(const Piece piece) {
     return kStaticPieceValues[(int)piece];
 }
 
-FORCE_INLINE int getPieceSquareValue(const Piece piece, BoardPosition position, const Side side) {
-    return (int)kPieceSquareTablesEarly[(int)side][(int)piece][(int)position];
-}
-
 FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
             insufficientMaterialForSides(gameState);
@@ -791,14 +559,34 @@ FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     return 0;
 }
 
-EvalCalcT evaluateRaw(const GameState& gameState) {
-    const EvalCalcT rawEvalWhite = evaluateForWhite(gameState);
+Evaluator::Evaluator() : Evaluator(EvalParams{}) {}
+
+Evaluator::Evaluator(const EvalParams& params) : params_(params) {
+    maxPhaseMaterial_ = 2 * 8 * params_.phaseMaterialValues[(int)Piece::Pawn]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Knight]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Bishop]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Rook]
+                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::Queen]
+                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::King];
+}
+
+FORCE_INLINE int Evaluator::getPieceSquareValue(
+        const Piece piece, BoardPosition position, const Side side) const {
+    int positionForPieceSquare = (int)position;
+    if (side == Side::Black) {
+        positionForPieceSquare = (int)getVerticalReflection(position);
+    }
+    return (int)params_.pieceSquareTablesWhiteEarly[(int)piece][positionForPieceSquare];
+}
+
+EvalCalcT Evaluator::evaluateRaw(const GameState& gameState) const {
+    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState);
 
     return gameState.getSideToMove() == Side::White ? rawEvalWhite : -rawEvalWhite;
 }
 
-EvalT evaluate(const GameState& gameState) {
-    const EvalT rawEvalWhite = evaluateForWhite(gameState);
+EvalT Evaluator::evaluate(const GameState& gameState) const {
+    const EvalT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState);
 
     const int roundedEvalWhite = (int)(rawEvalWhite + 0.5f);
     const EvalT clampedEvalWhite =

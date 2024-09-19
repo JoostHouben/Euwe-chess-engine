@@ -17,7 +17,7 @@
 
 class MoveSearcher::Impl {
   public:
-    Impl(const TimeManager& timeManager);
+    Impl(const TimeManager& timeManager, const Evaluator& evaluator);
 
     void setFrontEnd(IFrontEnd* frontEnd);
 
@@ -158,6 +158,8 @@ class MoveSearcher::Impl {
     const IFrontEnd* frontEnd_ = nullptr;
 
     const TimeManager& timeManager_;
+
+    const Evaluator& evaluator_;
 };
 
 namespace {
@@ -316,7 +318,8 @@ FORCE_INLINE Move getTTableMove(const SearchTTPayload payload, const GameState& 
 
 }  // namespace
 
-MoveSearcher::Impl::Impl(const TimeManager& timeManager) : timeManager_(timeManager) {
+MoveSearcher::Impl::Impl(const TimeManager& timeManager, const Evaluator& evaluator)
+    : timeManager_(timeManager), evaluator_(evaluator) {
     moveScoreStack_.reserve(1'000);
     initializeHistoryFromPieceSquare();
     setTTableSize(getDefaultTTableSizeInMb());
@@ -517,8 +520,8 @@ void MoveSearcher::Impl::initializeHistoryFromPieceSquare() {
     for (int side = 0; side < kNumSides; ++side) {
         for (int piece = 0; piece < kNumPieceTypes; ++piece) {
             for (int square = 0; square < kSquares; ++square) {
-                int pieceSquareValue =
-                        getPieceSquareValue((Piece)piece, (BoardPosition)square, (Side)side);
+                int pieceSquareValue = evaluator_.getPieceSquareValue(
+                        (Piece)piece, (BoardPosition)square, (Side)side);
                 pieceSquareValue += 50;  // Get rid of negative values
 
                 historyCutOff_[side][piece][square] = pieceSquareValue
@@ -730,7 +733,7 @@ EvalT MoveSearcher::Impl::search(
 
     EvalT staticEval = -kInfiniteEval;
     if (futilityPruningEnabled) {
-        staticEval = evaluate(gameState);
+        staticEval = evaluator_.evaluate(gameState);
     }
 
     auto moves = gameState.generateMoves(stack, enemyControl);
@@ -750,6 +753,7 @@ EvalT MoveSearcher::Impl::search(
     }
 
     auto moveScores = scoreMoves(
+            evaluator_,
             moves,
             moveIdx,
             gameState,
@@ -878,7 +882,7 @@ EvalT MoveSearcher::Impl::quiesce(
     EvalT standPat;
     if (!isInCheck) {
         // Stand pat
-        standPat  = evaluate(gameState);
+        standPat  = evaluator_.evaluate(gameState);
         bestScore = standPat;
         if (bestScore >= beta) {
             return bestScore;
@@ -1033,7 +1037,7 @@ EvalT MoveSearcher::Impl::quiesce(
         }
     }
 
-    auto moveScores = scoreMovesQuiesce(moves, moveIdx, gameState, moveScoreStack_);
+    auto moveScores = scoreMovesQuiesce(evaluator_, moves, moveIdx, gameState, moveScoreStack_);
 
     for (; moveIdx < moves.size(); ++moveIdx) {
         const Move move = selectBestMove(moves, moveScores, moveIdx);
@@ -1406,8 +1410,8 @@ void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
 
 // Implementation of interface: forward to implementation
 
-MoveSearcher::MoveSearcher(const TimeManager& timeManager)
-    : impl_(std::make_unique<MoveSearcher::Impl>(timeManager)) {}
+MoveSearcher::MoveSearcher(const TimeManager& timeManager, const Evaluator& evaluator)
+    : impl_(std::make_unique<MoveSearcher::Impl>(timeManager, evaluator)) {}
 
 MoveSearcher::~MoveSearcher() = default;
 

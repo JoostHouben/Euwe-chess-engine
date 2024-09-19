@@ -20,15 +20,18 @@ class Engine::Impl {
 
     void setTTableSize(int requestedSizeInMb);
 
+    [[nodiscard]] EvalT evaluate(const GameState& gameState) const;
+
   private:
     StackOfVectors<Move> moveStack_;
     TimeManager timeManager_;
+    Evaluator evaluator_;
     MoveSearcher moveSearcher_;
     IFrontEnd* frontEnd_ = nullptr;
 };
 
-Engine::Impl::Impl() : moveSearcher_(timeManager_) {
-    //moveStack_.reserve(1'000);
+Engine::Impl::Impl() : moveSearcher_(timeManager_, evaluator_) {
+    moveStack_.reserve(1'000);
 }
 
 TimeManager& Engine::Impl::getTimeManager() {
@@ -136,6 +139,10 @@ void Engine::Impl::setTTableSize(const int requestedSizeInMb) {
     moveSearcher_.setTTableSize(requestedSizeInMb);
 }
 
+EvalT Engine::Impl::evaluate(const GameState& gameState) const {
+    return evaluator_.evaluate(gameState);
+}
+
 // Implementation of interface: forward to implementation
 
 Engine::Engine() : impl_(std::make_unique<Engine::Impl>()) {}
@@ -168,4 +175,8 @@ int Engine::getDefaultTTableSizeInMb() const {
 
 void Engine::setTTableSize(const int requestedSizeInMb) {
     impl_->setTTableSize(requestedSizeInMb);
+}
+
+EvalT Engine::evaluate(const GameState& gameState) const {
+    return impl_->evaluate(gameState);
 }

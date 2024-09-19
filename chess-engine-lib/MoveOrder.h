@@ -4,7 +4,10 @@
 
 using MoveEvalT = int;
 
+class Evaluator;
+
 [[nodiscard]] StackVector<MoveEvalT> scoreMoves(
+        const Evaluator& evaluator,
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,
@@ -15,6 +18,7 @@ using MoveEvalT = int;
         StackOfVectors<MoveEvalT>& stack);
 
 [[nodiscard]] StackVector<MoveEvalT> scoreMovesQuiesce(
+        const Evaluator& evaluator,
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,
