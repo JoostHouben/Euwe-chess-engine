@@ -25,9 +25,9 @@ endif()
 
 # Set the architecture to AVX2 (and BMI2)
 if (MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /fp:contract")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2 -ffp-contract=fast")
 endif()
 
 enable_testing()
