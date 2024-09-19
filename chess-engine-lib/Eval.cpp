@@ -12,8 +12,6 @@
 
 namespace {
 
-using EvalCalcT = float;
-
 constexpr std::array<EvalCalcT, kNumPieceTypes> kPieceValues = {
         100,  // Pawn
         325,  // Knight
@@ -690,9 +688,7 @@ evaluateKingSafety(const GameState& gameState, const Side side) {
 
     const EvalCalcT eval = materialEval + positionEval + kingSafety + swarmingEval;
 
-    const int roundedEval   = (int)(eval + 0.5f);
-    const EvalT clampedEval = (EvalT)clamp(roundedEval, -kMateEval + 1'000, kMateEval - 1'000);
-    return clampedEval;
+    return eval;
 }
 
 [[nodiscard]] FORCE_INLINE std::pair<bool, bool> insufficientMaterialForSides(
@@ -795,8 +791,18 @@ FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     return 0;
 }
 
-EvalT evaluate(const GameState& gameState) {
-    const EvalT whiteEval = evaluateForWhite(gameState);
+EvalCalcT evaluateRaw(const GameState& gameState) {
+    const EvalCalcT rawEvalWhite = evaluateForWhite(gameState);
 
-    return gameState.getSideToMove() == Side::White ? whiteEval : -whiteEval;
+    return gameState.getSideToMove() == Side::White ? rawEvalWhite : -rawEvalWhite;
+}
+
+EvalT evaluate(const GameState& gameState) {
+    const EvalT rawEvalWhite = evaluateForWhite(gameState);
+
+    const int roundedEvalWhite = (int)(rawEvalWhite + 0.5f);
+    const EvalT clampedEvalWhite =
+            (EvalT)clamp(roundedEvalWhite, -kMateEval + 1'000, kMateEval - 1'000);
+
+    return gameState.getSideToMove() == Side::White ? clampedEvalWhite : -clampedEvalWhite;
 }
