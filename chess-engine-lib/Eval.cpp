@@ -12,7 +12,9 @@
 
 namespace {
 
-constexpr std::array<int, kNumPieceTypes> kPieceValues = {
+using EvalCalcT = float;
+
+constexpr std::array<EvalCalcT, kNumPieceTypes> kPieceValues = {
         100,  // Pawn
         325,  // Knight
         335,  // Bishop
@@ -21,7 +23,7 @@ constexpr std::array<int, kNumPieceTypes> kPieceValues = {
         0,    // King
 };
 
-constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
+constexpr std::array<EvalCalcT, kNumPieceTypes> kPhaseMaterialValues = {
         0,  // Pawn
         1,  // Knight
         1,  // Bishop
@@ -30,9 +32,9 @@ constexpr std::array<int, kNumPieceTypes> kPhaseMaterialValues = {
         0,  // King
 };
 
-constexpr int kMaxPhaseMaterial = 24;
+constexpr EvalCalcT kMaxPhaseMaterial = 24;
 
-using SquareTable       = std::array<int, kSquares>;
+using SquareTable       = std::array<EvalCalcT, kSquares>;
 using PieceSquareTables = std::array<SquareTable, kNumPieceTypes>;
 
 // clang-format off
@@ -185,26 +187,26 @@ constexpr PieceSquareTables kPieceSquareTablesWhiteLate = {
 };
 // clang-format on
 
-constexpr std::array kPassedPawnBonus = {0, 90, 60, 40, 25, 15, 15};
-constexpr int kDoubledPawnPenalty     = 20;
-constexpr int kIsolatedPawnPenalty    = 30;
+constexpr std::array kPassedPawnBonus    = {0, 90, 60, 40, 25, 15, 15};
+constexpr EvalCalcT kDoubledPawnPenalty  = 20;
+constexpr EvalCalcT kIsolatedPawnPenalty = 30;
 
 // Penalty for having 0...8 own pawns on the same color as a bishop
-constexpr std::array<int, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
+constexpr std::array<EvalCalcT, 9> kBadBishopPenalty = {-40, -30, -20, -10, 0, 10, 20, 30, 40};
 
-constexpr int kBishopPairBonus   = 30;
-constexpr int kKnightPairPenalty = 8;
-constexpr int kRookPairPenalty   = 16;
+constexpr EvalCalcT kBishopPairBonus   = 30;
+constexpr EvalCalcT kKnightPairPenalty = 8;
+constexpr EvalCalcT kRookPairPenalty   = 16;
 
-constexpr int kRookSemiOpenFileBonus = 10;
-constexpr int kRookOpenFileBonus     = 20;
+constexpr EvalCalcT kRookSemiOpenFileBonus = 10;
+constexpr EvalCalcT kRookOpenFileBonus     = 20;
 
-constexpr std::array<int, 9> kKnightPawnAdjustment = {-20, -16, -12, -8, -4, 0, 4, 8, 12};
-constexpr std::array<int, 9> kRookPawnAdjustment   = {15, 12, 9, 6, 3, 0, -3, -6, -9};
+constexpr std::array<EvalCalcT, 9> kKnightPawnAdjustment = {-20, -16, -12, -8, -4, 0, 4, 8, 12};
+constexpr std::array<EvalCalcT, 9> kRookPawnAdjustment   = {15, 12, 9, 6, 3, 0, -3, -6, -9};
 
-constexpr int kKingVirtualMobilityPenalty = 3;
+constexpr EvalCalcT kKingVirtualMobilityPenalty = 3;
 
-constexpr std::array<int, kNumPieceTypes> kMobilityBonusEarly = {
+constexpr std::array<EvalCalcT, kNumPieceTypes> kMobilityBonusEarly = {
         0,  // pawns
         1,  // knights
         2,  // bishops
@@ -213,7 +215,7 @@ constexpr std::array<int, kNumPieceTypes> kMobilityBonusEarly = {
         0,  // kings
 };
 
-constexpr std::array<int, kNumPieceTypes> kMobilityBonusLate = {
+constexpr std::array<EvalCalcT, kNumPieceTypes> kMobilityBonusLate = {
         0,  // pawns
         1,  // knights
         2,  // bishops
@@ -256,11 +258,11 @@ constexpr std::array<PieceSquareTables, kNumSides> kPieceSquareTablesLate = {
 };
 
 struct PiecePositionEvaluation {
-    int material           = 0;
-    int materialAdjustment = 0;
-    int phaseMaterial      = 0;
-    int earlyGamePosition  = 0;
-    int endGamePosition    = 0;
+    EvalCalcT material           = 0;
+    EvalCalcT materialAdjustment = 0;
+    EvalCalcT phaseMaterial      = 0;
+    EvalCalcT earlyGamePosition  = 0;
+    EvalCalcT endGamePosition    = 0;
 };
 
 FORCE_INLINE void updatePiecePositionEvaluation(
@@ -288,20 +290,21 @@ FORCE_INLINE void updateMobilityEvaluation(
     result.endGamePosition += mobility * kMobilityBonusLate[(int)piece];
 }
 
-[[nodiscard]] FORCE_INLINE int manhattanDistance(const BoardPosition a, const BoardPosition b) {
+[[nodiscard]] FORCE_INLINE EvalCalcT
+manhattanDistance(const BoardPosition a, const BoardPosition b) {
     const auto [aFile, aRank] = fileRankFromPosition(a);
     const auto [bFile, bRank] = fileRankFromPosition(b);
 
-    return std::abs(aFile - bFile) + std::abs(aRank - bRank);
+    return (EvalCalcT)(std::abs(aFile - bFile) + std::abs(aRank - bRank));
 }
 
-[[nodiscard]] FORCE_INLINE int manhattanDistanceToCenter(const BoardPosition position) {
+[[nodiscard]] FORCE_INLINE EvalCalcT manhattanDistanceToCenter(const BoardPosition position) {
     const auto [file, rank] = fileRankFromPosition(position);
 
-    return min(std::abs(file - kFiles / 2), std::abs(rank - kRanks / 2));
+    return (EvalCalcT)min(std::abs(file - kFiles / 2), std::abs(rank - kRanks / 2));
 }
 
-[[nodiscard]] FORCE_INLINE int bishopDistance(const BoardPosition a, const BoardPosition b) {
+[[nodiscard]] FORCE_INLINE EvalCalcT bishopDistance(const BoardPosition a, const BoardPosition b) {
     const auto [aFile, aRank] = fileRankFromPosition(a);
     const auto [bFile, bRank] = fileRankFromPosition(b);
 
@@ -311,14 +314,14 @@ FORCE_INLINE void updateMobilityEvaluation(
     const int aAntiDiag = aFile - aRank;
     const int bAntiDiag = bFile - bRank;
 
-    return std::abs(aDiag - bDiag) + std::abs(aAntiDiag - bAntiDiag);
+    return (EvalCalcT)(std::abs(aDiag - bDiag) + std::abs(aAntiDiag - bAntiDiag));
 }
 
-[[nodiscard]] FORCE_INLINE int queenDistance(const BoardPosition a, const BoardPosition b) {
+[[nodiscard]] FORCE_INLINE EvalCalcT queenDistance(const BoardPosition a, const BoardPosition b) {
     const auto [aFile, aRank] = fileRankFromPosition(a);
     const auto [bFile, bRank] = fileRankFromPosition(b);
 
-    return max(std::abs(aFile - bFile), std::abs(aRank - bRank));
+    return (EvalCalcT)max(std::abs(aFile - bFile), std::abs(aRank - bRank));
 }
 
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation
@@ -354,8 +357,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Knight, position, side, result);
 
-            const int kingDistance = manhattanDistance(position, enemyKingPosition);
-            const int tropismBonus = max(0, 7 - kingDistance);
+            const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
+            const EvalCalcT tropismBonus = max((EvalCalcT)0, 7 - kingDistance);
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
@@ -390,8 +393,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 
             result.materialAdjustment -= kBadBishopPenalty[badBishopIndex[squareColor]];
 
-            const int kingDistance = bishopDistance(position, enemyKingPosition);
-            const int tropismBonus = (14 - kingDistance) / 2;
+            const EvalCalcT kingDistance = bishopDistance(position, enemyKingPosition);
+            const EvalCalcT tropismBonus = (14 - kingDistance) / 2;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
@@ -428,8 +431,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
                 result.endGamePosition += kRookSemiOpenFileBonus;
             }
 
-            const int kingDistance = manhattanDistance(position, enemyKingPosition);
-            const int tropismBonus = 14 - kingDistance;
+            const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
+            const EvalCalcT tropismBonus = 14 - kingDistance;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
@@ -447,8 +450,8 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
             updatePiecePositionEvaluation((int)Piece::Queen, position, side, result);
 
-            const int kingDistance = queenDistance(position, enemyKingPosition);
-            const int tropismBonus = (7 - kingDistance) * 4;
+            const EvalCalcT kingDistance = queenDistance(position, enemyKingPosition);
+            const EvalCalcT tropismBonus = (7 - kingDistance) * 4;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
@@ -469,46 +472,59 @@ evaluatePiecePositionsForSide(const GameState& gameState, const Side side) {
 }
 
 [[nodiscard]] FORCE_INLINE bool isDrawish(
-        const int whiteMaterial,
-        const int whitePawns,
-        const int blackMaterial,
-        const int blackPawns) {
-    static_assert(kPieceValues[(int)Piece::Knight] != kPieceValues[(int)Piece::Bishop]);
+        const GameState& gameState, const EvalCalcT whiteMaterial, const EvalCalcT blackMaterial) {
+    const bool whiteIsStronger = whiteMaterial >= blackMaterial;
 
-    const int materialBalance  = (whiteMaterial + whitePawns) - (blackMaterial + blackPawns);
-    const bool whiteIsStronger = materialBalance >= 0;
-
-    const int strongerSideMaterial = whiteIsStronger ? whiteMaterial : blackMaterial;
-    const int strongerSidePawns    = whiteIsStronger ? whitePawns : blackPawns;
-
-    const int weakerSideMaterial = whiteIsStronger ? blackMaterial : whiteMaterial;
+    const int strongerSidePawns =
+            whiteIsStronger ? popCount(gameState.getPieceBitBoard(Side::White, Piece::Pawn))
+                            : popCount(gameState.getPieceBitBoard(Side::Black, Piece::Pawn));
 
     if (strongerSidePawns > 0) {
         return false;
     }
 
-    // With only a minor piece you can't reliably deliver mate.
-    if (strongerSideMaterial < kPieceValues[(int)Piece::Rook]) {
+    int strongSideKnights = popCount(gameState.getPieceBitBoard(Side::White, Piece::Knight));
+    int strongSideBishops = popCount(gameState.getPieceBitBoard(Side::White, Piece::Bishop));
+    int strongSideRooks   = popCount(gameState.getPieceBitBoard(Side::White, Piece::Rook));
+    int strongSideQueens  = popCount(gameState.getPieceBitBoard(Side::White, Piece::Queen));
+
+    int weakSideKnights = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Knight));
+    int weakSideBishops = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Bishop));
+    int weakSideRooks   = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Rook));
+    int weakSideQueens  = popCount(gameState.getPieceBitBoard(Side::Black, Piece::Queen));
+
+    if (!whiteIsStronger) {
+        std::swap(strongSideKnights, weakSideKnights);
+        std::swap(strongSideBishops, weakSideBishops);
+        std::swap(strongSideRooks, weakSideRooks);
+        std::swap(strongSideQueens, weakSideQueens);
+    }
+
+    const int strongSideMinorPieces = strongSideKnights + strongSideBishops;
+    const int strongSideMajorPieces = strongSideRooks + strongSideQueens;
+
+    const int weakSideMinorPieces = weakSideKnights + weakSideBishops;
+    const int weakSideMajorPieces = weakSideRooks + weakSideQueens;
+
+    // With only a single minor piece you can't reliably deliver mate.
+    if (strongSideMajorPieces == 0 && strongSideMinorPieces == 1) {
         return true;
     }
 
     // Only two knights; this is insufficient material once the weaker side has lost their material.
-    if (strongerSideMaterial == 2 * kPieceValues[(int)Piece::Knight]) {
+    if (strongSideMajorPieces == 0 && strongSideKnights == 2 && strongSideBishops == 0) {
         return true;
     }
 
     // Rook vs a minor piece is drawish.
-    if (strongerSideMaterial == kPieceValues[(int)Piece::Rook]
-        && (weakerSideMaterial == kPieceValues[(int)Piece::Knight]
-            || weakerSideMaterial == kPieceValues[(int)Piece::Bishop])) {
+    if (strongSideRooks == 1 && strongSideQueens == 0 && strongSideMinorPieces == 0
+        && (weakSideMinorPieces == 1 && weakSideMajorPieces == 0)) {
         return true;
     }
 
     // Rook and minor vs rook is drawish.
-    if ((strongerSideMaterial == kPieceValues[(int)Piece::Rook] + kPieceValues[(int)Piece::Knight]
-         || strongerSideMaterial
-                    == kPieceValues[(int)Piece::Rook] + kPieceValues[(int)Piece::Bishop])
-        && weakerSideMaterial == kPieceValues[(int)Piece::Rook]) {
+    if (strongSideRooks == 1 && strongSideQueens == 0 && strongSideMinorPieces == 1
+        && weakSideRooks == 1 && weakSideQueens == 0 && weakSideMinorPieces == 0) {
         return true;
     }
 
@@ -563,7 +579,8 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     return result;
 }
 
-[[nodiscard]] FORCE_INLINE int evaluateKingSafety(const GameState& gameState, const Side side) {
+[[nodiscard]] FORCE_INLINE EvalCalcT
+evaluateKingSafety(const GameState& gameState, const Side side) {
     const BoardPosition kingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
 
@@ -587,17 +604,17 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     return -kKingVirtualMobilityPenalty * virtualKingMobility;
 }
 
-[[nodiscard]] FORCE_INLINE int evaluateKingSwarming(
+[[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSwarming(
         const GameState& gameState,
         const Side swarmingSide,
-        const int swarmingMaterial,
-        const int defendingMaterial,
+        const EvalCalcT swarmingMaterial,
+        const EvalCalcT defendingMaterial,
         const float endGameFactor) {
     if (defendingMaterial >= swarmingMaterial) {
         return 0;
     }
 
-    static constexpr int rookValue = kPieceValues[(int)Piece::Rook];
+    static constexpr EvalCalcT rookValue = kPieceValues[(int)Piece::Rook];
 
     const float materialAdvantageFactor =
             min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
@@ -607,13 +624,14 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     const BoardPosition defendingKingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(nextSide(swarmingSide), Piece::King));
 
-    const int defendingKingDistanceToCenter = manhattanDistanceToCenter(defendingKingPosition);
+    const EvalCalcT defendingKingDistanceToCenter =
+            manhattanDistanceToCenter(defendingKingPosition);
 
-    const int kingDistance = manhattanDistance(swarmingKingPosition, defendingKingPosition);
+    const EvalCalcT kingDistance = manhattanDistance(swarmingKingPosition, defendingKingPosition);
 
-    const int swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
+    const EvalCalcT swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
 
-    return (int)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
+    return (EvalCalcT)(int)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
 }
 
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(const GameState& gameState) {
@@ -623,57 +641,57 @@ evaluatePawnsForSide(const GameState& gameState, const Side side) {
     const auto whitePiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::White);
     const auto blackPiecePositionEval = evaluatePiecePositionsForSide(gameState, Side::Black);
 
-    const int whiteMaterial = whitePiecePositionEval.material
-                            + whitePiecePositionEval.materialAdjustment + whitePawnEval.material
-                            + whitePawnEval.materialAdjustment;
-    const int blackMaterial = blackPiecePositionEval.material
-                            + blackPiecePositionEval.materialAdjustment + blackPawnEval.material
-                            + blackPawnEval.materialAdjustment;
+    const EvalCalcT whiteMaterial = whitePiecePositionEval.material
+                                  + whitePiecePositionEval.materialAdjustment
+                                  + whitePawnEval.material + whitePawnEval.materialAdjustment;
+    const EvalCalcT blackMaterial = blackPiecePositionEval.material
+                                  + blackPiecePositionEval.materialAdjustment
+                                  + blackPawnEval.material + blackPawnEval.materialAdjustment;
 
-    int materialEval = whiteMaterial - blackMaterial;
+    EvalCalcT materialEval = whiteMaterial - blackMaterial;
 
     if (isDrawish(
-                whitePiecePositionEval.material,
-                whitePawnEval.material,
-                blackPiecePositionEval.material,
-                blackPawnEval.material)) {
+                gameState,
+                whitePiecePositionEval.material + whitePawnEval.material,
+                blackPiecePositionEval.material + blackPawnEval.material)) {
         materialEval /= 2;
     }
 
-    const int phaseMaterial =
+    const EvalCalcT phaseMaterial =
             min(whitePiecePositionEval.phaseMaterial + blackPiecePositionEval.phaseMaterial,
                 kMaxPhaseMaterial);
     const float earlyGameFactor = (float)phaseMaterial / (float)kMaxPhaseMaterial;
     const float endGameFactor   = 1.f - earlyGameFactor;
 
-    const int earlyGameWhitePositionEval =
+    const EvalCalcT earlyGameWhitePositionEval =
             whitePiecePositionEval.earlyGamePosition + whitePawnEval.earlyGamePosition;
-    const int earlyGameBlackPositionEval =
+    const EvalCalcT earlyGameBlackPositionEval =
             blackPiecePositionEval.earlyGamePosition + blackPawnEval.earlyGamePosition;
 
-    const int endGameWhitePositionEval =
+    const EvalCalcT endGameWhitePositionEval =
             whitePiecePositionEval.endGamePosition + whitePawnEval.endGamePosition;
-    const int endGameBlackPositionEval =
+    const EvalCalcT endGameBlackPositionEval =
             blackPiecePositionEval.endGamePosition + blackPawnEval.endGamePosition;
 
-    const int earlyGamePositionEval = earlyGameWhitePositionEval - earlyGameBlackPositionEval;
-    const int endGamePositionEval   = endGameWhitePositionEval - endGameBlackPositionEval;
-    const int positionEval =
-            (int)(earlyGamePositionEval * earlyGameFactor + endGamePositionEval * endGameFactor);
+    const EvalCalcT earlyGamePositionEval = earlyGameWhitePositionEval - earlyGameBlackPositionEval;
+    const EvalCalcT endGamePositionEval   = endGameWhitePositionEval - endGameBlackPositionEval;
+    const EvalCalcT positionEval          = (EvalCalcT)(int)(earlyGamePositionEval * earlyGameFactor
+                                                    + endGamePositionEval * endGameFactor);
 
-    const int whiteKingSafety = evaluateKingSafety(gameState, Side::White);
-    const int blackKingSafety = evaluateKingSafety(gameState, Side::Black);
-    const int kingSafety      = (int)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
+    const EvalCalcT whiteKingSafety = evaluateKingSafety(gameState, Side::White);
+    const EvalCalcT blackKingSafety = evaluateKingSafety(gameState, Side::Black);
+    const EvalCalcT kingSafety =
+            (EvalCalcT)(int)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
 
-    const int whiteSwarmingValue = evaluateKingSwarming(
+    const EvalCalcT whiteSwarmingValue = evaluateKingSwarming(
             gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
-    const int blackSwarmingValue = evaluateKingSwarming(
+    const EvalCalcT blackSwarmingValue = evaluateKingSwarming(
             gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
-    const int swarmingEval = whiteSwarmingValue - blackSwarmingValue;
+    const EvalCalcT swarmingEval = whiteSwarmingValue - blackSwarmingValue;
 
-    const int eval = materialEval + positionEval + kingSafety + swarmingEval;
+    const EvalCalcT eval = materialEval + positionEval + kingSafety + swarmingEval;
 
-    return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
+    return (EvalT)clamp((int)eval, -kMateEval + 1'000, kMateEval - 1'000);
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> evaluateEndState(
@@ -781,7 +799,7 @@ FORCE_INLINE int getStaticPieceValue(const Piece piece) {
 }
 
 FORCE_INLINE int getPieceSquareValue(const Piece piece, BoardPosition position, const Side side) {
-    return kPieceSquareTablesEarly[(int)side][(int)piece][(int)position];
+    return (int)kPieceSquareTablesEarly[(int)side][(int)piece][(int)position];
 }
 
 FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
