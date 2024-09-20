@@ -28,4 +28,4 @@ set_property(TARGET chess-engine-lib PROPERTY CXX_STANDARD 23)
 
 # Statically link the runtime libraries.
 set_property(TARGET chess-engine-lib PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")

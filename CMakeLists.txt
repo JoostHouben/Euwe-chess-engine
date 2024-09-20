@@ -34,5 +34,6 @@ enable_testing()
 
 # Include sub-projects.
 add_subdirectory("chess-engine-lib")
-add_subdirectory("tests")
 add_subdirectory("chess-engine")
+add_subdirectory("tests")
+add_subdirectory("tuner")

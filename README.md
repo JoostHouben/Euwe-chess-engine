@@ -100,11 +100,18 @@ run the command `setoption name Hash value 512` (or configure this through a che
 
 ## Technical details
 
-Euwe targets the C++23 standard. It is designed to have minimal external dependencies. Currently, the
-only external dependencies are:
+Euwe targets the C++23 standard. The engine itself is designed to have minimal external
+dependencies. Currently, the only external dependencies are system APIs (Windows/POSIX) for colored
+console output.
 
- - GTest for unit testing.
- - System APIs (Windows/POSIX) for colored console output.
+The repository also contains helper projects with additional dependencies:
+
+ - The unit tests depend on GTest.
+ - The tuner depends on [Ceres](http://ceres-solver.org/) and its transitive dependencies.
+ - A script for extracting annotated fens from PGNs depends on Python and
+   [python-chess](https://python-chess.readthedocs.io/en/latest/).
+
+These dependencies are managed using [vcpkg](https://vcpkg.io/en/).
 
 ### Build instructions
 

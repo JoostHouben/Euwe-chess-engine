@@ -5,6 +5,6 @@ set_property(TARGET Euwe PROPERTY CXX_STANDARD 23)
 
 # Statically link the runtime libraries.
 set_property(TARGET Euwe PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 target_link_libraries(Euwe chess-engine-lib)
