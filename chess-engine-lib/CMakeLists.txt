@@ -19,7 +19,7 @@ add_library(chess-engine-lib STATIC
     "Side.cpp" 
     "TimeManager.cpp" 
     "UciFrontEnd.cpp"
- "EvalParams.h")
+    "EvalParams.cpp")
 
 get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../ ABSOLUTE)
 target_include_directories(chess-engine-lib PUBLIC ${PARENT_DIR})

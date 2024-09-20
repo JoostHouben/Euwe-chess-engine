@@ -22,6 +22,6 @@ class Evaluator {
     [[nodiscard]] EvalT evaluate(const GameState& gameState) const;
 
   private:
-    EvalParams params_{};
+    EvalParams params_;
     EvalCalcT maxPhaseMaterial_{};
 };

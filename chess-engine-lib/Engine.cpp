@@ -30,7 +30,8 @@ class Engine::Impl {
     IFrontEnd* frontEnd_ = nullptr;
 };
 
-Engine::Impl::Impl() : moveSearcher_(timeManager_, evaluator_) {
+Engine::Impl::Impl()
+    : evaluator_(EvalParams::getDefaultParams()), moveSearcher_(timeManager_, evaluator_) {
     moveStack_.reserve(1'000);
 }
 

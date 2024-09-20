@@ -559,7 +559,7 @@ FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
     return 0;
 }
 
-Evaluator::Evaluator() : Evaluator(EvalParams{}) {}
+Evaluator::Evaluator() : Evaluator(EvalParams::getDefaultParams()) {}
 
 Evaluator::Evaluator(const EvalParams& params) : params_(params) {
     maxPhaseMaterial_ = 2 * 8 * params_.phaseMaterialValues[(int)Piece::Pawn]
