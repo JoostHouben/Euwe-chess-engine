@@ -90,7 +90,9 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
 };
 
 void getScoredPositions(
-        const std::string& annotatedFensPath, std::vector<ScoredPosition>& scoredPositions) {
+        const std::string& annotatedFensPath,
+        std::vector<ScoredPosition>& scoredPositions,
+        const int dropoutRate) {
     std::srand(42);
 
     std::ifstream in(annotatedFensPath);
@@ -103,7 +105,7 @@ void getScoredPositions(
             continue;
         }
 
-        if ((std::rand() % 4) != 0) {
+        if ((std::rand() % dropoutRate) != 0) {
             continue;
         }
 
@@ -405,7 +407,9 @@ void solve(ceres::Problem& problem) {
 int main(int argc, char** argv) {
     const std::vector<std::string> annotatedFensPaths = {
             R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
-            R"(D:\annotated-fens\tuned-eval_vs_before-tune.txt)"};
+            R"(D:\annotated-fens\first-tuning-rounds.txt)"};
+
+    const std::vector<int> dropoutRates = {4, 1};
 
     double scaleParam                               = 400.;
     std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
@@ -414,8 +418,8 @@ int main(int argc, char** argv) {
 
     {
         std::vector<ScoredPosition> scoredPositions;
-        for (const auto& path : annotatedFensPaths) {
-            getScoredPositions(path, scoredPositions);
+        for (int i = 0; i < annotatedFensPaths.size(); ++i) {
+            getScoredPositions(annotatedFensPaths.at(i), scoredPositions, dropoutRates.at(i));
         }
 
         quiescePositions(scoredPositions);

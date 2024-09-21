@@ -141,7 +141,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name tuned-eval");
+    writeUci("id name tuned-eval3");
     writeUci("id author Joost Houben");
 
     writeOptions();
