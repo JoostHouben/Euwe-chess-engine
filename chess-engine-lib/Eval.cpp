@@ -46,13 +46,36 @@ struct ParamGradient<true> {
     Eigen::VectorXf grad = Eigen::VectorXf::Zero(kNumEvalParams);
 };
 
+SquareTable getReflectedSquareTable(const SquareTable& table) {
+    SquareTable result{};
+
+    for (int i = 0; i < kSquares; ++i) {
+        const BoardPosition position          = (BoardPosition)i;
+        const BoardPosition reflectedPosition = getVerticalReflection(position);
+
+        result[i] = table[(int)reflectedPosition];
+    }
+
+    return result;
+}
+
+PieceSquareTables getReflectedPieceSquareTables(const PieceSquareTables& tables) {
+    PieceSquareTables result{};
+
+    for (int i = 0; i < kNumPieceTypes; ++i) {
+        result[i] = getReflectedSquareTable(tables[i]);
+    }
+
+    return result;
+}
+
 FORCE_INLINE std::size_t getParamIndex(const EvalParams& params, const EvalCalcT& param) {
     return (std::size_t)((std::byte*)&param - (std::byte*)&params) / sizeof(EvalCalcT);
 }
 
 template <bool CalcJacobians>
 FORCE_INLINE void updatePiecePositionEvaluation(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const int pieceIdx,
         const BoardPosition position,
         const Side side,
@@ -62,16 +85,15 @@ FORCE_INLINE void updatePiecePositionEvaluation(
     result.material += params.pieceValues[pieceIdx];
     result.phaseMaterial += params.phaseMaterialValues[pieceIdx];
 
-    int positionForPieceSquare = (int)position;
-    if (side == Side::Black) {
-        positionForPieceSquare = (int)getVerticalReflection(position);
-    }
-
-    result.earlyGamePosition +=
-            params.pieceSquareTablesWhiteEarly[pieceIdx][positionForPieceSquare];
-    result.endGamePosition += params.pieceSquareTablesWhiteLate[pieceIdx][positionForPieceSquare];
+    result.earlyGamePosition += params.pieceSquareTablesEarly[(int)side][pieceIdx][(int)position];
+    result.endGamePosition += params.pieceSquareTablesLate[(int)side][pieceIdx][(int)position];
 
     if constexpr (CalcJacobians) {
+        int positionForPieceSquare = (int)position;
+        if (side == Side::Black) {
+            positionForPieceSquare = (int)getVerticalReflection(position);
+        }
+
         jacobians.materialJacobians[getParamIndex(params, params.pieceValues[pieceIdx])] += 1;
         jacobians.phaseMaterialJacobians[getParamIndex(
                 params, params.phaseMaterialValues[pieceIdx])] += 1;
@@ -84,7 +106,7 @@ FORCE_INLINE void updatePiecePositionEvaluation(
 
 template <bool CalcJacobians>
 FORCE_INLINE void updateMobilityEvaluation(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const Piece piece,
         const BoardPosition position,
         const BitBoard anyPiece,
@@ -140,7 +162,7 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
 template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation evaluatePiecePositionsForSide(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side side,
         PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
@@ -404,7 +426,7 @@ template <bool CalcJacobians>
 
 template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation evaluatePawnsForSide(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side side,
         PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
@@ -478,7 +500,7 @@ template <bool CalcJacobians>
 
 template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSafety(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side side,
         ParamGradient<CalcJacobians>& gradient) {
@@ -512,7 +534,7 @@ template <bool CalcJacobians>
 
 template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSwarming(
-        const EvalParams& params,
+        const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side swarmingSide,
         const EvalCalcT swarmingMaterial,
@@ -567,12 +589,12 @@ template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE ParamGradient<true> getMaxPhaseMaterialGradient(
         const EvalParams& params) {
     /*
-    maxPhaseMaterial_ = 2 * 8 * params_.phaseMaterialValues[(int)Piece::Pawn]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Knight]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Bishop]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Rook]
-                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::Queen]
-                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::King];
+    maxPhaseMaterial = 2 * 8 * evalParams.phaseMaterialValues[(int)Piece::Pawn]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Knight]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Bishop]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Rook]
+                     + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
+                     + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King];
     */
     ParamGradient<true> gradient;
     gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Pawn])] += 2 * 8;
@@ -586,8 +608,7 @@ template <bool CalcJacobians>
 
 template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(
-        const EvalParams& params,
-        const EvalCalcT maxPhaseMaterial,
+        const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         ParamGradient<CalcJacobians>& whiteEvalGradient) {
     PiecePositionEvaluationJacobians<CalcJacobians> whitePiecePositionJacobians;
@@ -637,7 +658,7 @@ template <bool CalcJacobians>
     const EvalCalcT phaseMaterial =
             whitePiecePositionEval.phaseMaterial + whitePawnEval.phaseMaterial
             + blackPiecePositionEval.phaseMaterial + blackPawnEval.phaseMaterial;
-    const float earlyGameFactor = (float)phaseMaterial / (float)maxPhaseMaterial;
+    const float earlyGameFactor = (float)phaseMaterial / (float)params.maxPhaseMaterial;
     const float endGameFactor   = 1.f - earlyGameFactor;
 
     ParamGradient<CalcJacobians> earlyGameFactorGradient;
@@ -648,9 +669,9 @@ template <bool CalcJacobians>
 
         ParamGradient<CalcJacobians> maxPhaseMaterialGradient = getMaxPhaseMaterialGradient(params);
 
-        earlyGameFactorGradient.grad = (phaseMaterialGradient.grad * maxPhaseMaterial
+        earlyGameFactorGradient.grad = (phaseMaterialGradient.grad * params.maxPhaseMaterial
                                         - phaseMaterial * maxPhaseMaterialGradient.grad)
-                                     / (maxPhaseMaterial * maxPhaseMaterial);
+                                     / (params.maxPhaseMaterial * params.maxPhaseMaterial);
     }
 
     const EvalCalcT earlyGameWhitePositionEval =
@@ -813,38 +834,41 @@ template <bool CalcJacobians>
 
 }  // namespace
 
+Evaluator::EvalCalcParams::EvalCalcParams(const EvalParams& evalParams) : EvalParams(evalParams) {
+    maxPhaseMaterial = 2 * 8 * evalParams.phaseMaterialValues[(int)Piece::Pawn]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Knight]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Bishop]
+                     + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Rook]
+                     + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
+                     + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King];
+
+    pieceSquareTablesEarly = {
+            evalParams.pieceSquareTablesWhiteEarly,
+            getReflectedPieceSquareTables(evalParams.pieceSquareTablesWhiteEarly)};
+    pieceSquareTablesLate = {
+            evalParams.pieceSquareTablesWhiteLate,
+            getReflectedPieceSquareTables(evalParams.pieceSquareTablesWhiteLate)};
+}
+
 Evaluator::Evaluator() : Evaluator(EvalParams::getDefaultParams()) {}
 
-Evaluator::Evaluator(const EvalParams& params) : params_(params) {
-    maxPhaseMaterial_ = 2 * 8 * params_.phaseMaterialValues[(int)Piece::Pawn]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Knight]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Bishop]
-                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Rook]
-                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::Queen]
-                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::King];
-}
+Evaluator::Evaluator(const EvalParams& params) : params_(params) {}
 
 FORCE_INLINE int Evaluator::getPieceSquareValue(
         const Piece piece, BoardPosition position, const Side side) const {
-    int positionForPieceSquare = (int)position;
-    if (side == Side::Black) {
-        positionForPieceSquare = (int)getVerticalReflection(position);
-    }
-    return (int)params_.pieceSquareTablesWhiteEarly[(int)piece][positionForPieceSquare];
+    return (int)params_.pieceSquareTablesEarly[(int)side][(int)piece][(int)position];
 }
 
 EvalCalcT Evaluator::evaluateRaw(const GameState& gameState) const {
     ParamGradient<false> gradient;
-    const EvalCalcT rawEvalWhite =
-            evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
+    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
 
     return gameState.getSideToMove() == Side::White ? rawEvalWhite : -rawEvalWhite;
 }
 
 EvalWithGradient Evaluator::evaluateWithGradient(const GameState& gameState) const {
     ParamGradient<true> gradient;
-    const EvalCalcT rawEvalWhite =
-            evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
+    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
 
     const EvalCalcT colorFactor = gameState.getSideToMove() == Side::White ? 1 : -1;
 
@@ -853,7 +877,7 @@ EvalWithGradient Evaluator::evaluateWithGradient(const GameState& gameState) con
 
 EvalT Evaluator::evaluate(const GameState& gameState) const {
     ParamGradient<false> gradient;
-    const EvalT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
+    const EvalT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
 
     const int roundedEvalWhite = (int)(rawEvalWhite + 0.5f);
     const EvalT clampedEvalWhite =

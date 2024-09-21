@@ -13,6 +13,15 @@ struct EvalWithGradient {
 
 class Evaluator {
   public:
+    struct EvalCalcParams : EvalParams {
+        EvalCalcParams(const EvalParams& evalParams);
+
+        EvalCalcT maxPhaseMaterial{};
+
+        std::array<PieceSquareTables, kNumSides> pieceSquareTablesEarly;
+        std::array<PieceSquareTables, kNumSides> pieceSquareTablesLate;
+    };
+
     Evaluator();
     Evaluator(const EvalParams& params);
 
@@ -25,8 +34,7 @@ class Evaluator {
     [[nodiscard]] EvalT evaluate(const GameState& gameState) const;
 
   private:
-    EvalParams params_;
-    EvalCalcT maxPhaseMaterial_{};
+    EvalCalcParams params_;
 };
 
 [[nodiscard]] int getStaticPieceValue(Piece piece);
