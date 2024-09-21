@@ -164,32 +164,6 @@ class MoveSearcher::Impl {
 
 namespace {
 
-// Subroutine for search and quiescence search.
-// Select best move based on pre-calculated scores using a simple linear search.
-// Then do a 'destructive swap' with the first move in the list and return the best move.
-// This basically ends up doing a selection sort when called repeatedly, except that we don't
-// actually write the best moves to the front of the list.
-[[nodiscard]] FORCE_INLINE Move
-selectBestMove(StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int firstMoveIdx) {
-    int bestMoveIdx         = -1;
-    MoveEvalT bestMoveScore = std::numeric_limits<MoveEvalT>::lowest();
-
-    for (int moveIdx = firstMoveIdx; moveIdx < moveScores.size(); ++moveIdx) {
-        if (moveScores[moveIdx] > bestMoveScore) {
-            bestMoveScore = moveScores[moveIdx];
-            bestMoveIdx   = moveIdx;
-        }
-    }
-
-    const Move bestMove = moves[bestMoveIdx];
-
-    // 'Destructive swap'
-    moves[bestMoveIdx]      = moves[firstMoveIdx];
-    moveScores[bestMoveIdx] = moveScores[firstMoveIdx];
-
-    return bestMove;
-}
-
 [[nodiscard]] FORCE_INLINE bool nullMovePruningAllowed(
         const GameState& gameState,
         const bool isPvNode,

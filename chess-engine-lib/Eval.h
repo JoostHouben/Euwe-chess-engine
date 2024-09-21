@@ -4,11 +4,12 @@
 #include "EvalT.h"
 #include "GameState.h"
 
-[[nodiscard]] int getStaticPieceValue(Piece piece);
+#include <Eigen/Dense>
 
-[[nodiscard]] bool isInsufficientMaterial(const GameState& gameState);
-
-[[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);
+struct EvalWithGradient {
+    EvalCalcT eval;
+    Eigen::VectorXf gradient;
+};
 
 class Evaluator {
   public:
@@ -19,9 +20,17 @@ class Evaluator {
 
     [[nodiscard]] EvalCalcT evaluateRaw(const GameState& gameState) const;
 
+    [[nodiscard]] EvalWithGradient evaluateWithGradient(const GameState& gameState) const;
+
     [[nodiscard]] EvalT evaluate(const GameState& gameState) const;
 
   private:
     EvalParams params_;
     EvalCalcT maxPhaseMaterial_{};
 };
+
+[[nodiscard]] int getStaticPieceValue(Piece piece);
+
+[[nodiscard]] bool isInsufficientMaterial(const GameState& gameState);
+
+[[nodiscard]] EvalT evaluateNoLegalMoves(const GameState& gameState);

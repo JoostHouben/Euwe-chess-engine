@@ -107,7 +107,8 @@ console output.
 The repository also contains helper projects with additional dependencies:
 
  - The unit tests depend on GTest.
- - The tuner depends on [Ceres](http://ceres-solver.org/) and its transitive dependencies.
+ - The tuner depends on [Ceres](http://ceres-solver.org/) and its transitive dependencies. Ceres has
+   also been configured to use CUDA, meaning that an NVCC installation is required.
  - A script for extracting annotated fens from PGNs depends on Python and
    [python-chess](https://python-chess.readthedocs.io/en/latest/).
 

@@ -1,11 +1,14 @@
 #include "chess-engine-lib/Eval.h"
 #include "chess-engine-lib/GameState.h"
+#include "chess-engine-lib/Math.h"
+#include "chess-engine-lib/MoveOrder.h"
 
 #include "ceres/ceres.h"
 
 #include <fstream>
 #include <iostream>
 #include <istream>
+#include <memory>
 #include <print>
 #include <ranges>
 #include <string>
@@ -21,20 +24,11 @@ struct ScoredPosition {
     double score;
 };
 
-static constexpr std::size_t kNumParams = std::tuple_size_v<EvalParamArray>;
-
-struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumParams> {
-    EvalCostFunctor(const ScoredPosition& scoredPosition) : scoredPosition_(scoredPosition) {}
-
-    double calculateResidual(const double scale, const EvalParamArray& paramsArray) const {
-        const Evaluator evaluator(evalParamsFromArray(paramsArray));
-
-        const EvalCalcT rawEval = evaluator.evaluateRaw(scoredPosition_.gameState);
-
-        const double sigmoid = 1. / (1. + std::pow(10., -rawEval / scale));
-
-        return scoredPosition_.score - sigmoid;
-    }
+struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
+    EvalCostFunctor(
+            const ScoredPosition& scoredPosition,
+            const std::shared_ptr<std::vector<int>> constantParamIdxs)
+        : scoredPosition_(scoredPosition), constantParamIdxs_(constantParamIdxs) {}
 
     bool Evaluate(
             double const* const* parameters, double* residuals, double** jacobians) const override {
@@ -46,30 +40,43 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumParams> {
             paramsArray[i] = static_cast<float>(paramsDouble[i]);
         }
 
-        residuals[0] = calculateResidual(*scaleParam, paramsArray);
+        const bool needParamJacobians = jacobians != nullptr && jacobians[1] != nullptr;
+
+        const Evaluator evaluator(evalParamsFromArray(paramsArray));
+
+        EvalWithGradient evalWithGradient;
+
+        if (needParamJacobians) {
+            evalWithGradient = evaluator.evaluateWithGradient(scoredPosition_.gameState);
+        } else {
+            evalWithGradient.eval = evaluator.evaluate(scoredPosition_.gameState);
+        }
+
+        const double sigmoid = 1. / (1. + std::pow(10., -evalWithGradient.eval / *scaleParam));
+
+        residuals[0] = scoredPosition_.score - sigmoid;
 
         if (jacobians) {
+            const double s = *scaleParam;
+            const double x = evalWithGradient.eval;
             if (jacobians[0]) {
-                static constexpr double kScaleDelta = 1.;
+                const double power = std::pow(10, x / s);
 
-                const double residualPrime =
-                        calculateResidual(*scaleParam + kScaleDelta, paramsArray);
-
-                jacobians[0][0] = (residualPrime - residuals[0]) / kScaleDelta;
+                jacobians[0][0] = x * std::log(10.) * power / (s * s * (1 + power) * (1 + power));
             }
 
             if (jacobians[1]) {
-                for (int i = 0; i < paramsArray.size(); ++i) {
-                    const double paramDelta = std::max(0.1, std::abs(paramsArray[i]) / 10.);
+                const double negPower = std::pow(10, -x / s);
 
-                    const double paramBackup = paramsArray[i];
-                    paramsArray[i] += paramDelta;
+                const double sigmoidDerivative =
+                        std::log(10.) * negPower / (s * (1 + negPower) * (1 + negPower));
 
-                    const double residualPrime = calculateResidual(*scaleParam, paramsArray);
+                for (int i = 0; i < kNumEvalParams; ++i) {
+                    jacobians[1][i] = -sigmoidDerivative * evalWithGradient.gradient[i];
+                }
 
-                    jacobians[1][i] = (residualPrime - residuals[0]) / paramDelta;
-
-                    paramsArray[i] = paramBackup;
+                for (int i : *constantParamIdxs_) {
+                    jacobians[1][i] = 0;
                 }
             }
         }
@@ -79,14 +86,16 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumParams> {
 
   private:
     ScoredPosition scoredPosition_;
+    std::shared_ptr<std::vector<int>> constantParamIdxs_;
 };
 
-std::vector<ScoredPosition> getScoredPositions(std::string annotatedFensPath) {
+void getScoredPositions(
+        const std::string& annotatedFensPath, std::vector<ScoredPosition>& scoredPositions) {
     std::srand(42);
 
     std::ifstream in(annotatedFensPath);
 
-    std::vector<ScoredPosition> scoredPositions;
+    const auto startingSize = scoredPositions.size();
 
     std::string inputLine;
     while (std::getline(in, inputLine)) {
@@ -94,7 +103,7 @@ std::vector<ScoredPosition> getScoredPositions(std::string annotatedFensPath) {
             continue;
         }
 
-        if ((std::rand() % 30) != 0) {
+        if ((std::rand() % 4) != 0) {
             continue;
         }
 
@@ -125,13 +134,149 @@ std::vector<ScoredPosition> getScoredPositions(std::string annotatedFensPath) {
         scoredPositions.push_back({gameState, score});
     }
 
-    std::println(std::cerr, "Read {} scored positions", scoredPositions.size());
-
-    return scoredPositions;
+    std::println(std::cerr, "Read {} scored positions", scoredPositions.size() - startingSize);
 }
 
-std::array<double, kNumParams> getInitialParams() {
-    std::array<double, kNumParams> paramsDouble;
+StackOfVectors<MoveEvalT> gMoveScoreStack = {};
+
+bool isDraw(const GameState& gameState, StackOfVectors<Move>& stack) {
+    if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
+        return true;
+    }
+
+    if (gameState.isFiftyMoves()) {
+        const auto moves = gameState.generateMoves(stack);
+        if (moves.size() == 0) {
+            return evaluateNoLegalMoves(gameState);
+        } else {
+            return true;
+        }
+    }
+
+    if (isInsufficientMaterial(gameState)) {
+        return true;
+    }
+
+    return false;
+}
+
+void updateMateDistance(EvalT& score) {
+    if (isMate(score)) {
+        score = mateDistancePlus1(score);
+    }
+}
+
+std::pair<EvalT, GameState> quiesce(
+        GameState& gameState,
+        EvalT alpha,
+        EvalT beta,
+        StackOfVectors<Move>& stack,
+        const Evaluator& evaluator) {
+    constexpr EvalT kDeltaPruningThreshold = 200;
+
+    if (isDraw(gameState, stack)) {
+        return {0, gameState};
+    }
+
+    const BitBoard enemyControl = gameState.getEnemyControl();
+    const bool isInCheck        = gameState.isInCheck(enemyControl);
+
+    EvalT standPat = -kInfiniteEval;
+    if (!isInCheck) {
+        // Stand pat
+        standPat = evaluator.evaluate(gameState);
+        if (standPat >= beta) {
+            return {standPat, gameState};
+        }
+
+        alpha = max(alpha, standPat);
+    }
+
+    EvalT bestScore     = standPat;
+    GameState bestState = gameState;
+
+    auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
+    if (moves.size() == 0) {
+        if (isInCheck) {
+            return {-kMateEval, gameState};
+        }
+
+        const auto allMoves = gameState.generateMoves(stack, enemyControl);
+        if (allMoves.size() == 0) {
+            // No legal moves, not in check, so stalemate.
+            return {0, gameState};
+        }
+
+        return {bestScore, bestState};
+    }
+
+    auto moveScores = scoreMovesQuiesce(evaluator, moves, 0, gameState, gMoveScoreStack);
+
+    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
+        const Move move = selectBestMove(moves, moveScores, moveIdx);
+
+        const auto unmakeInfo = gameState.makeMove(move);
+
+        auto [score, state] = quiesce(gameState, -beta, -alpha, stack, evaluator);
+        score               = -score;
+
+        gameState.unmakeMove(move, unmakeInfo);
+
+        updateMateDistance(score);
+
+        alpha = max(alpha, score);
+        if (score > bestScore) {
+            bestScore = score;
+            bestState = state;
+        }
+
+        if (alpha >= beta) {
+            break;
+        }
+    }
+
+    return {bestScore, bestState};
+}
+
+void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
+    const Evaluator evaluator(EvalParams::getDefaultParams());
+    StackOfVectors<Move> moveStack;
+
+    std::vector<ScoredPosition> quiescedPositions;
+    for (ScoredPosition& scoredPosition : scoredPositions) {
+        const EvalT evalThreshold = 500;
+
+        const EvalT baseEval = evaluator.evaluate(scoredPosition.gameState);
+        if (std::abs(baseEval) >= evalThreshold) {
+            continue;
+        }
+
+        const EvalT deltaThreshold = 50;
+        const EvalT alpha          = baseEval - deltaThreshold - 1;
+        const EvalT beta           = baseEval + deltaThreshold + 1;
+
+        auto [score, state] = quiesce(scoredPosition.gameState, alpha, beta, moveStack, evaluator);
+
+        const EvalT evalDelta = std::abs(baseEval - score);
+        if (evalDelta >= deltaThreshold || std::abs(score) >= evalThreshold) {
+            continue;
+        }
+
+        double scoreToUse = scoredPosition.score;
+        if (state.getSideToMove() != scoredPosition.gameState.getSideToMove()) {
+            scoreToUse = 1 - scoreToUse;
+        }
+
+        quiescedPositions.emplace_back(state, scoreToUse);
+    }
+
+    std::println("Obtained {} quiesced positions", quiescedPositions.size());
+
+    std::swap(scoredPositions, quiescedPositions);
+}
+
+std::array<double, kNumEvalParams> getInitialParams() {
+    std::array<double, kNumEvalParams> paramsDouble;
     const EvalParamArray params = evalParamsToArray(EvalParams::getDefaultParams());
     for (int i = 0; i < paramsDouble.size(); ++i) {
         paramsDouble[i] = static_cast<double>(params[i]);
@@ -140,61 +285,116 @@ std::array<double, kNumParams> getInitialParams() {
     return paramsDouble;
 }
 
-ceres::SubsetManifold* getParamsManifold() {
-    std::vector<int> constantParamIdxs;
+std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
+    std::shared_ptr<std::vector<int>> constantParamIdxs = std::make_shared<std::vector<int>>();
 
     EvalParams params = EvalParams::getDefaultParams();
     const auto getIdx = [&](const EvalCalcT& member) {
         return (int)((std::byte*)&member - (std::byte*)&params) / sizeof(EvalCalcT);
     };
     const auto setConstant = [&](const EvalCalcT& member) {
-        constantParamIdxs.push_back(getIdx(member));
+        constantParamIdxs->push_back(getIdx(member));
     };
 
-    setConstant(params.pieceValues[(int)Piece::King]);
+    //// Fix one of the phase material values to fix the scale of the phase material values.
+    //// (Otherwise it's a gauge freedom.)
+    //setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
 
-    setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
-    setConstant(params.phaseMaterialValues[(int)Piece::King]);
+    //// We need to fix 1 square in the piece-square tables to avoid a gauge freedom with the piece
+    //// values.
+    //const int constSquareIdx = (int)positionFromFileRank(3, 3);
+    //for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+    //    setConstant(params.pieceSquareTablesWhiteEarly[pieceIdx][constSquareIdx]);
+    //}
 
-    const int constSquareIdx = (int)positionFromFileRank(3, 3);
+    // Fix piece values to avoid gauge freedoms with the piece-square tables.
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        setConstant(params.pieceSquareTablesWhiteEarly[pieceIdx][0]);
-        setConstant(params.pieceSquareTablesWhiteLate[pieceIdx][0]);
+        setConstant(params.pieceValues[pieceIdx]);
     }
 
-    setConstant(params.passedPawnBonus[0]);
+    // A pawn 1 square away from promotion is always a passed pawn, so this term has a gauge
+    // freedom with the piece-square tables.
+    setConstant(params.passedPawnBonus[1]);
 
+    // Fix one value in the adjustment tables to avoid gauge freedoms with the piece values.
     setConstant(params.badBishopPenalty[4]);
-
     setConstant(params.knightPawnAdjustment[5]);
     setConstant(params.rookPawnAdjustment[5]);
 
-    setConstant(params.mobilityBonusEarly[(int)Piece::Pawn]);
-    setConstant(params.mobilityBonusLate[(int)Piece::Pawn]);
+    // Fix phase material values because of poor convergence otherwise
+    setConstant(params.phaseMaterialValues[(int)Piece::Pawn]);
+    setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
+    setConstant(params.phaseMaterialValues[(int)Piece::Bishop]);
+    setConstant(params.phaseMaterialValues[(int)Piece::Rook]);
+    setConstant(params.phaseMaterialValues[(int)Piece::Queen]);
+    setConstant(params.phaseMaterialValues[(int)Piece::King]);
 
-    return new ceres::SubsetManifold(kNumParams, constantParamIdxs);
+    // Fix unused values
+
+    // Kings are always on the board, so their piece and phase material values are unused.
+    setConstant(params.pieceValues[(int)Piece::King]);
+    setConstant(params.phaseMaterialValues[(int)Piece::King]);
+
+    // Pawns are never on the 1st or 8th ranks, so their piece-square tables for those ranks are
+    // unused.
+    for (int file = 0; file < kFiles; ++file) {
+        const int pawnIdx       = (int)Piece::Pawn;
+        const int rank1Position = (int)positionFromFileRank(file, 0);
+        const int rank8Position = (int)positionFromFileRank(file, kRanks - 1);
+
+        setConstant(params.pieceSquareTablesWhiteEarly[pawnIdx][rank1Position]);
+        setConstant(params.pieceSquareTablesWhiteEarly[pawnIdx][rank8Position]);
+
+        setConstant(params.pieceSquareTablesWhiteLate[pawnIdx][rank1Position]);
+        setConstant(params.pieceSquareTablesWhiteLate[pawnIdx][rank8Position]);
+    }
+
+    // Pawns are never on the 8th rank, so the passed pawn bonus there is unused.
+    setConstant(params.passedPawnBonus[0]);
+
+    // We don't calculate mobility for pawns or kings.
+    setConstant(params.mobilityBonusEarly[(int)Piece::Pawn]);
+    setConstant(params.mobilityBonusEarly[(int)Piece::King]);
+    setConstant(params.mobilityBonusLate[(int)Piece::Pawn]);
+    setConstant(params.mobilityBonusLate[(int)Piece::King]);
+
+    return constantParamIdxs;
 }
 
 void addResiduals(
         double& scaleParam,
-        std::array<double, kNumParams>& paramsDouble,
-        std::vector<ScoredPosition> scoredPositions,
+        std::array<double, kNumEvalParams>& paramsDouble,
+        const std::vector<ScoredPosition>& scoredPositions,
         ceres::Problem& problem) {
     problem.AddParameterBlock(&scaleParam, 1);
-    problem.AddParameterBlock(paramsDouble.data(), kNumParams, getParamsManifold());
+    //problem.AddParameterBlock(paramsDouble.data(), kNumEvalParams, getParamsManifold());
+    problem.AddParameterBlock(paramsDouble.data(), kNumEvalParams);
+
+    const auto constantParamIdxs = getConstantParamIdxs();
 
     for (const auto& scoredPosition : scoredPositions) {
-        ceres::CostFunction* costFunction = new EvalCostFunctor(scoredPosition);
+        ceres::CostFunction* costFunction = new EvalCostFunctor(scoredPosition, constantParamIdxs);
         problem.AddResidualBlock(costFunction, nullptr, &scaleParam, paramsDouble.data());
     }
 }
 
 void solve(ceres::Problem& problem) {
+
     ceres::Solver::Options options;
-    options.minimizer_progress_to_stdout = true;
-    options.num_threads                  = std::thread::hardware_concurrency();
-    options.parameter_tolerance          = 1e-3;
-    options.initial_trust_region_radius  = 1e0;
+    options.minimizer_progress_to_stdout      = true;
+    options.num_threads                       = std::thread::hardware_concurrency();
+    options.parameter_tolerance               = 1e-3;
+    options.initial_trust_region_radius       = 1e4;
+    options.dense_linear_algebra_library_type = ceres::CUDA;
+    options.use_mixed_precision_solves        = true;
+    options.max_num_refinement_iterations     = 3;
+
+    if (problem.NumResidualBlocks() > 2e5) {
+        options.linear_solver_type = ceres::DENSE_NORMAL_CHOLESKY;
+    } else {
+        options.linear_solver_type = ceres::DENSE_QR;
+    }
+
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::cout << summary.FullReport() << "\n";
@@ -203,17 +403,23 @@ void solve(ceres::Problem& problem) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    const std::string annotatedFensPath =
-            R"(D:\annotated-fens\since_search_state_to_virtual_king_mobility.txt)";
+    const std::vector<std::string> annotatedFensPaths = {
+            R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
+            R"(D:\annotated-fens\tuned-eval_vs_before-tune.txt)"};
 
-    double scaleParam                           = 400.;
-    std::array<double, kNumParams> paramsDouble = getInitialParams();
+    double scaleParam                               = 400.;
+    std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
 
     ceres::Problem problem;
 
     {
-        std::vector<ScoredPosition> scoredPositions = getScoredPositions(annotatedFensPath);
-        addResiduals(scaleParam, paramsDouble, std::move(scoredPositions), problem);
+        std::vector<ScoredPosition> scoredPositions;
+        for (const auto& path : annotatedFensPaths) {
+            getScoredPositions(path, scoredPositions);
+        }
+
+        quiescePositions(scoredPositions);
+        addResiduals(scaleParam, paramsDouble, scoredPositions, problem);
     }
 
     problem.SetParameterBlockConstant(paramsDouble.data());

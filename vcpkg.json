@@ -1,6 +1,10 @@
 {
   "dependencies": [
     "gtest",
-    "ceres"
+    {
+      "name": "ceres",
+      "features": [ "cuda" ]
+    },
+    "eigen3"
   ]
 }

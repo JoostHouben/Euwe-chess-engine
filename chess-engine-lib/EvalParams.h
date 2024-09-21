@@ -47,7 +47,9 @@ struct EvalParams {
     EvalParams() = default;
 };
 
-using EvalParamArray = std::array<EvalCalcT, sizeof(EvalParams) / sizeof(EvalCalcT)>;
+static constexpr std::size_t kNumEvalParams = sizeof(EvalParams) / sizeof(EvalCalcT);
+
+using EvalParamArray = std::array<EvalCalcT, kNumEvalParams>;
 static_assert(sizeof(EvalParams) == sizeof(EvalParamArray));
 
 [[nodiscard]] EvalParamArray evalParamsToArray(const EvalParams& params);

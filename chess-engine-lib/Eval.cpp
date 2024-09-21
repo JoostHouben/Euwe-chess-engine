@@ -20,12 +20,44 @@ struct PiecePositionEvaluation {
     EvalCalcT endGamePosition    = 0;
 };
 
+template <bool CalcJacobians>
+struct PiecePositionEvaluationJacobians;
+
+template <>
+struct PiecePositionEvaluationJacobians<false> {};
+
+template <>
+struct PiecePositionEvaluationJacobians<true> {
+    Eigen::VectorXf materialJacobians           = Eigen::VectorXf::Zero(kNumEvalParams);
+    Eigen::VectorXf materialAdjustmentJacobians = Eigen::VectorXf::Zero(kNumEvalParams);
+    Eigen::VectorXf phaseMaterialJacobians      = Eigen::VectorXf::Zero(kNumEvalParams);
+    Eigen::VectorXf earlyGamePositionJacobians  = Eigen::VectorXf::Zero(kNumEvalParams);
+    Eigen::VectorXf endGamePositionJacobians    = Eigen::VectorXf::Zero(kNumEvalParams);
+};
+
+template <bool CalcJacobians>
+struct ParamGradient;
+
+template <>
+struct ParamGradient<false> {};
+
+template <>
+struct ParamGradient<true> {
+    Eigen::VectorXf grad = Eigen::VectorXf::Zero(kNumEvalParams);
+};
+
+FORCE_INLINE std::size_t getParamIndex(const EvalParams& params, const EvalCalcT& param) {
+    return (std::size_t)((std::byte*)&param - (std::byte*)&params) / sizeof(EvalCalcT);
+}
+
+template <bool CalcJacobians>
 FORCE_INLINE void updatePiecePositionEvaluation(
         const EvalParams& params,
         const int pieceIdx,
         const BoardPosition position,
         const Side side,
-        PiecePositionEvaluation& result) {
+        PiecePositionEvaluation& result,
+        PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
 
     result.material += params.pieceValues[pieceIdx];
     result.phaseMaterial += params.phaseMaterialValues[pieceIdx];
@@ -38,19 +70,38 @@ FORCE_INLINE void updatePiecePositionEvaluation(
     result.earlyGamePosition +=
             params.pieceSquareTablesWhiteEarly[pieceIdx][positionForPieceSquare];
     result.endGamePosition += params.pieceSquareTablesWhiteLate[pieceIdx][positionForPieceSquare];
+
+    if constexpr (CalcJacobians) {
+        jacobians.materialJacobians[getParamIndex(params, params.pieceValues[pieceIdx])] += 1;
+        jacobians.phaseMaterialJacobians[getParamIndex(
+                params, params.phaseMaterialValues[pieceIdx])] += 1;
+        jacobians.earlyGamePositionJacobians[getParamIndex(
+                params, params.pieceSquareTablesWhiteEarly[pieceIdx][positionForPieceSquare])] += 1;
+        jacobians.endGamePositionJacobians[getParamIndex(
+                params, params.pieceSquareTablesWhiteLate[pieceIdx][positionForPieceSquare])] += 1;
+    }
 }
 
+template <bool CalcJacobians>
 FORCE_INLINE void updateMobilityEvaluation(
         const EvalParams& params,
         const Piece piece,
         const BoardPosition position,
         const BitBoard anyPiece,
         const BitBoard ownOccupancy,
-        PiecePositionEvaluation& result) {
+        PiecePositionEvaluation& result,
+        PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
     const BitBoard control = getPieceControlledSquares(piece, position, anyPiece);
     const int mobility     = popCount(control & ~ownOccupancy);
     result.earlyGamePosition += mobility * params.mobilityBonusEarly[(int)piece];
     result.endGamePosition += mobility * params.mobilityBonusLate[(int)piece];
+
+    if constexpr (CalcJacobians) {
+        jacobians.earlyGamePositionJacobians[getParamIndex(
+                params, params.mobilityBonusEarly[(int)piece])] += mobility;
+        jacobians.endGamePositionJacobians[getParamIndex(
+                params, params.mobilityBonusLate[(int)piece])] += mobility;
+    }
 }
 
 [[nodiscard]] FORCE_INLINE EvalCalcT
@@ -87,8 +138,12 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
     return (EvalCalcT)max(std::abs(aFile - bFile), std::abs(aRank - bRank));
 }
 
+template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE PiecePositionEvaluation evaluatePiecePositionsForSide(
-        const EvalParams& params, const GameState& gameState, const Side side) {
+        const EvalParams& params,
+        const GameState& gameState,
+        const Side side,
+        PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
     const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
     const BitBoard enemyPawns = gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
     const BitBoard anyPawn    = ownPawns | enemyPawns;
@@ -114,11 +169,17 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
             result.materialAdjustment -= params.knightPairPenalty;
+
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.knightPairPenalty)] -= 1;
+            }
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation(params, (int)Piece::Knight, position, side, result);
+            updatePiecePositionEvaluation<CalcJacobians>(
+                    params, (int)Piece::Knight, position, side, result, jacobians);
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = max((EvalCalcT)0, 7 - kingDistance);
@@ -127,8 +188,13 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
             result.materialAdjustment += params.knightPawnAdjustment[numOwnPawns];
 
-            updateMobilityEvaluation(
-                    params, Piece::Knight, position, anyPiece, ownOccupancy, result);
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.knightPawnAdjustment[numOwnPawns])] += 1;
+            }
+
+            updateMobilityEvaluation<CalcJacobians>(
+                    params, Piece::Knight, position, anyPiece, ownOccupancy, result, jacobians);
         }
     }
 
@@ -149,7 +215,8 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation(params, (int)Piece::Bishop, position, side, result);
+            updatePiecePositionEvaluation<CalcJacobians>(
+                    params, (int)Piece::Bishop, position, side, result, jacobians);
 
             const int squareColor = getSquareColor(position);
 
@@ -157,17 +224,27 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
             result.materialAdjustment -= params.badBishopPenalty[badBishopIndex[squareColor]];
 
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.badBishopPenalty[badBishopIndex[squareColor]])] -= 1;
+            }
+
             const EvalCalcT kingDistance = bishopDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = (14 - kingDistance) / 2;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            updateMobilityEvaluation(
-                    params, Piece::Bishop, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation<CalcJacobians>(
+                    params, Piece::Bishop, position, anyPiece, ownOccupancy, result, jacobians);
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
             result.materialAdjustment += params.bishopPairBonus;
+
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.bishopPairBonus)] += 1;
+            }
         }
     }
 
@@ -178,11 +255,17 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
             result.materialAdjustment -= params.rookPairPenalty;
+
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.rookPairPenalty)] -= 1;
+            }
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation(params, (int)Piece::Rook, position, side, result);
+            updatePiecePositionEvaluation<CalcJacobians>(
+                    params, (int)Piece::Rook, position, side, result, jacobians);
 
             const BitBoard fileBitBoard = getFileBitBoard(position);
             const bool blockedByOwnPawn = (ownPawns & fileBitBoard) != BitBoard::Empty;
@@ -191,9 +274,23 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
             if (!blockedByAnyPawn) {
                 result.earlyGamePosition += params.rookOpenFileBonus;
                 result.endGamePosition += params.rookOpenFileBonus;
+
+                if constexpr (CalcJacobians) {
+                    jacobians.earlyGamePositionJacobians[getParamIndex(
+                            params, params.rookOpenFileBonus)] += 1;
+                    jacobians.endGamePositionJacobians[getParamIndex(
+                            params, params.rookOpenFileBonus)] += 1;
+                }
             } else if (!blockedByOwnPawn) {
                 result.earlyGamePosition += params.rookSemiOpenFileBonus;
                 result.endGamePosition += params.rookSemiOpenFileBonus;
+
+                if constexpr (CalcJacobians) {
+                    jacobians.earlyGamePositionJacobians[getParamIndex(
+                            params, params.rookSemiOpenFileBonus)] += 1;
+                    jacobians.endGamePositionJacobians[getParamIndex(
+                            params, params.rookSemiOpenFileBonus)] += 1;
+                }
             }
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
@@ -203,7 +300,13 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
             result.materialAdjustment += params.rookPawnAdjustment[numOwnPawns];
 
-            updateMobilityEvaluation(params, Piece::Rook, position, anyPiece, ownOccupancy, result);
+            if constexpr (CalcJacobians) {
+                jacobians.materialAdjustmentJacobians[getParamIndex(
+                        params, params.rookPawnAdjustment[numOwnPawns])] += 1;
+            }
+
+            updateMobilityEvaluation<CalcJacobians>(
+                    params, Piece::Rook, position, anyPiece, ownOccupancy, result, jacobians);
         }
     }
 
@@ -213,15 +316,16 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
-            updatePiecePositionEvaluation(params, (int)Piece::Queen, position, side, result);
+            updatePiecePositionEvaluation<CalcJacobians>(
+                    params, (int)Piece::Queen, position, side, result, jacobians);
 
             const EvalCalcT kingDistance = queenDistance(position, enemyKingPosition);
             const EvalCalcT tropismBonus = (7 - kingDistance) * 4;
             result.earlyGamePosition += tropismBonus;
             result.endGamePosition += tropismBonus;
 
-            updateMobilityEvaluation(
-                    params, Piece::Queen, position, anyPiece, ownOccupancy, result);
+            updateMobilityEvaluation<CalcJacobians>(
+                    params, Piece::Queen, position, anyPiece, ownOccupancy, result, jacobians);
         }
     }
 
@@ -229,7 +333,8 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
     {
         const BoardPosition kingPosition =
                 getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
-        updatePiecePositionEvaluation(params, (int)Piece::King, kingPosition, side, result);
+        updatePiecePositionEvaluation<CalcJacobians>(
+                params, (int)Piece::King, kingPosition, side, result, jacobians);
 
         // no mobility bonus for king
     }
@@ -297,8 +402,12 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
     return false;
 }
 
-[[nodiscard]] FORCE_INLINE PiecePositionEvaluation
-evaluatePawnsForSide(const EvalParams& params, const GameState& gameState, const Side side) {
+template <bool CalcJacobians>
+[[nodiscard]] FORCE_INLINE PiecePositionEvaluation evaluatePawnsForSide(
+        const EvalParams& params,
+        const GameState& gameState,
+        const Side side,
+        PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
     // TODO: should we hash pawn structure and store pawn eval?
 
     PiecePositionEvaluation result{};
@@ -311,7 +420,8 @@ evaluatePawnsForSide(const EvalParams& params, const GameState& gameState, const
     while (pawnBitBoard != BitBoard::Empty) {
         const BoardPosition position = popFirstSetPosition(pawnBitBoard);
 
-        updatePiecePositionEvaluation(params, (int)Piece::Pawn, position, side, result);
+        updatePiecePositionEvaluation<CalcJacobians>(
+                params, (int)Piece::Pawn, position, side, result, jacobians);
 
         const BitBoard passedPawnOpponentMask = getPassedPawnOpponentMask(position, side);
         const BitBoard forwardMask            = getPawnForwardMask(position, side);
@@ -328,25 +438,50 @@ evaluatePawnsForSide(const EvalParams& params, const GameState& gameState, const
         if (isDoubledPawn) {
             result.earlyGamePosition -= params.doubledPawnPenalty;
             result.endGamePosition -= params.doubledPawnPenalty;
+
+            if constexpr (CalcJacobians) {
+                jacobians.earlyGamePositionJacobians[getParamIndex(
+                        params, params.doubledPawnPenalty)] -= 1;
+                jacobians.endGamePositionJacobians[getParamIndex(
+                        params, params.doubledPawnPenalty)] -= 1;
+            }
         } else if (isPassedPawn) {
             const int rank                = rankFromPosition(position);
             const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
 
             result.earlyGamePosition += params.passedPawnBonus[distanceToPromotion];
             result.endGamePosition += params.passedPawnBonus[distanceToPromotion];
+
+            if constexpr (CalcJacobians) {
+                jacobians.earlyGamePositionJacobians[getParamIndex(
+                        params, params.passedPawnBonus[distanceToPromotion])] += 1;
+                jacobians.endGamePositionJacobians[getParamIndex(
+                        params, params.passedPawnBonus[distanceToPromotion])] += 1;
+            }
         }
 
         if (isIsolated) {
             result.earlyGamePosition -= params.isolatedPawnPenalty;
             result.endGamePosition -= params.isolatedPawnPenalty;
+
+            if constexpr (CalcJacobians) {
+                jacobians.earlyGamePositionJacobians[getParamIndex(
+                        params, params.isolatedPawnPenalty)] -= 1;
+                jacobians.endGamePositionJacobians[getParamIndex(
+                        params, params.isolatedPawnPenalty)] -= 1;
+            }
         }
     }
 
     return result;
 }
 
-[[nodiscard]] FORCE_INLINE EvalCalcT
-evaluateKingSafety(const EvalParams& params, const GameState& gameState, const Side side) {
+template <bool CalcJacobians>
+[[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSafety(
+        const EvalParams& params,
+        const GameState& gameState,
+        const Side side,
+        ParamGradient<CalcJacobians>& gradient) {
     const BoardPosition kingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(side, Piece::King));
 
@@ -367,16 +502,24 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
 
     const int virtualKingMobility = popCount(virtualKingControl);
 
+    if constexpr (CalcJacobians) {
+        gradient.grad[getParamIndex(params, params.kingVirtualMobilityPenalty)] +=
+                -virtualKingMobility;
+    }
+
     return -params.kingVirtualMobilityPenalty * virtualKingMobility;
 }
 
+template <bool CalcJacobians>
 [[nodiscard]] FORCE_INLINE EvalCalcT evaluateKingSwarming(
         const EvalParams& params,
         const GameState& gameState,
         const Side swarmingSide,
         const EvalCalcT swarmingMaterial,
         const EvalCalcT defendingMaterial,
-        const float endGameFactor) {
+        const ParamGradient<CalcJacobians>& swarmingMaterialGradient,
+        const ParamGradient<CalcJacobians>& defendingMaterialGradient,
+        ParamGradient<CalcJacobians>& gradient) {
     if (defendingMaterial >= swarmingMaterial) {
         return 0;
     }
@@ -385,6 +528,22 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
 
     const float materialAdvantageFactor =
             min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
+
+    ParamGradient<CalcJacobians> materialAdvantageFactorGradient;
+    if constexpr (CalcJacobians) {
+        if (materialAdvantageFactor < 1.f) {
+            ParamGradient<CalcJacobians> numGradient;
+            numGradient.grad = swarmingMaterialGradient.grad - defendingMaterialGradient.grad;
+            ParamGradient<CalcJacobians> denGradient;
+            denGradient.grad[getParamIndex(params, params.pieceValues[(int)Piece::Rook])] = 1;
+
+            const EvalCalcT num = swarmingMaterial - defendingMaterial;
+            const EvalCalcT den = rookValue;
+
+            materialAdvantageFactorGradient.grad =
+                    (numGradient.grad * den - num * denGradient.grad) / (den * den);
+        }
+    }
 
     const BoardPosition swarmingKingPosition =
             getFirstSetPosition(gameState.getPieceBitBoard(swarmingSide, Piece::King));
@@ -398,18 +557,51 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
 
     const EvalCalcT swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
 
-    return (EvalCalcT)(endGameFactor * materialAdvantageFactor * swarmingValue * 10.f);
+    if constexpr (CalcJacobians) {
+        gradient.grad += materialAdvantageFactorGradient.grad * swarmingValue * 10.f;
+    }
+
+    return (EvalCalcT)(materialAdvantageFactor * swarmingValue * 10.f);
 }
 
-[[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(
-        const EvalParams& params, const EvalCalcT maxPhaseMaterial, const GameState& gameState) {
-    const auto whitePawnEval = evaluatePawnsForSide(params, gameState, Side::White);
-    const auto blackPawnEval = evaluatePawnsForSide(params, gameState, Side::Black);
+[[nodiscard]] FORCE_INLINE ParamGradient<true> getMaxPhaseMaterialGradient(
+        const EvalParams& params) {
+    /*
+    maxPhaseMaterial_ = 2 * 8 * params_.phaseMaterialValues[(int)Piece::Pawn]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Knight]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Bishop]
+                      + 2 * 2 * params_.phaseMaterialValues[(int)Piece::Rook]
+                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::Queen]
+                      + 2 * 1 * params_.phaseMaterialValues[(int)Piece::King];
+    */
+    ParamGradient<true> gradient;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Pawn])] += 2 * 8;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Knight])] += 2 * 2;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Bishop])] += 2 * 2;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Rook])] += 2 * 2;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Queen])] += 2 * 1;
+    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::King])] += 2 * 1;
+    return gradient;
+}
 
-    const auto whitePiecePositionEval =
-            evaluatePiecePositionsForSide(params, gameState, Side::White);
-    const auto blackPiecePositionEval =
-            evaluatePiecePositionsForSide(params, gameState, Side::Black);
+template <bool CalcJacobians>
+[[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(
+        const EvalParams& params,
+        const EvalCalcT maxPhaseMaterial,
+        const GameState& gameState,
+        ParamGradient<CalcJacobians>& whiteEvalGradient) {
+    PiecePositionEvaluationJacobians<CalcJacobians> whitePiecePositionJacobians;
+    PiecePositionEvaluationJacobians<CalcJacobians> blackPiecePositionJacobians;
+
+    const auto whitePawnEval = evaluatePawnsForSide<CalcJacobians>(
+            params, gameState, Side::White, whitePiecePositionJacobians);
+    const auto blackPawnEval = evaluatePawnsForSide<CalcJacobians>(
+            params, gameState, Side::Black, blackPiecePositionJacobians);
+
+    const auto whitePiecePositionEval = evaluatePiecePositionsForSide<CalcJacobians>(
+            params, gameState, Side::White, whitePiecePositionJacobians);
+    const auto blackPiecePositionEval = evaluatePiecePositionsForSide<CalcJacobians>(
+            params, gameState, Side::Black, blackPiecePositionJacobians);
 
     const EvalCalcT whiteMaterial = whitePiecePositionEval.material
                                   + whitePiecePositionEval.materialAdjustment
@@ -420,11 +612,26 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
 
     EvalCalcT materialEval = whiteMaterial - blackMaterial;
 
+    ParamGradient<CalcJacobians> whiteMaterialGradient;
+    ParamGradient<CalcJacobians> blackMaterialGradient;
+    ParamGradient<CalcJacobians> materialGradient;
+    if constexpr (CalcJacobians) {
+        whiteMaterialGradient.grad = whitePiecePositionJacobians.materialJacobians
+                                   + whitePiecePositionJacobians.materialAdjustmentJacobians;
+        blackMaterialGradient.grad = blackPiecePositionJacobians.materialJacobians
+                                   + blackPiecePositionJacobians.materialAdjustmentJacobians;
+        materialGradient.grad = whiteMaterialGradient.grad - blackMaterialGradient.grad;
+    }
+
     if (isDrawish(
                 gameState,
                 whitePiecePositionEval.material + whitePawnEval.material,
                 blackPiecePositionEval.material + blackPawnEval.material)) {
         materialEval /= 2;
+
+        if constexpr (CalcJacobians) {
+            materialGradient.grad /= 2;
+        }
     }
 
     const EvalCalcT phaseMaterial =
@@ -432,6 +639,19 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
             + blackPiecePositionEval.phaseMaterial + blackPawnEval.phaseMaterial;
     const float earlyGameFactor = (float)phaseMaterial / (float)maxPhaseMaterial;
     const float endGameFactor   = 1.f - earlyGameFactor;
+
+    ParamGradient<CalcJacobians> earlyGameFactorGradient;
+    if constexpr (CalcJacobians) {
+        ParamGradient<CalcJacobians> phaseMaterialGradient;
+        phaseMaterialGradient.grad = whitePiecePositionJacobians.phaseMaterialJacobians
+                                   + blackPiecePositionJacobians.phaseMaterialJacobians;
+
+        ParamGradient<CalcJacobians> maxPhaseMaterialGradient = getMaxPhaseMaterialGradient(params);
+
+        earlyGameFactorGradient.grad = (phaseMaterialGradient.grad * maxPhaseMaterial
+                                        - phaseMaterial * maxPhaseMaterialGradient.grad)
+                                     / (maxPhaseMaterial * maxPhaseMaterial);
+    }
 
     const EvalCalcT earlyGameWhitePositionEval =
             whitePiecePositionEval.earlyGamePosition + whitePawnEval.earlyGamePosition;
@@ -448,17 +668,81 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
     const EvalCalcT positionEval          = (EvalCalcT)(earlyGamePositionEval * earlyGameFactor
                                                + endGamePositionEval * endGameFactor);
 
-    const EvalCalcT whiteKingSafety = evaluateKingSafety(params, gameState, Side::White);
-    const EvalCalcT blackKingSafety = evaluateKingSafety(params, gameState, Side::Black);
+    ParamGradient<CalcJacobians> positionGradient;
+    if constexpr (CalcJacobians) {
+        ParamGradient<CalcJacobians> earlyGamePositionGradient;
+        earlyGamePositionGradient.grad = whitePiecePositionJacobians.earlyGamePositionJacobians
+                                       - blackPiecePositionJacobians.earlyGamePositionJacobians;
+
+        ParamGradient<CalcJacobians> endGamePositionGradient;
+        endGamePositionGradient.grad = whitePiecePositionJacobians.endGamePositionJacobians
+                                     - blackPiecePositionJacobians.endGamePositionJacobians;
+
+        positionGradient.grad = earlyGamePositionGradient.grad * earlyGameFactor
+                              + earlyGameFactorGradient.grad * earlyGamePositionEval
+                              + endGamePositionGradient.grad * endGameFactor
+                              - earlyGameFactorGradient.grad * endGamePositionEval;
+    }
+
+    ParamGradient<CalcJacobians> whiteKingSafetyGradient;
+    ParamGradient<CalcJacobians> blackKingSafetyGradient;
+
+    const EvalCalcT whiteKingSafety = evaluateKingSafety<CalcJacobians>(
+            params, gameState, Side::White, whiteKingSafetyGradient);
+    const EvalCalcT blackKingSafety = evaluateKingSafety<CalcJacobians>(
+            params, gameState, Side::Black, blackKingSafetyGradient);
     const EvalCalcT kingSafety = (EvalCalcT)((whiteKingSafety - blackKingSafety) * earlyGameFactor);
 
-    const EvalCalcT whiteSwarmingValue = evaluateKingSwarming(
-            params, gameState, Side::White, whiteMaterial, blackMaterial, endGameFactor);
-    const EvalCalcT blackSwarmingValue = evaluateKingSwarming(
-            params, gameState, Side::Black, blackMaterial, whiteMaterial, endGameFactor);
-    const EvalCalcT swarmingEval = whiteSwarmingValue - blackSwarmingValue;
+    ParamGradient<CalcJacobians> kingSafetyGradient;
+    if constexpr (CalcJacobians) {
+        const EvalCalcT earlyGameKingSafety = whiteKingSafety - blackKingSafety;
+        ParamGradient<CalcJacobians> earlyGameKingSafetyGradient;
+        earlyGameKingSafetyGradient.grad =
+                whiteKingSafetyGradient.grad - blackKingSafetyGradient.grad;
+
+        kingSafetyGradient.grad = earlyGameKingSafetyGradient.grad * earlyGameFactor
+                                + earlyGameKingSafety * earlyGameFactorGradient.grad;
+    }
+
+    ParamGradient<CalcJacobians> whiteSwarmingGradient;
+    ParamGradient<CalcJacobians> blackSwarmingGradient;
+
+    const EvalCalcT whiteSwarmingValue = evaluateKingSwarming<CalcJacobians>(
+            params,
+            gameState,
+            Side::White,
+            whiteMaterial,
+            blackMaterial,
+            whiteMaterialGradient,
+            blackMaterialGradient,
+            whiteSwarmingGradient);
+    const EvalCalcT blackSwarmingValue = evaluateKingSwarming<CalcJacobians>(
+            params,
+            gameState,
+            Side::Black,
+            blackMaterial,
+            whiteMaterial,
+            blackMaterialGradient,
+            whiteMaterialGradient,
+            blackSwarmingGradient);
+    const EvalCalcT swarmingEval = endGameFactor * (whiteSwarmingValue - blackSwarmingValue);
+
+    ParamGradient<CalcJacobians> swarmingGradient;
+    if constexpr (CalcJacobians) {
+        const EvalCalcT endSwarmingValue = whiteSwarmingValue - blackSwarmingValue;
+        ParamGradient<CalcJacobians> endSwarmingGradient;
+        endSwarmingGradient.grad = whiteSwarmingGradient.grad - blackSwarmingGradient.grad;
+
+        swarmingGradient.grad = endSwarmingGradient.grad * endGameFactor
+                              - earlyGameFactorGradient.grad * endSwarmingValue;
+    }
 
     const EvalCalcT eval = materialEval + positionEval + kingSafety + swarmingEval;
+
+    if constexpr (CalcJacobians) {
+        whiteEvalGradient.grad = materialGradient.grad + positionGradient.grad
+                               + kingSafetyGradient.grad + swarmingGradient.grad;
+    }
 
     return eval;
 }
@@ -529,36 +813,6 @@ evaluateKingSafety(const EvalParams& params, const GameState& gameState, const S
 
 }  // namespace
 
-FORCE_INLINE int getStaticPieceValue(const Piece piece) {
-    static constexpr std::array<int, kNumPieceTypes> kStaticPieceValues = {
-            100,     // Pawn
-            305,     // Knight
-            308,     // Bishop
-            563,     // Rook
-            950,     // Queen
-            20'000,  // King
-    };
-
-    return kStaticPieceValues[(int)piece];
-}
-
-FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
-    const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
-            insufficientMaterialForSides(gameState);
-
-    return whiteInsufficientMaterial && blackInsufficientMaterial;
-}
-
-[[nodiscard]] FORCE_INLINE EvalT evaluateNoLegalMoves(const GameState& gameState) {
-    if (gameState.isInCheck()) {
-        // We're in check and there are no legal moves so we're in checkmate.
-        return -kMateEval;
-    }
-
-    // We're not in check and there are no legal moves so this is a stalemate.
-    return 0;
-}
-
 Evaluator::Evaluator() : Evaluator(EvalParams::getDefaultParams()) {}
 
 Evaluator::Evaluator(const EvalParams& params) : params_(params) {
@@ -580,17 +834,60 @@ FORCE_INLINE int Evaluator::getPieceSquareValue(
 }
 
 EvalCalcT Evaluator::evaluateRaw(const GameState& gameState) const {
-    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState);
+    ParamGradient<false> gradient;
+    const EvalCalcT rawEvalWhite =
+            evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
 
     return gameState.getSideToMove() == Side::White ? rawEvalWhite : -rawEvalWhite;
 }
 
+EvalWithGradient Evaluator::evaluateWithGradient(const GameState& gameState) const {
+    ParamGradient<true> gradient;
+    const EvalCalcT rawEvalWhite =
+            evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
+
+    const EvalCalcT colorFactor = gameState.getSideToMove() == Side::White ? 1 : -1;
+
+    return {.eval = colorFactor * rawEvalWhite, .gradient = colorFactor * gradient.grad};
+}
+
 EvalT Evaluator::evaluate(const GameState& gameState) const {
-    const EvalT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState);
+    ParamGradient<false> gradient;
+    const EvalT rawEvalWhite = evaluateForWhite(params_, maxPhaseMaterial_, gameState, gradient);
 
     const int roundedEvalWhite = (int)(rawEvalWhite + 0.5f);
     const EvalT clampedEvalWhite =
             (EvalT)clamp(roundedEvalWhite, -kMateEval + 1'000, kMateEval - 1'000);
 
     return gameState.getSideToMove() == Side::White ? clampedEvalWhite : -clampedEvalWhite;
+}
+
+FORCE_INLINE int getStaticPieceValue(const Piece piece) {
+    static constexpr std::array<int, kNumPieceTypes> kStaticPieceValues = {
+            100,     // Pawn
+            305,     // Knight
+            308,     // Bishop
+            563,     // Rook
+            950,     // Queen
+            20'000,  // King
+    };
+
+    return kStaticPieceValues[(int)piece];
+}
+
+FORCE_INLINE bool isInsufficientMaterial(const GameState& gameState) {
+    const auto [whiteInsufficientMaterial, blackInsufficientMaterial] =
+            insufficientMaterialForSides(gameState);
+
+    return whiteInsufficientMaterial && blackInsufficientMaterial;
+}
+
+FORCE_INLINE EvalT evaluateNoLegalMoves(const GameState& gameState) {
+    if (gameState.isInCheck()) {
+        // We're in check and there are no legal moves so we're in checkmate.
+        return -kMateEval;
+    }
+
+    // We're not in check and there are no legal moves so this is a stalemate.
+    return 0;
 }

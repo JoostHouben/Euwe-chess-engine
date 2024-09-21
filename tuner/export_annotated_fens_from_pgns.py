@@ -61,14 +61,35 @@ def get_scores(game: Game) -> tuple[float, float]:
 
   return result_to_score(white_result), result_to_score(black_result)
 
-def get_fens(game: Game) -> list[str]:
+def get_fens(game: Game) -> tuple[list[str], int]:
   fens: list[str] = []
+  num_filtered = 0
   node = game
   while node is not None:
-    fens.append(node.board().fen())
+    include_node = True
+
+    if "book" in node.comment:
+      include_node = False
+    elif "/" in node.comment:
+      score_comment = node.comment.split('/')[0]
+      if 'M' in score_comment:
+        include_node = False
+      else:
+        try:
+          score = float(score_comment)
+          if abs(score) > 20:
+            include_node = False
+        except:
+          pass
+
+    if include_node:
+      fens.append(node.board().fen())
+    else:
+      num_filtered += 1
+
     node = node.next()
 
-  return fens
+  return fens, num_filtered
 
 def get_annotated_fens(
     fens: list[str],
@@ -84,10 +105,10 @@ def get_annotated_fens(
 
   return result
 
-def get_annotated_fens_for_game(game: Game) -> list[AnnotatedFen]:
+def get_annotated_fens_for_game(game: Game) -> tuple[list[AnnotatedFen], int]:
   white_score, black_score = get_scores(game)
-  fens = get_fens(game)
-  return get_annotated_fens(fens, white_score, black_score)
+  fens, num_filtered = get_fens(game)
+  return get_annotated_fens(fens, white_score, black_score), num_filtered
 
 def write_annotated_fens(
     annotated_fens: list[AnnotatedFen],
@@ -104,8 +125,8 @@ def export_annotated_pgns(pgn_paths: list[Path], out_path: Path) -> None:
     games = read_games_from_pgn(pgn_path)
     filtered = filter_games(games)
 
-    num_filtered = len(games) - len(filtered)
-    print(f"Filtered {num_filtered} games")
+    num_games_filtered = len(games) - len(filtered)
+    print(f"Filtered {num_games_filtered} games")
 
     merged_games += filtered
 
@@ -113,11 +134,18 @@ def export_annotated_pgns(pgn_paths: list[Path], out_path: Path) -> None:
 
   print("Annotating games...")
   annotated_fens: list[AnnotatedFen] = []
+  total_num_nodes_filtered = 0
   for i, pool_result in enumerate(pool_results):
     num = i+1
     if num % 100 == 0 or num == len(merged_games):
       print(f"Annotated {num} / {len(merged_games)} games")
-    annotated_fens += pool_result
+
+    fens, num_nodes_filtered = pool_result
+
+    annotated_fens += fens
+    total_num_nodes_filtered += num_nodes_filtered
+
+  print(f"Filtered {total_num_nodes_filtered} nodes.")
 
   print("Writing annotations...")
   with open(out_path, "w") as f:

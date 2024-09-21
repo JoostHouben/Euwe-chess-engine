@@ -23,3 +23,6 @@ class Evaluator;
         const int firstMoveIdx,
         const GameState& gameState,
         StackOfVectors<MoveEvalT>& stack);
+
+[[nodiscard]] Move selectBestMove(
+        StackVector<Move>& moves, StackVector<MoveEvalT>& moveScores, int firstMoveIdx);
