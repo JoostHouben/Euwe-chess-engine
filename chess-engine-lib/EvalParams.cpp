@@ -1,5 +1,10 @@
 #include "EvalParams.h"
 
+#include "Piece.h"
+
+#include <ranges>
+#include <sstream>
+
 namespace {
 
 constexpr EvalParamArray kDefaultParams = {
@@ -124,6 +129,34 @@ constexpr EvalParamArray kDefaultParams = {
         1.227324,    0.000000,    0.000000,    2.633031,    4.247594,    1.031247,    5.475698,
         0.000000};
 
+void writeSquareTable(const SquareTable& squareTable, std::ostream& out) {
+    for (int rank = kRanks - 1; rank >= 0; --rank) {
+        out << "\t\t";
+        for (int file = 0; file < kFiles; ++file) {
+            const auto& value = squareTable[rank * kFiles + file];
+            out << std::format("{:>6.1f}, ", value);
+        }
+        out << "\n";
+    }
+}
+
+void writePieceSquareTables(const PieceSquareTables& pieceSquareTables, std::ostream& out) {
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+        out << "\t" << pieceToString((Piece)pieceIdx) << ": {\n";
+        writeSquareTable(pieceSquareTables[pieceIdx], out);
+        out << "\t}\n";
+    }
+}
+
+template <typename T, std::size_t N>
+std::string arrayToString(const std::array<T, N>& valueArray) {
+    std::string inner =
+            valueArray
+            | std::ranges::views::transform([](const T& v) { return std::format("{:>6.1f}", v); })
+            | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
+    return "{" + inner + "}";
+}
+
 }  // namespace
 
 EvalParams EvalParams::getEmptyParams() {
@@ -144,4 +177,63 @@ EvalParams evalParamsFromArray(const EvalParamArray& array) {
     EvalParams params = EvalParams::getEmptyParams();
     std::memcpy(&params, array.data(), sizeof(EvalParams));
     return params;
+}
+
+std::string evalParamsToString(const EvalParams& params) {
+    std::ostringstream oss;
+
+    oss << "pieceValues: {\n";
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+        oss << std::format(
+                "\t{}: {:>6.1f}\n", pieceToString((Piece)pieceIdx), params.pieceValues[pieceIdx]);
+    }
+    oss << "}\n";
+
+    oss << "\nphaseMaterialValues: {\n";
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+        oss << std::format(
+                "\t{}: {:>6.1f}\n",
+                pieceToString((Piece)pieceIdx),
+                params.phaseMaterialValues[pieceIdx]);
+    }
+    oss << "}\n";
+
+    oss << "\npieceSquareTablesWhiteEarly: {\n";
+    writePieceSquareTables(params.pieceSquareTablesWhiteEarly, oss);
+    oss << "}\n";
+
+    oss << "\npieceSquareTablesWhiteLate: {\n";
+    writePieceSquareTables(params.pieceSquareTablesWhiteLate, oss);
+    oss << "}\n";
+
+    oss << std::format("\npassedPawnBonus:\n\t{}", arrayToString(params.passedPawnBonus));
+
+    oss << std::format("\ndoubledPawnPenalty:\n\t{:>6.1f}", params.doubledPawnPenalty);
+
+    oss << std::format("\nisolatedPawnPenalty:\n\t{:>6.1f}", params.isolatedPawnPenalty);
+
+    oss << std::format("\nbadBishopPenalty:\n\t{}", arrayToString(params.badBishopPenalty));
+
+    oss << std::format("\nbishopPairBonus:\n\t{:>6.1f}", params.bishopPairBonus);
+
+    oss << std::format("\nknightPairPenalty:\n\t{:>6.1f}", params.knightPairPenalty);
+
+    oss << std::format("\nrookPairPenalty:\n\t{:>6.1f}", params.rookPairPenalty);
+
+    oss << std::format("\nrookSemiOpenFileBonus:\n\t{:>6.1f}", params.rookSemiOpenFileBonus);
+
+    oss << std::format("\nrookOpenFileBonus:\n\t{:>6.1f}", params.rookOpenFileBonus);
+
+    oss << std::format("\nknightPawnAdjustment:\n\t{}", arrayToString(params.knightPawnAdjustment));
+
+    oss << std::format("\nrookPawnAdjustment:\n\t{}", arrayToString(params.rookPawnAdjustment));
+
+    oss << std::format(
+            "\nkingVirtualMobilityPenalty:\n\t{:>6.1f}", params.kingVirtualMobilityPenalty);
+
+    oss << std::format("\nmobilityBonusEarly:\n\t{}", arrayToString(params.mobilityBonusEarly));
+
+    oss << std::format("\nmobilityBonusLate:\n\t{}", arrayToString(params.mobilityBonusLate));
+
+    return oss.str();
 }

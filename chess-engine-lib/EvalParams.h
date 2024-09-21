@@ -3,6 +3,7 @@
 #include "BoardConstants.h"
 
 #include <array>
+#include <string>
 
 using EvalCalcT         = float;
 using SquareTable       = std::array<EvalCalcT, kSquares>;
@@ -55,3 +56,5 @@ static_assert(sizeof(EvalParams) == sizeof(EvalParamArray));
 [[nodiscard]] EvalParamArray evalParamsToArray(const EvalParams& params);
 
 [[nodiscard]] EvalParams evalParamsFromArray(const EvalParamArray& array);
+
+[[nodiscard]] std::string evalParamsToString(const EvalParams& params);

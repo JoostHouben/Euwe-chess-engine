@@ -19,6 +19,16 @@
 
 namespace {
 
+template <typename DoubleArrayT>
+EvalParams evalParamsFromDoubles(const DoubleArrayT& doubles) {
+    EvalParamArray paramsArray;
+    for (int i = 0; i < paramsArray.size(); ++i) {
+        paramsArray[i] = static_cast<EvalCalcT>(doubles[i]);
+    }
+
+    return evalParamsFromArray(paramsArray);
+}
+
 struct ScoredPosition {
     GameState gameState;
     double score;
@@ -35,14 +45,9 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
         const double* const scaleParam   = parameters[0];
         const double* const paramsDouble = parameters[1];
 
-        EvalParamArray paramsArray;
-        for (int i = 0; i < paramsArray.size(); ++i) {
-            paramsArray[i] = static_cast<float>(paramsDouble[i]);
-        }
-
         const bool needParamJacobians = jacobians != nullptr && jacobians[1] != nullptr;
 
-        const Evaluator evaluator(evalParamsFromArray(paramsArray));
+        const Evaluator evaluator(evalParamsFromDoubles(paramsDouble));
 
         EvalWithGradient evalWithGradient;
 
@@ -278,8 +283,11 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
 }
 
 std::array<double, kNumEvalParams> getInitialParams() {
+    const EvalParams defaultParams = EvalParams::getDefaultParams();
+    std::println("Initial params:\n{}", evalParamsToString(defaultParams));
+
     std::array<double, kNumEvalParams> paramsDouble;
-    const EvalParamArray params = evalParamsToArray(EvalParams::getDefaultParams());
+    const EvalParamArray params = evalParamsToArray(defaultParams);
     for (int i = 0; i < paramsDouble.size(); ++i) {
         paramsDouble[i] = static_cast<double>(params[i]);
     }
@@ -402,6 +410,17 @@ void solve(ceres::Problem& problem) {
     std::cout << summary.FullReport() << "\n";
 }
 
+void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
+    const EvalParams params = evalParamsFromDoubles(paramsDouble);
+    std::println("\n\nOptimized params:\n{}", evalParamsToString(params));
+
+    const std::string paramsString =
+            paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
+            | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
+
+    std::println("\n\nOptimized param values: {}", paramsString);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -435,9 +454,5 @@ int main(int argc, char** argv) {
     problem.SetParameterBlockConstant(&scaleParam);
     solve(problem);
 
-    const std::string paramsString =
-            paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
-            | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
-
-    std::println("Params: {}", paramsString);
+    printResults(paramsDouble);
 }
