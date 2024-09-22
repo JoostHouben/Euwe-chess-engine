@@ -19,30 +19,49 @@ struct EvalParams {
     std::array<EvalCalcT, kNumPieceTypes> phaseMaterialValues;
 
     PieceSquareTables pieceSquareTablesWhiteEarly;
-
     PieceSquareTables pieceSquareTablesWhiteLate;
 
-    std::array<EvalCalcT, 7> passedPawnBonus;
-    EvalCalcT doubledPawnPenalty;
-    EvalCalcT isolatedPawnPenalty;
+    std::array<EvalCalcT, 7> passedPawnBonusEarly;
+    std::array<EvalCalcT, 7> passedPawnBonusLate;
 
-    std::array<EvalCalcT, 9> bishopPawnSameColorBonus;
+    EvalCalcT doubledPawnPenaltyEarly;
+    EvalCalcT doubledPawnPenaltyLate;
 
-    EvalCalcT bishopPairBonus;
-    EvalCalcT knightPairBonus;
-    EvalCalcT rookPairBonus;
+    EvalCalcT isolatedPawnPenaltyEarly;
+    EvalCalcT isolatedPawnPenaltyLate;
 
-    EvalCalcT rookSemiOpenFileBonus;
-    EvalCalcT rookOpenFileBonus;
+    std::array<EvalCalcT, 9> bishopPawnSameColorBonusEarly;
+    std::array<EvalCalcT, 9> bishopPawnSameColorBonusLate;
 
-    std::array<EvalCalcT, 9> knightPawnAdjustment;
-    std::array<EvalCalcT, 9> rookPawnAdjustment;
+    EvalCalcT bishopPairBonusEarly;
+    EvalCalcT bishopPairBonusLate;
 
-    EvalCalcT kingVirtualMobilityPenalty;
+    EvalCalcT knightPairBonusEarly;
+    EvalCalcT knightPairBonusLate;
+
+    EvalCalcT rookPairBonusEarly;
+    EvalCalcT rookPairBonusLate;
+
+    EvalCalcT rookSemiOpenFileBonusEarly;
+    EvalCalcT rookSemiOpenFileBonusLate;
+
+    EvalCalcT rookOpenFileBonusEarly;
+    EvalCalcT rookOpenFileBonusLate;
+
+    std::array<EvalCalcT, 9> knightPawnAdjustmentEarly;
+    std::array<EvalCalcT, 9> knightPawnAdjustmentLate;
+
+    std::array<EvalCalcT, 9> rookPawnAdjustmentEarly;
+    std::array<EvalCalcT, 9> rookPawnAdjustmentLate;
+
+    EvalCalcT kingVirtualMobilityPenaltyEarly;
+    EvalCalcT kingVirtualMobilityPenaltyLate;
 
     std::array<EvalCalcT, kNumPieceTypes> mobilityBonusEarly;
-
     std::array<EvalCalcT, kNumPieceTypes> mobilityBonusLate;
+
+    std::array<EvalCalcT, kNumPieceTypes> kingTropismBonusEarly;
+    std::array<EvalCalcT, kNumPieceTypes> kingTropismBonusLate;
 
   private:
     EvalParams() = default;

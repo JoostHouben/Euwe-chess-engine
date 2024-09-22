@@ -81,16 +81,14 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
         constantParamIdxs->push_back(getIdx(member));
     };
 
-    //// Fix one of the phase material values to fix the scale of the phase material values.
-    //// (Otherwise it's a gauge freedom.)
-    //setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
+    // Fix one of the phase material values to fix the scale of the phase material values.
+    // (Otherwise it's a gauge freedom.)
+    setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
 
-    //// We need to fix 1 square in the piece-square tables to avoid a gauge freedom with the piece
-    //// values.
-    //const int constSquareIdx = (int)positionFromFileRank(3, 3);
-    //for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-    //    setConstant(params.pieceSquareTablesWhiteEarly[pieceIdx][constSquareIdx]);
-    //}
+    // Kings are always on the board, so their phase material value has a gauge freedom with the
+    // late eval terms: changing the phase material value of the king is akin to shifting the late
+    // eval terms along the linear path to the early eval terms.
+    setConstant(params.phaseMaterialValues[(int)Piece::King]);
 
     // Fix piece values to avoid gauge freedoms with the piece-square tables.
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
@@ -100,27 +98,18 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
 
     // A pawn 1 square away from promotion is always a passed pawn, so this term has a gauge
     // freedom with the piece-square tables.
-    setConstant(params.passedPawnBonus[1]);
+    setConstant(params.passedPawnBonusEarly[1]);
+    setConstant(params.passedPawnBonusLate[1]);
 
     // Fix one value in the pawn adjustment tables to avoid gauge freedoms with the piece values.
-    setConstant(params.bishopPawnSameColorBonus[4]);
-    setConstant(params.knightPawnAdjustment[4]);
-    setConstant(params.rookPawnAdjustment[4]);
-
-    // Fix phase material values because of poor convergence otherwise
-    setConstant(params.phaseMaterialValues[(int)Piece::Pawn]);
-    setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
-    setConstant(params.phaseMaterialValues[(int)Piece::Bishop]);
-    setConstant(params.phaseMaterialValues[(int)Piece::Rook]);
-    setConstant(params.phaseMaterialValues[(int)Piece::Queen]);
-    setConstant(params.phaseMaterialValues[(int)Piece::King]);
+    setConstant(params.bishopPawnSameColorBonusEarly[4]);
+    setConstant(params.bishopPawnSameColorBonusLate[4]);
+    setConstant(params.knightPawnAdjustmentEarly[4]);
+    setConstant(params.knightPawnAdjustmentLate[4]);
+    setConstant(params.rookPawnAdjustmentEarly[4]);
+    setConstant(params.rookPawnAdjustmentLate[4]);
 
     // Fix unused values
-
-    //// Kings are always on the board, so their piece and phase material values are unused.
-    //setConstant(params.pieceValuesEarly[(int)Piece::King]);
-    //setConstant(params.pieceValuesLate[(int)Piece::King]);
-    //setConstant(params.phaseMaterialValues[(int)Piece::King]);
 
     // Pawns are never on the 1st or 8th ranks, so their piece-square tables for those ranks are
     // unused.
@@ -137,16 +126,22 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
     }
 
     // Pawns are never on the 8th rank, so the passed pawn bonus there is unused.
-    setConstant(params.passedPawnBonus[0]);
+    setConstant(params.passedPawnBonusEarly[0]);
+    setConstant(params.passedPawnBonusLate[0]);
 
-    // We don't calculate mobility for pawns, knights, or kings.
+    // We don't calculate mobility for pawns or kings.
     setConstant(params.mobilityBonusEarly[(int)Piece::Pawn]);
-    setConstant(params.mobilityBonusEarly[(int)Piece::Knight]);
     setConstant(params.mobilityBonusEarly[(int)Piece::King]);
 
     setConstant(params.mobilityBonusLate[(int)Piece::Pawn]);
-    setConstant(params.mobilityBonusLate[(int)Piece::Knight]);
     setConstant(params.mobilityBonusLate[(int)Piece::King]);
+
+    // We don't calculate king tropism for pawns or kings.
+    setConstant(params.kingTropismBonusEarly[(int)Piece::Pawn]);
+    setConstant(params.kingTropismBonusEarly[(int)Piece::King]);
+
+    setConstant(params.kingTropismBonusLate[(int)Piece::Pawn]);
+    setConstant(params.kingTropismBonusLate[(int)Piece::King]);
 
     return constantParamIdxs;
 }

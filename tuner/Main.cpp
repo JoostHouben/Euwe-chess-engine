@@ -41,9 +41,10 @@ int main(int argc, char** argv) {
     const std::vector<std::string> annotatedFensPaths = {
             R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
             R"(D:\annotated-fens\first-tune-attempts-vs-untuned.txt)",
-            R"(D:\annotated-fens\first-fine-tuning.txt)"};
+            R"(D:\annotated-fens\first-fine-tuning.txt)",
+            R"(D:\annotated-fens\more-tapered-eval-terms-tuning.txt)"};
 
-    const std::vector<int> dropoutRates = {4, 1, 2};
+    const std::vector<int> dropoutRates = {4, 1, 2, 4};
 
     std::println("Loading positions...");
     std::vector<ScoredPosition> scoredPositions;
