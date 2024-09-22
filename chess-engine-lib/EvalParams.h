@@ -26,12 +26,11 @@ struct EvalParams {
     EvalCalcT doubledPawnPenalty;
     EvalCalcT isolatedPawnPenalty;
 
-    // Penalty for having 0...8 own pawns on the same color as a bishop
-    std::array<EvalCalcT, 9> badBishopPenalty;
+    std::array<EvalCalcT, 9> bishopPawnSameColorBonus;
 
     EvalCalcT bishopPairBonus;
-    EvalCalcT knightPairPenalty;
-    EvalCalcT rookPairPenalty;
+    EvalCalcT knightPairBonus;
+    EvalCalcT rookPairBonus;
 
     EvalCalcT rookSemiOpenFileBonus;
     EvalCalcT rookOpenFileBonus;

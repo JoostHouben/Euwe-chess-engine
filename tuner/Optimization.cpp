@@ -102,10 +102,10 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
     // freedom with the piece-square tables.
     setConstant(params.passedPawnBonus[1]);
 
-    // Fix one value in the adjustment tables to avoid gauge freedoms with the piece values.
-    setConstant(params.badBishopPenalty[4]);
-    setConstant(params.knightPawnAdjustment[5]);
-    setConstant(params.rookPawnAdjustment[5]);
+    // Fix one value in the pawn adjustment tables to avoid gauge freedoms with the piece values.
+    setConstant(params.bishopPawnSameColorBonus[4]);
+    setConstant(params.knightPawnAdjustment[4]);
+    setConstant(params.rookPawnAdjustment[4]);
 
     // Fix phase material values because of poor convergence otherwise
     setConstant(params.phaseMaterialValues[(int)Piece::Pawn]);

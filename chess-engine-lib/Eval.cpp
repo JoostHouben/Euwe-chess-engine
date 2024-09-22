@@ -215,12 +215,12 @@ template <bool CalcJacobians>
 
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
-            result.early.material -= params.knightPairPenalty;
-            result.late.material -= params.knightPairPenalty;
+            result.early.material += params.knightPairBonus;
+            result.late.material += params.knightPairBonus;
 
             if constexpr (CalcJacobians) {
-                jacobians.early.material[getParamIndex(params, params.knightPairPenalty)] -= 1;
-                jacobians.late.material[getParamIndex(params, params.knightPairPenalty)] -= 1;
+                jacobians.early.material[getParamIndex(params, params.knightPairBonus)] += 1;
+                jacobians.late.material[getParamIndex(params, params.knightPairBonus)] += 1;
             }
         }
 
@@ -273,14 +273,14 @@ template <bool CalcJacobians>
 
             hasBishopOfColor[squareColor] = true;
 
-            result.early.position -= params.badBishopPenalty[badBishopIndex[squareColor]];
-            result.late.position -= params.badBishopPenalty[badBishopIndex[squareColor]];
+            result.early.position += params.bishopPawnSameColorBonus[badBishopIndex[squareColor]];
+            result.late.position += params.bishopPawnSameColorBonus[badBishopIndex[squareColor]];
 
             if constexpr (CalcJacobians) {
                 jacobians.early.position[getParamIndex(
-                        params, params.badBishopPenalty[badBishopIndex[squareColor]])] -= 1;
+                        params, params.bishopPawnSameColorBonus[badBishopIndex[squareColor]])] += 1;
                 jacobians.late.position[getParamIndex(
-                        params, params.badBishopPenalty[badBishopIndex[squareColor]])] -= 1;
+                        params, params.bishopPawnSameColorBonus[badBishopIndex[squareColor]])] += 1;
             }
 
             const EvalCalcT kingDistance = bishopDistance(position, enemyKingPosition);
@@ -309,12 +309,12 @@ template <bool CalcJacobians>
 
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
-            result.early.material -= params.rookPairPenalty;
-            result.late.material -= params.rookPairPenalty;
+            result.early.material += params.rookPairBonus;
+            result.late.material += params.rookPairBonus;
 
             if constexpr (CalcJacobians) {
-                jacobians.early.material[getParamIndex(params, params.rookPairPenalty)] -= 1;
-                jacobians.late.material[getParamIndex(params, params.rookPairPenalty)] -= 1;
+                jacobians.early.material[getParamIndex(params, params.rookPairBonus)] += 1;
+                jacobians.late.material[getParamIndex(params, params.rookPairBonus)] += 1;
             }
         }
 
