@@ -13,7 +13,8 @@ struct EvalParams {
     [[nodiscard]] static EvalParams getEmptyParams();
     [[nodiscard]] static EvalParams getDefaultParams();
 
-    std::array<EvalCalcT, kNumPieceTypes> pieceValues;
+    std::array<EvalCalcT, kNumPieceTypes> pieceValuesEarly;
+    std::array<EvalCalcT, kNumPieceTypes> pieceValuesLate;
 
     std::array<EvalCalcT, kNumPieceTypes> phaseMaterialValues;
 

@@ -319,7 +319,8 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
 
     // Fix piece values to avoid gauge freedoms with the piece-square tables.
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        setConstant(params.pieceValues[pieceIdx]);
+        setConstant(params.pieceValuesEarly[pieceIdx]);
+        setConstant(params.pieceValuesLate[pieceIdx]);
     }
 
     // A pawn 1 square away from promotion is always a passed pawn, so this term has a gauge
@@ -341,9 +342,10 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
 
     // Fix unused values
 
-    // Kings are always on the board, so their piece and phase material values are unused.
-    setConstant(params.pieceValues[(int)Piece::King]);
-    setConstant(params.phaseMaterialValues[(int)Piece::King]);
+    //// Kings are always on the board, so their piece and phase material values are unused.
+    //setConstant(params.pieceValuesEarly[(int)Piece::King]);
+    //setConstant(params.pieceValuesLate[(int)Piece::King]);
+    //setConstant(params.phaseMaterialValues[(int)Piece::King]);
 
     // Pawns are never on the 1st or 8th ranks, so their piece-square tables for those ranks are
     // unused.
