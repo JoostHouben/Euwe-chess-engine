@@ -1,38 +1,14 @@
+#include "Optimization.h"
+
+#include "Utilities.h"
+
 #include "chess-engine-lib/Eval.h"
-#include "chess-engine-lib/GameState.h"
-#include "chess-engine-lib/Math.h"
-#include "chess-engine-lib/MoveOrder.h"
 
 #include "ceres/ceres.h"
 
-#include <fstream>
-#include <iostream>
-#include <istream>
-#include <memory>
 #include <print>
-#include <ranges>
-#include <string>
-#include <thread>
-#include <vector>
-
-#include <cstdlib>
 
 namespace {
-
-template <typename DoubleArrayT>
-EvalParams evalParamsFromDoubles(const DoubleArrayT& doubles) {
-    EvalParamArray paramsArray;
-    for (int i = 0; i < paramsArray.size(); ++i) {
-        paramsArray[i] = static_cast<EvalCalcT>(doubles[i]);
-    }
-
-    return evalParamsFromArray(paramsArray);
-}
-
-struct ScoredPosition {
-    GameState gameState;
-    double score;
-};
 
 struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
     EvalCostFunctor(
@@ -93,207 +69,6 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
     ScoredPosition scoredPosition_;
     std::shared_ptr<std::vector<int>> constantParamIdxs_;
 };
-
-void getScoredPositions(
-        const std::string& annotatedFensPath,
-        std::vector<ScoredPosition>& scoredPositions,
-        const int dropoutRate) {
-    std::srand(42);
-
-    std::ifstream in(annotatedFensPath);
-
-    const auto startingSize = scoredPositions.size();
-
-    std::string inputLine;
-    while (std::getline(in, inputLine)) {
-        if (inputLine.empty()) {
-            continue;
-        }
-
-        if ((std::rand() % dropoutRate) != 0) {
-            continue;
-        }
-
-        std::stringstream lineSStream(inputLine);
-
-        std::string token;
-        lineSStream >> token;
-
-        if (token != "score") {
-            continue;
-        }
-
-        double score;
-        lineSStream >> score;
-
-        lineSStream >> token;
-        if (token != "fen") {
-            continue;
-        }
-
-        lineSStream >> std::ws;
-
-        std::string fen;
-        std::getline(lineSStream, fen);
-
-        const GameState gameState = GameState::fromFen(fen);
-
-        scoredPositions.push_back({gameState, score});
-    }
-
-    std::println(std::cerr, "Read {} scored positions", scoredPositions.size() - startingSize);
-}
-
-StackOfVectors<MoveEvalT> gMoveScoreStack = {};
-
-bool isDraw(const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
-        return true;
-    }
-
-    if (gameState.isFiftyMoves()) {
-        const auto moves = gameState.generateMoves(stack);
-        if (moves.size() == 0) {
-            return evaluateNoLegalMoves(gameState);
-        } else {
-            return true;
-        }
-    }
-
-    if (isInsufficientMaterial(gameState)) {
-        return true;
-    }
-
-    return false;
-}
-
-void updateMateDistance(EvalT& score) {
-    if (isMate(score)) {
-        score = mateDistancePlus1(score);
-    }
-}
-
-std::pair<EvalT, GameState> quiesce(
-        GameState& gameState,
-        EvalT alpha,
-        EvalT beta,
-        StackOfVectors<Move>& stack,
-        const Evaluator& evaluator) {
-    constexpr EvalT kDeltaPruningThreshold = 200;
-
-    if (isDraw(gameState, stack)) {
-        return {0, gameState};
-    }
-
-    const BitBoard enemyControl = gameState.getEnemyControl();
-    const bool isInCheck        = gameState.isInCheck(enemyControl);
-
-    EvalT standPat = -kInfiniteEval;
-    if (!isInCheck) {
-        // Stand pat
-        standPat = evaluator.evaluate(gameState);
-        if (standPat >= beta) {
-            return {standPat, gameState};
-        }
-
-        alpha = max(alpha, standPat);
-    }
-
-    EvalT bestScore     = standPat;
-    GameState bestState = gameState;
-
-    auto moves = gameState.generateMoves(stack, enemyControl, /*capturesOnly =*/!isInCheck);
-    if (moves.size() == 0) {
-        if (isInCheck) {
-            return {-kMateEval, gameState};
-        }
-
-        const auto allMoves = gameState.generateMoves(stack, enemyControl);
-        if (allMoves.size() == 0) {
-            // No legal moves, not in check, so stalemate.
-            return {0, gameState};
-        }
-
-        return {bestScore, bestState};
-    }
-
-    auto moveScores = scoreMovesQuiesce(evaluator, moves, 0, gameState, gMoveScoreStack);
-
-    for (int moveIdx = 0; moveIdx < moves.size(); ++moveIdx) {
-        const Move move = selectBestMove(moves, moveScores, moveIdx);
-
-        const auto unmakeInfo = gameState.makeMove(move);
-
-        auto [score, state] = quiesce(gameState, -beta, -alpha, stack, evaluator);
-        score               = -score;
-
-        gameState.unmakeMove(move, unmakeInfo);
-
-        updateMateDistance(score);
-
-        alpha = max(alpha, score);
-        if (score > bestScore) {
-            bestScore = score;
-            bestState = state;
-        }
-
-        if (alpha >= beta) {
-            break;
-        }
-    }
-
-    return {bestScore, bestState};
-}
-
-void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
-    const Evaluator evaluator(EvalParams::getDefaultParams());
-    StackOfVectors<Move> moveStack;
-
-    std::vector<ScoredPosition> quiescedPositions;
-    for (ScoredPosition& scoredPosition : scoredPositions) {
-        const EvalT evalThreshold = 500;
-
-        const EvalT baseEval = evaluator.evaluate(scoredPosition.gameState);
-        if (std::abs(baseEval) >= evalThreshold) {
-            continue;
-        }
-
-        const EvalT deltaThreshold = 50;
-        const EvalT alpha          = baseEval - deltaThreshold - 1;
-        const EvalT beta           = baseEval + deltaThreshold + 1;
-
-        auto [score, state] = quiesce(scoredPosition.gameState, alpha, beta, moveStack, evaluator);
-
-        const EvalT evalDelta = std::abs(baseEval - score);
-        if (evalDelta >= deltaThreshold || std::abs(score) >= evalThreshold) {
-            continue;
-        }
-
-        double scoreToUse = scoredPosition.score;
-        if (state.getSideToMove() != scoredPosition.gameState.getSideToMove()) {
-            scoreToUse = 1 - scoreToUse;
-        }
-
-        quiescedPositions.emplace_back(state, scoreToUse);
-    }
-
-    std::println("Obtained {} quiesced positions", quiescedPositions.size());
-
-    std::swap(scoredPositions, quiescedPositions);
-}
-
-std::array<double, kNumEvalParams> getInitialParams() {
-    const EvalParams defaultParams = EvalParams::getDefaultParams();
-    std::println("Initial params:\n{}", evalParamsToString(defaultParams));
-
-    std::array<double, kNumEvalParams> paramsDouble;
-    const EvalParamArray params = evalParamsToArray(defaultParams);
-    for (int i = 0; i < paramsDouble.size(); ++i) {
-        paramsDouble[i] = static_cast<double>(params[i]);
-    }
-
-    return paramsDouble;
-}
 
 std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
     std::shared_ptr<std::vector<int>> constantParamIdxs = std::make_shared<std::vector<int>>();
@@ -412,40 +187,15 @@ void solve(ceres::Problem& problem) {
     std::cout << summary.FullReport() << "\n";
 }
 
-void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
-    const EvalParams params = evalParamsFromDoubles(paramsDouble);
-    std::println("\n\nOptimized params:\n{}", evalParamsToString(params));
-
-    const std::string paramsString =
-            paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
-            | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
-
-    std::println("\n\nOptimized param values: {}", paramsString);
-}
-
 }  // namespace
 
-int main(int argc, char** argv) {
-    const std::vector<std::string> annotatedFensPaths = {
-            R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
-            R"(D:\annotated-fens\first-tuning-rounds.txt)"};
-
-    const std::vector<int> dropoutRates = {4, 1};
-
-    double scaleParam                               = 400.;
-    std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
+void optimize(
+        std::array<double, kNumEvalParams>& paramsDouble,
+        const std::vector<ScoredPosition>& scoredPositions) {
+    double scaleParam = 400.;
 
     ceres::Problem problem;
-
-    {
-        std::vector<ScoredPosition> scoredPositions;
-        for (int i = 0; i < annotatedFensPaths.size(); ++i) {
-            getScoredPositions(annotatedFensPaths.at(i), scoredPositions, dropoutRates.at(i));
-        }
-
-        quiescePositions(scoredPositions);
-        addResiduals(scaleParam, paramsDouble, scoredPositions, problem);
-    }
+    addResiduals(scaleParam, paramsDouble, scoredPositions, problem);
 
     problem.SetParameterBlockConstant(paramsDouble.data());
     solve(problem);
@@ -455,6 +205,4 @@ int main(int argc, char** argv) {
     problem.SetParameterBlockVariable(paramsDouble.data());
     problem.SetParameterBlockConstant(&scaleParam);
     solve(problem);
-
-    printResults(paramsDouble);
 }

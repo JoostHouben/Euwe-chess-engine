@@ -1,0 +1,62 @@
+#include "LoadPositions.h"
+#include "Optimization.h"
+#include "PreProcessing.h"
+#include "ScoredPosition.h"
+#include "Utilities.h"
+
+#include "chess-engine-lib/Eval.h"
+#include "chess-engine-lib/GameState.h"
+#include "chess-engine-lib/Math.h"
+#include "chess-engine-lib/MoveOrder.h"
+
+#include <print>
+#include <ranges>
+
+namespace {
+
+std::array<double, kNumEvalParams> getInitialParams() {
+    const EvalParams defaultParams = EvalParams::getDefaultParams();
+    std::println("Initial params:\n{}\n\n", evalParamsToString(defaultParams));
+
+    std::array<double, kNumEvalParams> paramsDouble;
+    const EvalParamArray params = evalParamsToArray(defaultParams);
+    for (int i = 0; i < paramsDouble.size(); ++i) {
+        paramsDouble[i] = static_cast<double>(params[i]);
+    }
+
+    return paramsDouble;
+}
+
+void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
+    const EvalParams params = evalParamsFromDoubles(paramsDouble);
+    std::println("\n\nOptimized params:\n{}\n\n", evalParamsToString(params));
+
+    const std::string paramsString =
+            paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
+            | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
+
+    std::println("Optimized param values: {}", paramsString);
+}
+
+}  // namespace
+
+int main(int argc, char** argv) {
+    std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
+
+    const std::vector<std::string> annotatedFensPaths = {
+            R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
+            R"(D:\annotated-fens\first-tuning-rounds.txt)"};
+
+    const std::vector<int> dropoutRates = {4, 1};
+
+    std::vector<ScoredPosition> scoredPositions;
+    for (int i = 0; i < annotatedFensPaths.size(); ++i) {
+        loadScoredPositions(annotatedFensPaths.at(i), dropoutRates.at(i), scoredPositions);
+    }
+
+    quiescePositions(scoredPositions);
+
+    optimize(paramsDouble, scoredPositions);
+
+    printResults(paramsDouble);
+}
