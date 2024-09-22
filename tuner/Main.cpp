@@ -1,5 +1,6 @@
 #include "LoadPositions.h"
 #include "Optimization.h"
+#include "PostProcessing.h"
 #include "PreProcessing.h"
 #include "ScoredPosition.h"
 #include "Utilities.h"
@@ -18,13 +19,7 @@ std::array<double, kNumEvalParams> getInitialParams() {
     const EvalParams defaultParams = EvalParams::getDefaultParams();
     std::println("Initial params:\n{}\n\n", evalParamsToString(defaultParams));
 
-    std::array<double, kNumEvalParams> paramsDouble;
-    const EvalParamArray params = evalParamsToArray(defaultParams);
-    for (int i = 0; i < paramsDouble.size(); ++i) {
-        paramsDouble[i] = static_cast<double>(params[i]);
-    }
-
-    return paramsDouble;
+    return evalParamsToDoubles(defaultParams);
 }
 
 void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
@@ -45,18 +40,25 @@ int main(int argc, char** argv) {
 
     const std::vector<std::string> annotatedFensPaths = {
             R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
-            R"(D:\annotated-fens\first-tuning-rounds.txt)"};
+            R"(D:\annotated-fens\first-tune-attempts-vs-untuned.txt)",
+            R"(D:\annotated-fens\first-fine-tuning.txt)"};
 
-    const std::vector<int> dropoutRates = {4, 1};
+    const std::vector<int> dropoutRates = {4, 1, 2};
 
+    std::println("Loading positions...");
     std::vector<ScoredPosition> scoredPositions;
     for (int i = 0; i < annotatedFensPaths.size(); ++i) {
         loadScoredPositions(annotatedFensPaths.at(i), dropoutRates.at(i), scoredPositions);
     }
 
+    std::println("Quiescing positions...");
     quiescePositions(scoredPositions);
 
+    std::println("Optimizing...");
     optimize(paramsDouble, scoredPositions);
+
+    std::println("Post-processing...");
+    postProcess(paramsDouble, scoredPositions);
 
     printResults(paramsDouble);
 }

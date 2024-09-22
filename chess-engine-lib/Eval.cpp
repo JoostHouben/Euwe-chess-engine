@@ -244,8 +244,8 @@ template <bool CalcJacobians>
                         params, params.knightPawnAdjustment[numOwnPawns])] += 1;
             }
 
-            updateMobilityEvaluation<CalcJacobians>(
-                    params, Piece::Knight, position, anyPiece, ownOccupancy, result, jacobians);
+            // Knight mobility is a function only of square, so it is fully captured by the piece
+            // square value. So no need to calculate mobility.
         }
     }
 

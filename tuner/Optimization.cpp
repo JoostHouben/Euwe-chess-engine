@@ -139,10 +139,13 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
     // Pawns are never on the 8th rank, so the passed pawn bonus there is unused.
     setConstant(params.passedPawnBonus[0]);
 
-    // We don't calculate mobility for pawns or kings.
+    // We don't calculate mobility for pawns, knights, or kings.
     setConstant(params.mobilityBonusEarly[(int)Piece::Pawn]);
+    setConstant(params.mobilityBonusEarly[(int)Piece::Knight]);
     setConstant(params.mobilityBonusEarly[(int)Piece::King]);
+
     setConstant(params.mobilityBonusLate[(int)Piece::Pawn]);
+    setConstant(params.mobilityBonusLate[(int)Piece::Knight]);
     setConstant(params.mobilityBonusLate[(int)Piece::King]);
 
     return constantParamIdxs;

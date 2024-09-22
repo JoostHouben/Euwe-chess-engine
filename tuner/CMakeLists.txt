@@ -4,8 +4,8 @@ add_executable(Tuner
     "LoadPositions.cpp"
     "Main.cpp"
     "Optimization.cpp"
-    "PreProcessing.cpp"
-)
+    "PostProcessing.cpp"
+    "PreProcessing.cpp")
 
 # C++23 standard
 set_property(TARGET Tuner PROPERTY CXX_STANDARD 23)
