@@ -141,7 +141,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name eval-refactor");
+    writeUci("id name fold-material-adjustment");
     writeUci("id author Joost Houben");
 
     writeOptions();

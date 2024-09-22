@@ -19,9 +19,8 @@ VectorT zeros() {
 }
 
 struct PiecePositionPhaseEvaluation {
-    EvalCalcT material           = 0;
-    EvalCalcT materialAdjustment = 0;
-    EvalCalcT position           = 0;
+    EvalCalcT material = 0;
+    EvalCalcT position = 0;
 };
 
 struct PiecePositionEvaluation {
@@ -39,9 +38,8 @@ struct PiecePositionPhaseEvaluationJacobians<false> {};
 
 template <>
 struct PiecePositionPhaseEvaluationJacobians<true> {
-    VectorT material           = zeros();
-    VectorT materialAdjustment = zeros();
-    VectorT position           = zeros();
+    VectorT material = zeros();
+    VectorT position = zeros();
 };
 
 template <bool CalcJacobians>
@@ -217,14 +215,12 @@ template <bool CalcJacobians>
 
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
-            result.early.materialAdjustment -= params.knightPairPenalty;
-            result.late.materialAdjustment -= params.knightPairPenalty;
+            result.early.material -= params.knightPairPenalty;
+            result.late.material -= params.knightPairPenalty;
 
             if constexpr (CalcJacobians) {
-                jacobians.early
-                        .materialAdjustment[getParamIndex(params, params.knightPairPenalty)] -= 1;
-                jacobians.late
-                        .materialAdjustment[getParamIndex(params, params.knightPairPenalty)] -= 1;
+                jacobians.early.material[getParamIndex(params, params.knightPairPenalty)] -= 1;
+                jacobians.late.material[getParamIndex(params, params.knightPairPenalty)] -= 1;
             }
         }
 
@@ -238,13 +234,13 @@ template <bool CalcJacobians>
             result.early.position += tropismBonus;
             result.late.position += tropismBonus;
 
-            result.early.materialAdjustment += params.knightPawnAdjustment[numOwnPawns];
-            result.late.materialAdjustment += params.knightPawnAdjustment[numOwnPawns];
+            result.early.material += params.knightPawnAdjustment[numOwnPawns];
+            result.late.material += params.knightPawnAdjustment[numOwnPawns];
 
             if constexpr (CalcJacobians) {
-                jacobians.early.materialAdjustment[getParamIndex(
+                jacobians.early.material[getParamIndex(
                         params, params.knightPawnAdjustment[numOwnPawns])] += 1;
-                jacobians.late.materialAdjustment[getParamIndex(
+                jacobians.late.material[getParamIndex(
                         params, params.knightPawnAdjustment[numOwnPawns])] += 1;
             }
 
@@ -277,13 +273,13 @@ template <bool CalcJacobians>
 
             hasBishopOfColor[squareColor] = true;
 
-            result.early.materialAdjustment -= params.badBishopPenalty[badBishopIndex[squareColor]];
-            result.late.materialAdjustment -= params.badBishopPenalty[badBishopIndex[squareColor]];
+            result.early.position -= params.badBishopPenalty[badBishopIndex[squareColor]];
+            result.late.position -= params.badBishopPenalty[badBishopIndex[squareColor]];
 
             if constexpr (CalcJacobians) {
-                jacobians.early.materialAdjustment[getParamIndex(
+                jacobians.early.position[getParamIndex(
                         params, params.badBishopPenalty[badBishopIndex[squareColor]])] -= 1;
-                jacobians.late.materialAdjustment[getParamIndex(
+                jacobians.late.position[getParamIndex(
                         params, params.badBishopPenalty[badBishopIndex[squareColor]])] -= 1;
             }
 
@@ -297,14 +293,12 @@ template <bool CalcJacobians>
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
-            result.early.materialAdjustment += params.bishopPairBonus;
-            result.late.materialAdjustment += params.bishopPairBonus;
+            result.early.material += params.bishopPairBonus;
+            result.late.material += params.bishopPairBonus;
 
             if constexpr (CalcJacobians) {
-                jacobians.early.materialAdjustment[getParamIndex(params, params.bishopPairBonus)] +=
-                        1;
-                jacobians.late.materialAdjustment[getParamIndex(params, params.bishopPairBonus)] +=
-                        1;
+                jacobians.early.material[getParamIndex(params, params.bishopPairBonus)] += 1;
+                jacobians.late.material[getParamIndex(params, params.bishopPairBonus)] += 1;
             }
         }
     }
@@ -315,14 +309,12 @@ template <bool CalcJacobians>
 
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
-            result.early.materialAdjustment -= params.rookPairPenalty;
-            result.late.materialAdjustment -= params.rookPairPenalty;
+            result.early.material -= params.rookPairPenalty;
+            result.late.material -= params.rookPairPenalty;
 
             if constexpr (CalcJacobians) {
-                jacobians.early.materialAdjustment[getParamIndex(params, params.rookPairPenalty)] -=
-                        1;
-                jacobians.late.materialAdjustment[getParamIndex(params, params.rookPairPenalty)] -=
-                        1;
+                jacobians.early.material[getParamIndex(params, params.rookPairPenalty)] -= 1;
+                jacobians.late.material[getParamIndex(params, params.rookPairPenalty)] -= 1;
             }
         }
 
@@ -360,14 +352,16 @@ template <bool CalcJacobians>
             result.early.position += tropismBonus;
             result.late.position += tropismBonus;
 
-            result.early.materialAdjustment += params.rookPawnAdjustment[numOwnPawns];
-            result.late.materialAdjustment += params.rookPawnAdjustment[numOwnPawns];
+            result.early.material += params.rookPawnAdjustment[numOwnPawns];
+            result.late.material += params.rookPawnAdjustment[numOwnPawns];
 
             if constexpr (CalcJacobians) {
-                jacobians.early.materialAdjustment[getParamIndex(
-                        params, params.rookPawnAdjustment[numOwnPawns])] += 1;
-                jacobians.late.materialAdjustment[getParamIndex(
-                        params, params.rookPawnAdjustment[numOwnPawns])] += 1;
+                jacobians.early
+                        .material[getParamIndex(params, params.rookPawnAdjustment[numOwnPawns])] +=
+                        1;
+                jacobians.late
+                        .material[getParamIndex(params, params.rookPawnAdjustment[numOwnPawns])] +=
+                        1;
             }
 
             updateMobilityEvaluation<CalcJacobians>(
@@ -702,44 +696,22 @@ template <bool CalcJacobians>
         const float earlyFactor,
         const float lateFactor,
         const ParamGradient<CalcJacobians>& earlyFactorGradient) {
-    const EvalCalcT whiteEarlyMaterial =
-            whitePiecePositionEval.early.material + whitePiecePositionEval.early.materialAdjustment;
-    const EvalCalcT blackEarlyMaterial =
-            blackPiecePositionEval.early.material + blackPiecePositionEval.early.materialAdjustment;
-    const EvalCalcT earlyMaterial = whiteEarlyMaterial - blackEarlyMaterial;
-
-    const EvalCalcT whiteLateMaterial =
-            whitePiecePositionEval.late.material + whitePiecePositionEval.late.materialAdjustment;
-    const EvalCalcT blackLateMaterial =
-            blackPiecePositionEval.late.material + blackPiecePositionEval.late.materialAdjustment;
-    const EvalCalcT lateMaterial = whiteLateMaterial - blackLateMaterial;
+    const EvalCalcT earlyMaterial =
+            whitePiecePositionEval.early.material - blackPiecePositionEval.early.material;
+    const EvalCalcT lateMaterial =
+            whitePiecePositionEval.late.material - blackPiecePositionEval.late.material;
 
     EvalCalcT materialEval = calcTaperedValue(earlyMaterial, lateMaterial, earlyFactor, lateFactor);
 
     ParamGradient<CalcJacobians> materialGradient;
     if constexpr (CalcJacobians) {
-        ParamGradient<CalcJacobians> whiteEarlyMaterialGradient;
-        whiteEarlyMaterialGradient.grad = whitePiecePositionJacobians.early.material
-                                        + whitePiecePositionJacobians.early.materialAdjustment;
-
-        ParamGradient<CalcJacobians> blackEarlyMaterialGradient;
-        blackEarlyMaterialGradient.grad = blackPiecePositionJacobians.early.material
-                                        + blackPiecePositionJacobians.early.materialAdjustment;
-
         ParamGradient<CalcJacobians> earlyMaterialGradient;
-        earlyMaterialGradient.grad =
-                whiteEarlyMaterialGradient.grad - blackEarlyMaterialGradient.grad;
-
-        ParamGradient<CalcJacobians> whiteLateMaterialGradient;
-        whiteLateMaterialGradient.grad = whitePiecePositionJacobians.late.material
-                                       + whitePiecePositionJacobians.late.materialAdjustment;
-
-        ParamGradient<CalcJacobians> blackLateMaterialGradient;
-        blackLateMaterialGradient.grad = blackPiecePositionJacobians.late.material
-                                       + blackPiecePositionJacobians.late.materialAdjustment;
+        earlyMaterialGradient.grad = whitePiecePositionJacobians.early.material
+                                   - blackPiecePositionJacobians.early.material;
 
         ParamGradient<CalcJacobians> lateMaterialGradient;
-        lateMaterialGradient.grad = whiteLateMaterialGradient.grad - blackLateMaterialGradient.grad;
+        lateMaterialGradient.grad = whitePiecePositionJacobians.late.material
+                                  - blackPiecePositionJacobians.late.material;
 
         materialGradient = calcTaperedGradient(
                 earlyMaterialGradient.grad,
