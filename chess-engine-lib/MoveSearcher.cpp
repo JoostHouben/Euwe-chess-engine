@@ -496,7 +496,8 @@ void MoveSearcher::Impl::initializeHistoryFromPieceSquare() {
             for (int square = 0; square < kSquares; ++square) {
                 int pieceSquareValue = evaluator_.getPieceSquareValue(
                         (Piece)piece, (BoardPosition)square, (Side)side);
-                pieceSquareValue += 50;  // Get rid of negative values
+                // Get rid of negative values
+                pieceSquareValue = clamp(pieceSquareValue + 50, 0, 1000);
 
                 historyCutOff_[side][piece][square] = pieceSquareValue
                                                    << (kPieceSquareBiasBits - kNumScaleBits);
