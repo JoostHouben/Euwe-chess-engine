@@ -8,63 +8,57 @@
 
 #include <array>
 #include <optional>
+#include <type_traits>
 #include <utility>
 
 namespace {
 
-using VectorT = Eigen::VectorXf;
-
-VectorT zeros() {
-    return Eigen::VectorXf::Zero(kNumEvalParams);
-}
-
-struct PiecePositionPhaseEvaluation {
-    EvalCalcT material = 0;
-    EvalCalcT position = 0;
+struct TaperedEvaluation {
+    EvalCalcT early = 0;
+    EvalCalcT late  = 0;
 };
 
 struct PiecePositionEvaluation {
-    PiecePositionPhaseEvaluation early{};
-    PiecePositionPhaseEvaluation late{};
+    TaperedEvaluation material{};
+    TaperedEvaluation position{};
 
     EvalCalcT phaseMaterial = 0;
 };
 
+VectorT zeros() {
+    return std::valarray<double>((EvalCalcT)0, kNumEvalParams);
+}
+
 template <bool CalcJacobians>
-struct PiecePositionPhaseEvaluationJacobians;
+using ParamGradient = std::conditional_t<CalcJacobians, VectorT, std::monostate>;
+
+template <bool CalcJacobians>
+[[nodiscard]] FORCE_INLINE ParamGradient<CalcJacobians> zeroGradient() {
+    if constexpr (CalcJacobians) {
+        return zeros();
+    } else {
+        return std::monostate{};
+    }
+}
+
+template <bool CalcJacobians>
+struct TaperedEvaluationJacobians;
 
 template <>
-struct PiecePositionPhaseEvaluationJacobians<false> {};
+struct TaperedEvaluationJacobians<false> {};
 
 template <>
-struct PiecePositionPhaseEvaluationJacobians<true> {
-    VectorT material = zeros();
-    VectorT position = zeros();
+struct TaperedEvaluationJacobians<true> {
+    ParamGradient<true> early = zeroGradient<true>();
+    ParamGradient<true> late  = zeroGradient<true>();
 };
 
 template <bool CalcJacobians>
-struct PiecePositionEvaluationJacobians;
+struct PiecePositionEvaluationJacobians {
+    TaperedEvaluationJacobians<CalcJacobians> material{};
+    TaperedEvaluationJacobians<CalcJacobians> position{};
 
-template <>
-struct PiecePositionEvaluationJacobians<false> {};
-
-template <>
-struct PiecePositionEvaluationJacobians<true> {
-    PiecePositionPhaseEvaluationJacobians<true> early{};
-    PiecePositionPhaseEvaluationJacobians<true> late{};
-
-    VectorT phaseMaterialJacobians = zeros();
-};
-
-template <bool CalcJacobians>
-struct ParamGradient;
-
-template <>
-struct ParamGradient<false> {};
-
-template <>
-struct ParamGradient<true> {
-    VectorT grad = zeros();
+    ParamGradient<CalcJacobians> phaseMaterialJacobians = zeroGradient<CalcJacobians>();
 };
 
 SquareTable getReflectedSquareTable(const SquareTable& table) {
@@ -95,6 +89,22 @@ FORCE_INLINE std::size_t getParamIndex(const EvalParams& params, const EvalCalcT
 }
 
 template <bool CalcJacobians>
+FORCE_INLINE void updateTaperedTerm(
+        const Evaluator::EvalCalcParams& params,
+        const TaperedTerm& term,
+        TaperedEvaluation& eval,
+        TaperedEvaluationJacobians<CalcJacobians>& jacobians,
+        const EvalCalcT weight) {
+    eval.early += term.early * weight;
+    eval.late += term.late * weight;
+
+    if constexpr (CalcJacobians) {
+        jacobians.early[getParamIndex(params, term.early)] += weight;
+        jacobians.late[getParamIndex(params, term.late)] += weight;
+    }
+}
+
+template <bool CalcJacobians>
 FORCE_INLINE void updatePiecePositionEvaluation(
         const Evaluator::EvalCalcParams& params,
         const int pieceIdx,
@@ -102,14 +112,18 @@ FORCE_INLINE void updatePiecePositionEvaluation(
         const Side side,
         PiecePositionEvaluation& result,
         PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
-
-    result.early.material += params.pieceValuesEarly[pieceIdx];
-    result.late.material += params.pieceValuesLate[pieceIdx];
-
     result.phaseMaterial += params.phaseMaterialValues[pieceIdx];
+    if constexpr (CalcJacobians) {
+        jacobians.phaseMaterialJacobians[getParamIndex(
+                params, params.phaseMaterialValues[pieceIdx])] += 1;
+    }
 
-    result.early.position += params.pieceSquareTablesEarly[(int)side][pieceIdx][(int)position];
-    result.late.position += params.pieceSquareTablesLate[(int)side][pieceIdx][(int)position];
+    updateTaperedTerm(params, params.pieceValues[pieceIdx], result.material, jacobians.material, 1);
+
+    // Manual update for position because of piece square table index mapping.
+
+    result.position.early += params.pieceSquareTables[(int)side][pieceIdx][(int)position].early;
+    result.position.late += params.pieceSquareTables[(int)side][pieceIdx][(int)position].late;
 
     if constexpr (CalcJacobians) {
         int positionForPieceSquare = (int)position;
@@ -117,16 +131,11 @@ FORCE_INLINE void updatePiecePositionEvaluation(
             positionForPieceSquare = (int)getVerticalReflection(position);
         }
 
-        jacobians.early.material[getParamIndex(params, params.pieceValuesEarly[pieceIdx])] += 1;
-        jacobians.late.material[getParamIndex(params, params.pieceValuesLate[pieceIdx])] += 1;
-
-        jacobians.phaseMaterialJacobians[getParamIndex(
-                params, params.phaseMaterialValues[pieceIdx])] += 1;
-
-        jacobians.early.position[getParamIndex(
-                params, params.pieceSquareTablesWhiteEarly[pieceIdx][positionForPieceSquare])] += 1;
-        jacobians.late.position[getParamIndex(
-                params, params.pieceSquareTablesWhiteLate[pieceIdx][positionForPieceSquare])] += 1;
+        jacobians.position.early[getParamIndex(
+                params, params.pieceSquareTablesWhite[pieceIdx][positionForPieceSquare].early)] +=
+                1;
+        jacobians.position.late[getParamIndex(
+                params, params.pieceSquareTablesWhite[pieceIdx][positionForPieceSquare].late)] += 1;
     }
 }
 
@@ -141,15 +150,13 @@ FORCE_INLINE void updateMobilityEvaluation(
         PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
     const BitBoard control = getPieceControlledSquares(piece, position, anyPiece);
     const int mobility     = popCount(control & ~ownOccupancy);
-    result.early.position += mobility * params.mobilityBonusEarly[(int)piece];
-    result.late.position += mobility * params.mobilityBonusLate[(int)piece];
 
-    if constexpr (CalcJacobians) {
-        jacobians.early.position[getParamIndex(params, params.mobilityBonusEarly[(int)piece])] +=
-                mobility;
-        jacobians.late.position[getParamIndex(params, params.mobilityBonusLate[(int)piece])] +=
-                mobility;
-    }
+    updateTaperedTerm(
+            params,
+            params.mobilityBonus[(int)piece],
+            result.position,
+            jacobians.position,
+            mobility);
 }
 
 template <bool CalcJacobians>
@@ -178,15 +185,12 @@ FORCE_INLINE void updateForVirtualKingMobility(
 
     const int virtualKingMobility = popCount(virtualKingControl);
 
-    result.early.position -= params.kingVirtualMobilityPenaltyEarly * virtualKingMobility;
-    result.late.position -= params.kingVirtualMobilityPenaltyLate * virtualKingMobility;
-
-    if constexpr (CalcJacobians) {
-        jacobians.early.position[getParamIndex(params, params.kingVirtualMobilityPenaltyEarly)] -=
-                virtualKingMobility;
-        jacobians.late.position[getParamIndex(params, params.kingVirtualMobilityPenaltyLate)] -=
-                virtualKingMobility;
-    }
+    updateTaperedTerm(
+            params,
+            params.kingVirtualMobilityPenalty,
+            result.position,
+            jacobians.position,
+            -virtualKingMobility);
 }
 
 [[nodiscard]] FORCE_INLINE EvalCalcT
@@ -224,7 +228,7 @@ manhattanDistance(const BoardPosition a, const BoardPosition b) {
 }
 
 template <bool CalcJacobians>
-[[nodiscard]] FORCE_INLINE void evaluatePiecePositionsForSide(
+FORCE_INLINE void evaluatePiecePositionsForSide(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side side,
@@ -252,13 +256,8 @@ template <bool CalcJacobians>
 
         const int numKnights = popCount(pieceBitBoard);
         if (numKnights >= 2) {
-            result.early.material += params.knightPairBonusEarly;
-            result.late.material += params.knightPairBonusLate;
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.material[getParamIndex(params, params.knightPairBonusEarly)] += 1;
-                jacobians.late.material[getParamIndex(params, params.knightPairBonusLate)] += 1;
-            }
+            updateTaperedTerm(
+                    params, params.knightPairBonus, result.material, jacobians.material, 1);
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
@@ -268,23 +267,20 @@ template <bool CalcJacobians>
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
             const EvalCalcT tropism      = max((EvalCalcT)0, 7 - kingDistance);
-            result.early.position += tropism * params.kingTropismBonusEarly[(int)Piece::Knight];
-            result.late.position += tropism * params.kingTropismBonusLate[(int)Piece::Knight];
 
-            result.early.material += params.knightPawnAdjustmentEarly[numOwnPawns];
-            result.late.material += params.knightPawnAdjustmentLate[numOwnPawns];
+            updateTaperedTerm(
+                    params,
+                    params.kingTropismBonus[(int)Piece::Knight],
+                    result.position,
+                    jacobians.position,
+                    tropism);
 
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(
-                        params, params.kingTropismBonusEarly[(int)Piece::Knight])] += tropism;
-                jacobians.late.position[getParamIndex(
-                        params, params.kingTropismBonusLate[(int)Piece::Knight])] += tropism;
-
-                jacobians.early.material[getParamIndex(
-                        params, params.knightPawnAdjustmentEarly[numOwnPawns])] += 1;
-                jacobians.late.material[getParamIndex(
-                        params, params.knightPawnAdjustmentLate[numOwnPawns])] += 1;
-            }
+            updateTaperedTerm(
+                    params,
+                    params.knightPawnAdjustment[numOwnPawns],
+                    result.material,
+                    jacobians.material,
+                    1);
 
             updateMobilityEvaluation<CalcJacobians>(
                     params, Piece::Knight, position, anyPiece, ownOccupancy, result, jacobians);
@@ -315,42 +311,30 @@ template <bool CalcJacobians>
 
             hasBishopOfColor[squareColor] = true;
 
-            result.early.position +=
-                    params.bishopPawnSameColorBonusEarly[badBishopIndex[squareColor]];
-            result.late.position +=
-                    params.bishopPawnSameColorBonusLate[badBishopIndex[squareColor]];
+            updateTaperedTerm(
+                    params,
+                    params.bishopPawnSameColorBonus[badBishopIndex[squareColor]],
+                    result.position,
+                    jacobians.position,
+                    1);
 
             const EvalCalcT kingDistance = bishopDistance(position, enemyKingPosition);
             const EvalCalcT tropism      = 14 - kingDistance;
-            result.early.position += tropism * params.kingTropismBonusEarly[(int)Piece::Bishop];
-            result.late.position += tropism * params.kingTropismBonusLate[(int)Piece::Bishop];
 
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(
-                        params, params.kingTropismBonusEarly[(int)Piece::Bishop])] += tropism;
-                jacobians.late.position[getParamIndex(
-                        params, params.kingTropismBonusLate[(int)Piece::Bishop])] += tropism;
-
-                jacobians.early.position[getParamIndex(
-                        params,
-                        params.bishopPawnSameColorBonusEarly[badBishopIndex[squareColor]])] += 1;
-                jacobians.late.position[getParamIndex(
-                        params,
-                        params.bishopPawnSameColorBonusLate[badBishopIndex[squareColor]])] += 1;
-            }
+            updateTaperedTerm(
+                    params,
+                    params.kingTropismBonus[(int)Piece::Bishop],
+                    result.position,
+                    jacobians.position,
+                    tropism);
 
             updateMobilityEvaluation<CalcJacobians>(
                     params, Piece::Bishop, position, anyPiece, ownOccupancy, result, jacobians);
         }
 
         if (hasBishopOfColor[0] && hasBishopOfColor[1]) {
-            result.early.material += params.bishopPairBonusEarly;
-            result.late.material += params.bishopPairBonusLate;
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.material[getParamIndex(params, params.bishopPairBonusEarly)] += 1;
-                jacobians.late.material[getParamIndex(params, params.bishopPairBonusLate)] += 1;
-            }
+            updateTaperedTerm(
+                    params, params.bishopPairBonus, result.material, jacobians.material, 1);
         }
     }
 
@@ -360,13 +344,7 @@ template <bool CalcJacobians>
 
         const int numRooks = popCount(pieceBitBoard);
         if (numRooks >= 2) {
-            result.early.material += params.rookPairBonusEarly;
-            result.late.material += params.rookPairBonusLate;
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.material[getParamIndex(params, params.rookPairBonusEarly)] += 1;
-                jacobians.late.material[getParamIndex(params, params.rookPairBonusLate)] += 1;
-            }
+            updateTaperedTerm(params, params.rookPairBonus, result.material, jacobians.material, 1);
         }
 
         while (pieceBitBoard != BitBoard::Empty) {
@@ -379,47 +357,33 @@ template <bool CalcJacobians>
             const bool blockedByAnyPawn = (anyPawn & fileBitBoard) != BitBoard::Empty;
 
             if (!blockedByAnyPawn) {
-                result.early.position += params.rookOpenFileBonusEarly;
-                result.late.position += params.rookOpenFileBonusLate;
-
-                if constexpr (CalcJacobians) {
-                    jacobians.early
-                            .position[getParamIndex(params, params.rookOpenFileBonusEarly)] += 1;
-                    jacobians.late.position[getParamIndex(params, params.rookOpenFileBonusLate)] +=
-                            1;
-                }
+                updateTaperedTerm(
+                        params, params.rookOpenFileBonus, result.position, jacobians.position, 1);
             } else if (!blockedByOwnPawn) {
-                result.early.position += params.rookSemiOpenFileBonusEarly;
-                result.late.position += params.rookSemiOpenFileBonusLate;
-
-                if constexpr (CalcJacobians) {
-                    jacobians.early
-                            .position[getParamIndex(params, params.rookSemiOpenFileBonusEarly)] +=
-                            1;
-                    jacobians.late
-                            .position[getParamIndex(params, params.rookSemiOpenFileBonusLate)] += 1;
-                }
+                updateTaperedTerm(
+                        params,
+                        params.rookSemiOpenFileBonus,
+                        result.position,
+                        jacobians.position,
+                        1);
             }
 
             const EvalCalcT kingDistance = manhattanDistance(position, enemyKingPosition);
             const EvalCalcT tropism      = 14 - kingDistance;
-            result.early.position += tropism * params.kingTropismBonusEarly[(int)Piece::Rook];
-            result.late.position += tropism * params.kingTropismBonusLate[(int)Piece::Rook];
 
-            result.early.material += params.rookPawnAdjustmentEarly[numOwnPawns];
-            result.late.material += params.rookPawnAdjustmentLate[numOwnPawns];
+            updateTaperedTerm(
+                    params,
+                    params.kingTropismBonus[(int)Piece::Rook],
+                    result.position,
+                    jacobians.position,
+                    tropism);
 
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(
-                        params, params.kingTropismBonusEarly[(int)Piece::Rook])] += tropism;
-                jacobians.late.position[getParamIndex(
-                        params, params.kingTropismBonusLate[(int)Piece::Rook])] += tropism;
-
-                jacobians.early.material[getParamIndex(
-                        params, params.rookPawnAdjustmentEarly[numOwnPawns])] += 1;
-                jacobians.late.material[getParamIndex(
-                        params, params.rookPawnAdjustmentLate[numOwnPawns])] += 1;
-            }
+            updateTaperedTerm(
+                    params,
+                    params.rookPawnAdjustment[numOwnPawns],
+                    result.material,
+                    jacobians.material,
+                    1);
 
             updateMobilityEvaluation<CalcJacobians>(
                     params, Piece::Rook, position, anyPiece, ownOccupancy, result, jacobians);
@@ -437,15 +401,13 @@ template <bool CalcJacobians>
 
             const EvalCalcT kingDistance = queenDistance(position, enemyKingPosition);
             const EvalCalcT tropism      = 7 - kingDistance;
-            result.early.position += tropism * params.kingTropismBonusEarly[(int)Piece::Queen];
-            result.late.position += tropism * params.kingTropismBonusLate[(int)Piece::Queen];
 
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(
-                        params, params.kingTropismBonusEarly[(int)Piece::Queen])] += tropism;
-                jacobians.late.position[getParamIndex(
-                        params, params.kingTropismBonusLate[(int)Piece::Queen])] += tropism;
-            }
+            updateTaperedTerm(
+                    params,
+                    params.kingTropismBonus[(int)Piece::Queen],
+                    result.position,
+                    jacobians.position,
+                    tropism);
 
             updateMobilityEvaluation<CalcJacobians>(
                     params, Piece::Queen, position, anyPiece, ownOccupancy, result, jacobians);
@@ -527,7 +489,7 @@ template <bool CalcJacobians>
 }
 
 template <bool CalcJacobians>
-[[nodiscard]] FORCE_INLINE void evaluatePawnsForSide(
+FORCE_INLINE void evaluatePawnsForSide(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         const Side side,
@@ -559,38 +521,23 @@ template <bool CalcJacobians>
         const bool isIsolated    = ownNeighbors == BitBoard::Empty;
 
         if (isDoubledPawn) {
-            result.early.position -= params.doubledPawnPenaltyEarly;
-            result.late.position -= params.doubledPawnPenaltyLate;
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(params, params.doubledPawnPenaltyEarly)] -=
-                        1;
-                jacobians.late.position[getParamIndex(params, params.doubledPawnPenaltyLate)] -= 1;
-            }
+            updateTaperedTerm(
+                    params, params.doubledPawnPenalty, result.position, jacobians.position, -1);
         } else if (isPassedPawn) {
             const int rank                = rankFromPosition(position);
             const int distanceToPromotion = side == Side::White ? kRanks - 1 - rank : rank;
 
-            result.early.position += params.passedPawnBonusEarly[distanceToPromotion];
-            result.late.position += params.passedPawnBonusLate[distanceToPromotion];
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(
-                        params, params.passedPawnBonusEarly[distanceToPromotion])] += 1;
-                jacobians.late.position[getParamIndex(
-                        params, params.passedPawnBonusLate[distanceToPromotion])] += 1;
-            }
+            updateTaperedTerm(
+                    params,
+                    params.passedPawnBonus[distanceToPromotion],
+                    result.position,
+                    jacobians.position,
+                    1);
         }
 
         if (isIsolated) {
-            result.early.position -= params.isolatedPawnPenaltyEarly;
-            result.late.position -= params.isolatedPawnPenaltyLate;
-
-            if constexpr (CalcJacobians) {
-                jacobians.early.position[getParamIndex(params, params.isolatedPawnPenaltyEarly)] -=
-                        1;
-                jacobians.late.position[getParamIndex(params, params.isolatedPawnPenaltyLate)] -= 1;
-            }
+            updateTaperedTerm(
+                    params, params.isolatedPawnPenalty, result.position, jacobians.position, -1);
         }
     }
 }
@@ -609,7 +556,7 @@ template <bool CalcJacobians>
         return 0;
     }
 
-    const EvalCalcT rookValue = params.pieceValuesLate[(int)Piece::Rook];
+    const EvalCalcT rookValue = params.pieceValues[(int)Piece::Rook].late;
 
     const float materialAdvantageFactor =
             min((float)(swarmingMaterial - defendingMaterial) / (float)rookValue, 1.f);
@@ -617,16 +564,17 @@ template <bool CalcJacobians>
     ParamGradient<CalcJacobians> materialAdvantageFactorGradient;
     if constexpr (CalcJacobians) {
         if (materialAdvantageFactor < 1.f) {
-            ParamGradient<CalcJacobians> numGradient;
-            numGradient.grad = swarmingMaterialGradient.grad - defendingMaterialGradient.grad;
-            ParamGradient<CalcJacobians> denGradient;
-            denGradient.grad[getParamIndex(params, params.pieceValuesLate[(int)Piece::Rook])] = 1;
+            const ParamGradient<CalcJacobians> numGradient =
+                    swarmingMaterialGradient - defendingMaterialGradient;
+            ParamGradient<CalcJacobians> denGradient = zeroGradient<CalcJacobians>();
+            denGradient[getParamIndex(params, params.pieceValues[(int)Piece::Rook].late)] = 1;
 
             const EvalCalcT num = swarmingMaterial - defendingMaterial;
             const EvalCalcT den = rookValue;
 
-            materialAdvantageFactorGradient.grad =
-                    (numGradient.grad * den - num * denGradient.grad) / (den * den);
+            materialAdvantageFactorGradient = (numGradient * den - num * denGradient) / (den * den);
+        } else {
+            materialAdvantageFactorGradient = zeroGradient<CalcJacobians>();
         }
     }
 
@@ -643,7 +591,7 @@ template <bool CalcJacobians>
     const EvalCalcT swarmingValue = defendingKingDistanceToCenter + (14 - kingDistance);
 
     if constexpr (CalcJacobians) {
-        gradient.grad += materialAdvantageFactorGradient.grad * swarmingValue * 10.f;
+        gradient += materialAdvantageFactorGradient * swarmingValue * 10.f;
     }
 
     return (EvalCalcT)(materialAdvantageFactor * swarmingValue * 10.f);
@@ -659,13 +607,13 @@ template <bool CalcJacobians>
                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King];
     */
-    ParamGradient<true> gradient;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Pawn])] += 2 * 8;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Knight])] += 2 * 2;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Bishop])] += 2 * 2;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Rook])] += 2 * 2;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Queen])] += 2 * 1;
-    gradient.grad[getParamIndex(params, params.phaseMaterialValues[(int)Piece::King])] += 2 * 1;
+    ParamGradient<true> gradient = zeroGradient<true>();
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Pawn])] += 2 * 8;
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Knight])] += 2 * 2;
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Bishop])] += 2 * 2;
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Rook])] += 2 * 2;
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::Queen])] += 2 * 1;
+    gradient[getParamIndex(params, params.phaseMaterialValues[(int)Piece::King])] += 2 * 1;
     return gradient;
 }
 
@@ -685,10 +633,8 @@ template <bool CalcJacobians>
         const EvalCalcT lateValue,
         const EvalCalcT earlyFactor,
         const EvalCalcT lateFactor) {
-    ParamGradient<true> gradient;
-    gradient.grad = earlyGradient * earlyFactor + earlyFactorGradient * earlyValue
-                  + lateGradient * lateFactor - earlyFactorGradient * lateValue;
-    return gradient;
+    return earlyGradient * earlyFactor + earlyFactorGradient * earlyValue
+         + lateGradient * lateFactor - earlyFactorGradient * lateValue;
 }
 
 template <bool CalcJacobians>
@@ -706,15 +652,16 @@ template <bool CalcJacobians>
 
     ParamGradient<CalcJacobians> earlyFactorGradient;
     if constexpr (CalcJacobians) {
-        ParamGradient<CalcJacobians> phaseMaterialGradient;
-        phaseMaterialGradient.grad = whitePiecePositionJacobians.phaseMaterialJacobians
-                                   + blackPiecePositionJacobians.phaseMaterialJacobians;
+        const ParamGradient<CalcJacobians> phaseMaterialGradient =
+                whitePiecePositionJacobians.phaseMaterialJacobians
+                + blackPiecePositionJacobians.phaseMaterialJacobians;
 
-        ParamGradient<CalcJacobians> maxPhaseMaterialGradient = getMaxPhaseMaterialGradient(params);
+        const ParamGradient<CalcJacobians> maxPhaseMaterialGradient =
+                getMaxPhaseMaterialGradient(params);
 
-        earlyFactorGradient.grad = (phaseMaterialGradient.grad * params.maxPhaseMaterial
-                                    - phaseMaterial * maxPhaseMaterialGradient.grad)
-                                 / (params.maxPhaseMaterial * params.maxPhaseMaterial);
+        earlyFactorGradient = (phaseMaterialGradient * params.maxPhaseMaterial
+                               - phaseMaterial * maxPhaseMaterialGradient)
+                            / (params.maxPhaseMaterial * params.maxPhaseMaterial);
     }
 
     return {earlyFactor, lateFactor, earlyFactorGradient};
@@ -732,26 +679,26 @@ template <bool CalcJacobians>
         const float lateFactor,
         const ParamGradient<CalcJacobians>& earlyFactorGradient) {
     const EvalCalcT earlyMaterial =
-            whitePiecePositionEval.early.material - blackPiecePositionEval.early.material;
+            whitePiecePositionEval.material.early - blackPiecePositionEval.material.early;
     const EvalCalcT lateMaterial =
-            whitePiecePositionEval.late.material - blackPiecePositionEval.late.material;
+            whitePiecePositionEval.material.late - blackPiecePositionEval.material.late;
 
     EvalCalcT materialEval = calcTaperedValue(earlyMaterial, lateMaterial, earlyFactor, lateFactor);
 
     ParamGradient<CalcJacobians> materialGradient;
     if constexpr (CalcJacobians) {
-        ParamGradient<CalcJacobians> earlyMaterialGradient;
-        earlyMaterialGradient.grad = whitePiecePositionJacobians.early.material
-                                   - blackPiecePositionJacobians.early.material;
+        const ParamGradient<CalcJacobians> earlyMaterialGradient =
+                whitePiecePositionJacobians.material.early
+                - blackPiecePositionJacobians.material.early;
 
-        ParamGradient<CalcJacobians> lateMaterialGradient;
-        lateMaterialGradient.grad = whitePiecePositionJacobians.late.material
-                                  - blackPiecePositionJacobians.late.material;
+        const ParamGradient<CalcJacobians> lateMaterialGradient =
+                whitePiecePositionJacobians.material.late
+                - blackPiecePositionJacobians.material.late;
 
         materialGradient = calcTaperedGradient(
-                earlyMaterialGradient.grad,
-                lateMaterialGradient.grad,
-                earlyFactorGradient.grad,
+                earlyMaterialGradient,
+                lateMaterialGradient,
+                earlyFactorGradient,
                 earlyMaterial,
                 lateMaterial,
                 earlyFactor,
@@ -760,12 +707,12 @@ template <bool CalcJacobians>
 
     if (isDrawish(
                 gameState,
-                whitePiecePositionEval.late.material,
-                blackPiecePositionEval.late.material)) {
+                whitePiecePositionEval.material.late,
+                blackPiecePositionEval.material.late)) {
         materialEval /= 2;
 
         if constexpr (CalcJacobians) {
-            materialGradient.grad /= 2;
+            materialGradient /= 2;
         }
     }
 
@@ -782,26 +729,26 @@ template <bool CalcJacobians>
         const float lateFactor,
         const ParamGradient<CalcJacobians>& earlyFactorGradient) {
     const EvalCalcT earlyPositionEval =
-            whitePiecePositionEval.early.position - blackPiecePositionEval.early.position;
+            whitePiecePositionEval.position.early - blackPiecePositionEval.position.early;
     const EvalCalcT latePositionEval =
-            whitePiecePositionEval.late.position - blackPiecePositionEval.late.position;
+            whitePiecePositionEval.position.late - blackPiecePositionEval.position.late;
     const EvalCalcT positionEval =
             (EvalCalcT)(earlyPositionEval * earlyFactor + latePositionEval * lateFactor);
 
     ParamGradient<CalcJacobians> positionGradient;
     if constexpr (CalcJacobians) {
-        ParamGradient<CalcJacobians> earlyPositionGradient;
-        earlyPositionGradient.grad = whitePiecePositionJacobians.early.position
-                                   - blackPiecePositionJacobians.early.position;
+        const ParamGradient<CalcJacobians> earlyPositionGradient =
+                whitePiecePositionJacobians.position.early
+                - blackPiecePositionJacobians.position.early;
 
-        ParamGradient<CalcJacobians> latePositionGradient;
-        latePositionGradient.grad = whitePiecePositionJacobians.late.position
-                                  - blackPiecePositionJacobians.late.position;
+        const ParamGradient<CalcJacobians> latePositionGradient =
+                whitePiecePositionJacobians.position.late
+                - blackPiecePositionJacobians.position.late;
 
         positionGradient = calcTaperedGradient(
-                earlyPositionGradient.grad,
-                latePositionGradient.grad,
-                earlyFactorGradient.grad,
+                earlyPositionGradient,
+                latePositionGradient,
+                earlyFactorGradient,
                 earlyPositionEval,
                 latePositionEval,
                 earlyFactor,
@@ -825,19 +772,19 @@ evalAndCalcKingSwarming(
     ParamGradient<CalcJacobians> whiteLateMaterialGradient;
     ParamGradient<CalcJacobians> blackLateMaterialGradient;
     if constexpr (CalcJacobians) {
-        whiteLateMaterialGradient.grad = whitePiecePositionJacobians.late.material;
-        blackLateMaterialGradient.grad = blackPiecePositionJacobians.late.material;
+        whiteLateMaterialGradient = whitePiecePositionJacobians.material.late;
+        blackLateMaterialGradient = blackPiecePositionJacobians.material.late;
     }
 
-    ParamGradient<CalcJacobians> whiteSwarmingGradient;
-    ParamGradient<CalcJacobians> blackSwarmingGradient;
+    ParamGradient<CalcJacobians> whiteSwarmingGradient = zeroGradient<CalcJacobians>();
+    ParamGradient<CalcJacobians> blackSwarmingGradient = zeroGradient<CalcJacobians>();
 
     const EvalCalcT whiteSwarmingValue = evaluateKingSwarming<CalcJacobians>(
             params,
             gameState,
             Side::White,
-            whitePiecePositionEval.late.material,
-            blackPiecePositionEval.late.material,
+            whitePiecePositionEval.material.late,
+            blackPiecePositionEval.material.late,
             whiteLateMaterialGradient,
             blackLateMaterialGradient,
             whiteSwarmingGradient);
@@ -845,8 +792,8 @@ evalAndCalcKingSwarming(
             params,
             gameState,
             Side::Black,
-            blackPiecePositionEval.late.material,
-            whitePiecePositionEval.late.material,
+            blackPiecePositionEval.material.late,
+            whitePiecePositionEval.material.late,
             blackLateMaterialGradient,
             whiteLateMaterialGradient,
             blackSwarmingGradient);
@@ -855,18 +802,18 @@ evalAndCalcKingSwarming(
     ParamGradient<CalcJacobians> swarmingGradient;
     if constexpr (CalcJacobians) {
         const EvalCalcT endSwarmingValue = whiteSwarmingValue - blackSwarmingValue;
-        ParamGradient<CalcJacobians> endSwarmingGradient;
-        endSwarmingGradient.grad = whiteSwarmingGradient.grad - blackSwarmingGradient.grad;
+        const ParamGradient<CalcJacobians> endSwarmingGradient =
+                whiteSwarmingGradient - blackSwarmingGradient;
 
-        swarmingGradient.grad =
-                endSwarmingGradient.grad * lateFactor - earlyFactorGradient.grad * endSwarmingValue;
+        swarmingGradient =
+                endSwarmingGradient * lateFactor - earlyFactorGradient * endSwarmingValue;
     }
 
     return {swarmingEval, swarmingGradient};
 }
 
 template <bool CalcJacobians>
-[[nodiscard]] FORCE_INLINE EvalT evaluateForWhite(
+[[nodiscard]] FORCE_INLINE EvalCalcT evaluateForWhite(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
         ParamGradient<CalcJacobians>& whiteEvalGradient) {
@@ -926,8 +873,7 @@ template <bool CalcJacobians>
     const EvalCalcT eval = materialEval + positionEval + swarmingEval;
 
     if constexpr (CalcJacobians) {
-        whiteEvalGradient.grad =
-                materialGradient.grad + positionGradient.grad + swarmingGradient.grad;
+        whiteEvalGradient = materialGradient + positionGradient + swarmingGradient;
     }
 
     return eval;
@@ -1007,12 +953,9 @@ Evaluator::EvalCalcParams::EvalCalcParams(const EvalParams& evalParams) : EvalPa
                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King];
 
-    pieceSquareTablesEarly = {
-            evalParams.pieceSquareTablesWhiteEarly,
-            getReflectedPieceSquareTables(evalParams.pieceSquareTablesWhiteEarly)};
-    pieceSquareTablesLate = {
-            evalParams.pieceSquareTablesWhiteLate,
-            getReflectedPieceSquareTables(evalParams.pieceSquareTablesWhiteLate)};
+    pieceSquareTables = {
+            evalParams.pieceSquareTablesWhite,
+            getReflectedPieceSquareTables(evalParams.pieceSquareTablesWhite)};
 }
 
 Evaluator::Evaluator() : Evaluator(EvalParams::getDefaultParams()) {}
@@ -1021,32 +964,31 @@ Evaluator::Evaluator(const EvalParams& params) : params_(params) {}
 
 FORCE_INLINE int Evaluator::getPieceSquareValue(
         const Piece piece, BoardPosition position, const Side side) const {
-    return (int)params_.pieceSquareTablesEarly[(int)side][(int)piece][(int)position];
+    return (int)params_.pieceSquareTables[(int)side][(int)piece][(int)position].early;
 }
 
 EvalCalcT Evaluator::evaluateRaw(const GameState& gameState) const {
     ParamGradient<false> gradient;
-    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
+    const EvalCalcT rawEvalWhite = evaluateForWhite<false>(params_, gameState, gradient);
 
     return gameState.getSideToMove() == Side::White ? rawEvalWhite : -rawEvalWhite;
 }
 
 EvalWithGradient Evaluator::evaluateWithGradient(const GameState& gameState) const {
-    ParamGradient<true> gradient;
-    const EvalCalcT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
+    ParamGradient<true> gradient = zeroGradient<true>();
+    const EvalCalcT rawEvalWhite = evaluateForWhite<true>(params_, gameState, gradient);
 
     const EvalCalcT colorFactor = gameState.getSideToMove() == Side::White ? 1 : -1;
 
-    return {.eval = colorFactor * rawEvalWhite, .gradient = colorFactor * gradient.grad};
+    return {.eval = colorFactor * rawEvalWhite, .gradient = colorFactor * gradient};
 }
 
 EvalT Evaluator::evaluate(const GameState& gameState) const {
     ParamGradient<false> gradient;
-    const EvalT rawEvalWhite = evaluateForWhite(params_, gameState, gradient);
+    const EvalCalcT rawEvalWhite = evaluateForWhite<false>(params_, gameState, gradient);
 
-    const int roundedEvalWhite = (int)(rawEvalWhite + 0.5f);
     const EvalT clampedEvalWhite =
-            (EvalT)clamp(roundedEvalWhite, -kMateEval + 1'000, kMateEval - 1'000);
+            (EvalT)clamp((int)rawEvalWhite, -kMateEval + 1'000, kMateEval - 1'000);
 
     return gameState.getSideToMove() == Side::White ? clampedEvalWhite : -clampedEvalWhite;
 }

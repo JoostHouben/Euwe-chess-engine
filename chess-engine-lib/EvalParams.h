@@ -5,63 +5,46 @@
 #include <array>
 #include <string>
 
-using EvalCalcT         = float;
-using SquareTable       = std::array<EvalCalcT, kSquares>;
+using EvalCalcT = float;
+
+struct TaperedTerm {
+    EvalCalcT early;
+    EvalCalcT late;
+};
+
+using SquareTable       = std::array<TaperedTerm, kSquares>;
 using PieceSquareTables = std::array<SquareTable, kNumPieceTypes>;
 
 struct EvalParams {
     [[nodiscard]] static EvalParams getEmptyParams();
     [[nodiscard]] static EvalParams getDefaultParams();
 
-    std::array<EvalCalcT, kNumPieceTypes> pieceValuesEarly;
-    std::array<EvalCalcT, kNumPieceTypes> pieceValuesLate;
-
     std::array<EvalCalcT, kNumPieceTypes> phaseMaterialValues;
 
-    PieceSquareTables pieceSquareTablesWhiteEarly;
-    PieceSquareTables pieceSquareTablesWhiteLate;
+    std::array<TaperedTerm, kNumPieceTypes> pieceValues;
+    PieceSquareTables pieceSquareTablesWhite;
 
-    std::array<EvalCalcT, 7> passedPawnBonusEarly;
-    std::array<EvalCalcT, 7> passedPawnBonusLate;
+    std::array<TaperedTerm, 7> passedPawnBonus;
+    TaperedTerm doubledPawnPenalty;
+    TaperedTerm isolatedPawnPenalty;
 
-    EvalCalcT doubledPawnPenaltyEarly;
-    EvalCalcT doubledPawnPenaltyLate;
+    std::array<TaperedTerm, 9> bishopPawnSameColorBonus;
 
-    EvalCalcT isolatedPawnPenaltyEarly;
-    EvalCalcT isolatedPawnPenaltyLate;
+    TaperedTerm bishopPairBonus;
+    TaperedTerm knightPairBonus;
+    TaperedTerm rookPairBonus;
 
-    std::array<EvalCalcT, 9> bishopPawnSameColorBonusEarly;
-    std::array<EvalCalcT, 9> bishopPawnSameColorBonusLate;
+    TaperedTerm rookSemiOpenFileBonus;
+    TaperedTerm rookOpenFileBonus;
 
-    EvalCalcT bishopPairBonusEarly;
-    EvalCalcT bishopPairBonusLate;
+    std::array<TaperedTerm, 9> knightPawnAdjustment;
+    std::array<TaperedTerm, 9> rookPawnAdjustment;
 
-    EvalCalcT knightPairBonusEarly;
-    EvalCalcT knightPairBonusLate;
+    TaperedTerm kingVirtualMobilityPenalty;
 
-    EvalCalcT rookPairBonusEarly;
-    EvalCalcT rookPairBonusLate;
+    std::array<TaperedTerm, kNumPieceTypes> mobilityBonus;
 
-    EvalCalcT rookSemiOpenFileBonusEarly;
-    EvalCalcT rookSemiOpenFileBonusLate;
-
-    EvalCalcT rookOpenFileBonusEarly;
-    EvalCalcT rookOpenFileBonusLate;
-
-    std::array<EvalCalcT, 9> knightPawnAdjustmentEarly;
-    std::array<EvalCalcT, 9> knightPawnAdjustmentLate;
-
-    std::array<EvalCalcT, 9> rookPawnAdjustmentEarly;
-    std::array<EvalCalcT, 9> rookPawnAdjustmentLate;
-
-    EvalCalcT kingVirtualMobilityPenaltyEarly;
-    EvalCalcT kingVirtualMobilityPenaltyLate;
-
-    std::array<EvalCalcT, kNumPieceTypes> mobilityBonusEarly;
-    std::array<EvalCalcT, kNumPieceTypes> mobilityBonusLate;
-
-    std::array<EvalCalcT, kNumPieceTypes> kingTropismBonusEarly;
-    std::array<EvalCalcT, kNumPieceTypes> kingTropismBonusLate;
+    std::array<TaperedTerm, kNumPieceTypes> kingTropismBonus;
 
   private:
     EvalParams() = default;

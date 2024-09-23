@@ -4,11 +4,13 @@
 #include "EvalT.h"
 #include "GameState.h"
 
-#include <Eigen/Dense>
+#include <valarray>
+
+using VectorT = std::valarray<double>;
 
 struct EvalWithGradient {
     EvalCalcT eval;
-    Eigen::VectorXf gradient;
+    VectorT gradient;
 };
 
 class Evaluator {
@@ -18,8 +20,7 @@ class Evaluator {
 
         EvalCalcT maxPhaseMaterial{};
 
-        std::array<PieceSquareTables, kNumSides> pieceSquareTablesEarly;
-        std::array<PieceSquareTables, kNumSides> pieceSquareTablesLate;
+        std::array<PieceSquareTables, kNumSides> pieceSquareTables;
     };
 
     Evaluator();

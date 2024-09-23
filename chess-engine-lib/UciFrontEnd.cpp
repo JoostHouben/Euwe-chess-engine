@@ -141,7 +141,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name tuned-taper");
+    writeUci("id name taper-refactor");
     writeUci("id author Joost Houben");
 
     writeOptions();

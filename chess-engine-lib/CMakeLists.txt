@@ -1,5 +1,3 @@
-find_package(Eigen3 REQUIRED)
-
 add_library(chess-engine-lib STATIC
     "BitBoard.cpp" 
     "BoardHash.cpp" 
@@ -31,7 +29,3 @@ set_property(TARGET chess-engine-lib PROPERTY CXX_STANDARD 23)
 # Statically link the runtime libraries.
 set_property(TARGET chess-engine-lib PROPERTY
   MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-
-target_link_libraries(chess-engine-lib
-    Eigen3::Eigen
-)

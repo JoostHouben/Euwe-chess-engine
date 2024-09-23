@@ -30,7 +30,7 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
         if (needParamJacobians) {
             evalWithGradient = evaluator.evaluateWithGradient(scoredPosition_.gameState);
         } else {
-            evalWithGradient.eval = evaluator.evaluate(scoredPosition_.gameState);
+            evalWithGradient.eval = evaluator.evaluateRaw(scoredPosition_.gameState);
         }
 
         const double sigmoid = 1. / (1. + std::pow(10., -evalWithGradient.eval / *scaleParam));
@@ -70,44 +70,51 @@ struct EvalCostFunctor : ceres::SizedCostFunction<1, 1, kNumEvalParams> {
     std::shared_ptr<std::vector<int>> constantParamIdxs_;
 };
 
-std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
-    std::shared_ptr<std::vector<int>> constantParamIdxs = std::make_shared<std::vector<int>>();
+std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
+    std::vector<int> constantParamIdxs;
 
     EvalParams params = EvalParams::getDefaultParams();
     const auto getIdx = [&](const EvalCalcT& member) {
         return (int)((std::byte*)&member - (std::byte*)&params) / sizeof(EvalCalcT);
     };
     const auto setConstant = [&](const EvalCalcT& member) {
-        constantParamIdxs->push_back(getIdx(member));
+        constantParamIdxs.push_back(getIdx(member));
     };
 
-    // Fix one of the phase material values to fix the scale of the phase material values.
-    // (Otherwise it's a gauge freedom.)
-    setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
+    if (fixPhaseValues) {
+        // Fix phase material values to avoid bad convergence
+        for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+            setConstant(params.phaseMaterialValues[pieceIdx]);
+        }
+    } else {
+        // Fix one of the phase material values to fix the scale of the phase material values.
+        // (Otherwise it's a gauge freedom.)
+        setConstant(params.phaseMaterialValues[(int)Piece::Knight]);
 
-    // Kings are always on the board, so their phase material value has a gauge freedom with the
-    // late eval terms: changing the phase material value of the king is akin to shifting the late
-    // eval terms along the linear path to the early eval terms.
-    setConstant(params.phaseMaterialValues[(int)Piece::King]);
+        // Kings are always on the board, so their phase material value has a gauge freedom with the
+        // late eval terms: changing the phase material value of the king is akin to shifting the late
+        // eval terms along the linear path to the early eval terms.
+        setConstant(params.phaseMaterialValues[(int)Piece::King]);
+    }
 
     // Fix piece values to avoid gauge freedoms with the piece-square tables.
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        setConstant(params.pieceValuesEarly[pieceIdx]);
-        setConstant(params.pieceValuesLate[pieceIdx]);
+        setConstant(params.pieceValues[pieceIdx].early);
+        setConstant(params.pieceValues[pieceIdx].late);
     }
 
     // A pawn 1 square away from promotion is always a passed pawn, so this term has a gauge
     // freedom with the piece-square tables.
-    setConstant(params.passedPawnBonusEarly[1]);
-    setConstant(params.passedPawnBonusLate[1]);
+    setConstant(params.passedPawnBonus[1].early);
+    setConstant(params.passedPawnBonus[1].late);
 
     // Fix one value in the pawn adjustment tables to avoid gauge freedoms with the piece values.
-    setConstant(params.bishopPawnSameColorBonusEarly[4]);
-    setConstant(params.bishopPawnSameColorBonusLate[4]);
-    setConstant(params.knightPawnAdjustmentEarly[4]);
-    setConstant(params.knightPawnAdjustmentLate[4]);
-    setConstant(params.rookPawnAdjustmentEarly[4]);
-    setConstant(params.rookPawnAdjustmentLate[4]);
+    setConstant(params.bishopPawnSameColorBonus[4].early);
+    setConstant(params.bishopPawnSameColorBonus[4].late);
+    setConstant(params.knightPawnAdjustment[4].early);
+    setConstant(params.knightPawnAdjustment[4].late);
+    setConstant(params.rookPawnAdjustment[4].early);
+    setConstant(params.rookPawnAdjustment[4].late);
 
     // Fix unused values
 
@@ -118,30 +125,30 @@ std::shared_ptr<std::vector<int>> getConstantParamIdxs() {
         const int rank1Position = (int)positionFromFileRank(file, 0);
         const int rank8Position = (int)positionFromFileRank(file, kRanks - 1);
 
-        setConstant(params.pieceSquareTablesWhiteEarly[pawnIdx][rank1Position]);
-        setConstant(params.pieceSquareTablesWhiteEarly[pawnIdx][rank8Position]);
+        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position].early);
+        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank8Position].early);
 
-        setConstant(params.pieceSquareTablesWhiteLate[pawnIdx][rank1Position]);
-        setConstant(params.pieceSquareTablesWhiteLate[pawnIdx][rank8Position]);
+        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position].late);
+        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank8Position].late);
     }
 
     // Pawns are never on the 8th rank, so the passed pawn bonus there is unused.
-    setConstant(params.passedPawnBonusEarly[0]);
-    setConstant(params.passedPawnBonusLate[0]);
+    setConstant(params.passedPawnBonus[0].early);
+    setConstant(params.passedPawnBonus[0].late);
 
     // We don't calculate mobility for pawns or kings.
-    setConstant(params.mobilityBonusEarly[(int)Piece::Pawn]);
-    setConstant(params.mobilityBonusEarly[(int)Piece::King]);
+    setConstant(params.mobilityBonus[(int)Piece::Pawn].early);
+    setConstant(params.mobilityBonus[(int)Piece::King].early);
 
-    setConstant(params.mobilityBonusLate[(int)Piece::Pawn]);
-    setConstant(params.mobilityBonusLate[(int)Piece::King]);
+    setConstant(params.mobilityBonus[(int)Piece::Pawn].late);
+    setConstant(params.mobilityBonus[(int)Piece::King].late);
 
     // We don't calculate king tropism for pawns or kings.
-    setConstant(params.kingTropismBonusEarly[(int)Piece::Pawn]);
-    setConstant(params.kingTropismBonusEarly[(int)Piece::King]);
+    setConstant(params.kingTropismBonus[(int)Piece::Pawn].early);
+    setConstant(params.kingTropismBonus[(int)Piece::King].early);
 
-    setConstant(params.kingTropismBonusLate[(int)Piece::Pawn]);
-    setConstant(params.kingTropismBonusLate[(int)Piece::King]);
+    setConstant(params.kingTropismBonus[(int)Piece::Pawn].late);
+    setConstant(params.kingTropismBonus[(int)Piece::King].late);
 
     return constantParamIdxs;
 }
@@ -152,10 +159,10 @@ void addResiduals(
         const std::vector<ScoredPosition>& scoredPositions,
         ceres::Problem& problem) {
     problem.AddParameterBlock(&scaleParam, 1);
-    //problem.AddParameterBlock(paramsDouble.data(), kNumEvalParams, getParamsManifold());
     problem.AddParameterBlock(paramsDouble.data(), kNumEvalParams);
 
-    const auto constantParamIdxs = getConstantParamIdxs();
+    const auto constantParamIdxs = std::make_shared<std::vector<int>>();
+    *constantParamIdxs           = getConstantParamIdxs(/*fixPhaseValues*/ true);
 
     for (const auto& scoredPosition : scoredPositions) {
         ceres::CostFunction* costFunction = new EvalCostFunctor(scoredPosition, constantParamIdxs);
@@ -164,12 +171,12 @@ void addResiduals(
 }
 
 void solve(ceres::Problem& problem) {
-
     ceres::Solver::Options options;
     options.minimizer_progress_to_stdout      = true;
     options.num_threads                       = std::thread::hardware_concurrency();
     options.parameter_tolerance               = 1e-3;
     options.initial_trust_region_radius       = 1e4;
+    options.max_trust_region_radius           = 1e6;
     options.dense_linear_algebra_library_type = ceres::CUDA;
     options.use_mixed_precision_solves        = true;
     options.max_num_refinement_iterations     = 3;

@@ -54,9 +54,9 @@ void extractPieceSquareValues(
                 }
 
                 const EvalCalcT pieceSquareValueEarly =
-                        evalParams.pieceSquareTablesWhiteEarly[pieceIdx][(int)position];
+                        evalParams.pieceSquareTablesWhite[pieceIdx][(int)position].early;
                 const EvalCalcT pieceSquareValueLate =
-                        evalParams.pieceSquareTablesWhiteLate[pieceIdx][(int)position];
+                        evalParams.pieceSquareTablesWhite[pieceIdx][(int)position].late;
 
                 summedPieceSquareValuesEarly[pieceIdx] += earlyFactor * pieceSquareValueEarly;
                 numPieceOccurrencesEarly[pieceIdx] += earlyFactor;
@@ -107,19 +107,19 @@ void updatePieceValuesFromPieceSquare(
                     summedPieceSquareValuesLate[pieceIdx] / numPieceOccurrencesLate[pieceIdx];
         }
 
-        evalParams.pieceValuesEarly[pieceIdx] += pieceSquareValueEarly;
-        evalParams.pieceValuesLate[pieceIdx] += pieceSquareValueLate;
+        evalParams.pieceValues[pieceIdx].early += pieceSquareValueEarly;
+        evalParams.pieceValues[pieceIdx].late += pieceSquareValueLate;
 
         for (int squareIdx = 0; squareIdx < kSquares; ++squareIdx) {
-            evalParams.pieceSquareTablesWhiteEarly[pieceIdx][squareIdx] -= pieceSquareValueEarly;
-            evalParams.pieceSquareTablesWhiteLate[pieceIdx][squareIdx] -= pieceSquareValueLate;
+            evalParams.pieceSquareTablesWhite[pieceIdx][squareIdx].early -= pieceSquareValueEarly;
+            evalParams.pieceSquareTablesWhite[pieceIdx][squareIdx].late -= pieceSquareValueLate;
         }
     }
 }
 
 void zeroOutKingValues(EvalParams& evalParams) {
-    evalParams.pieceValuesEarly[(int)Piece::King] = 0.0;
-    evalParams.pieceValuesLate[(int)Piece::King]  = 0.0;
+    evalParams.pieceValues[(int)Piece::King].early = 0.0;
+    evalParams.pieceValues[(int)Piece::King].late  = 0.0;
 }
 
 void zeroOutUnreachablePawnSquares(EvalParams& evalParams) {
@@ -127,12 +127,24 @@ void zeroOutUnreachablePawnSquares(EvalParams& evalParams) {
         const int rank1Position = (int)positionFromFileRank(file, 0);
         const int rank8Position = (int)positionFromFileRank(file, kRanks - 1);
 
-        evalParams.pieceSquareTablesWhiteEarly[(int)Piece::Pawn][rank1Position] = 0.0;
-        evalParams.pieceSquareTablesWhiteEarly[(int)Piece::Pawn][rank8Position] = 0.0;
+        evalParams.pieceSquareTablesWhite[(int)Piece::Pawn][rank1Position].early = 0.0;
+        evalParams.pieceSquareTablesWhite[(int)Piece::Pawn][rank8Position].early = 0.0;
 
-        evalParams.pieceSquareTablesWhiteLate[(int)Piece::Pawn][rank1Position] = 0.0;
-        evalParams.pieceSquareTablesWhiteLate[(int)Piece::Pawn][rank8Position] = 0.0;
+        evalParams.pieceSquareTablesWhite[(int)Piece::Pawn][rank1Position].late = 0.0;
+        evalParams.pieceSquareTablesWhite[(int)Piece::Pawn][rank8Position].late = 0.0;
     }
+}
+
+template <typename T>
+void interlaceValues(T& valuesEarly, T& valuesLate) {
+    constexpr std::size_t kNumElements = sizeof(T) / sizeof(EvalCalcT);
+    std::array<EvalCalcT, kNumElements * 2> valuesInterlaced;
+    for (std::size_t i = 0; i < kNumElements; ++i) {
+        valuesInterlaced[2 * i]     = (reinterpret_cast<EvalCalcT*>(&valuesEarly))[i];
+        valuesInterlaced[2 * i + 1] = (reinterpret_cast<EvalCalcT*>(&valuesLate))[i];
+    }
+
+    std::memcpy(&valuesEarly, valuesInterlaced.data(), sizeof(valuesInterlaced));
 }
 
 }  // namespace

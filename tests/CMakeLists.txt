@@ -14,7 +14,7 @@ add_executable(tests
     "PieceTests.cpp"
     "SEETests.cpp"
     "StackOfVectorsTests.cpp"
-)
+    "EvalJacobiansTests.cpp")
 
 # C++23 standard
 set_property(TARGET tests PROPERTY CXX_STANDARD 23)
