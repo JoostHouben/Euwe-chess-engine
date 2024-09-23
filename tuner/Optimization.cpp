@@ -81,6 +81,10 @@ std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
         constantParamIdxs.push_back(getIdx(member));
     };
 
+    // Tempo bonus is incorrectly optimized away.
+    setConstant(params.tempoBonus.early);
+    setConstant(params.tempoBonus.late);
+
     if (fixPhaseValues) {
         // Fix phase material values to avoid bad convergence
         for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {

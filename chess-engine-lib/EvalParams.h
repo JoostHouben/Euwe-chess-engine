@@ -46,6 +46,8 @@ struct EvalParams {
 
     std::array<TaperedTerm, kNumPieceTypes> kingTropismBonus;
 
+    TaperedTerm tempoBonus;
+
   private:
     EvalParams() = default;
 };

@@ -135,7 +135,7 @@ constexpr EvalParamArray kDefaultParams = {
         2.202382,    1.871919,    0.000000,    0.000000,   -1.214350,   2.011967,    2.465370,
         3.417135,    3.168167,    2.114452,    0.980166,   4.464880,    0.000000,    0.000000,
         0.000000,    0.000000,    4.977820,    -4.227230,  3.250489,    -3.995589,   6.564210,
-        -5.525754,   21.497625,   4.532190,    0.000000,   0.000000};
+        -5.525754,   21.497625,   4.532190,    0.000000,   0.000000,    20.0,        10.0};
 
 std::string taperedTermToString(const TaperedTerm& term) {
     return std::format("{{{:>6.1f}, {:>6.1f}}}", term.early, term.late);
@@ -254,7 +254,9 @@ std::string evalParamsToString(const EvalParams& params) {
 
     oss << "\nkingTropismBonus: {\n";
     writeTaperedTermPerPiece(params.kingTropismBonus, oss);
-    oss << "}";
+    oss << "}\n";
+
+    oss << std::format("\ntempoBonus:\n\t{}", taperedTermToString(params.tempoBonus));
 
     return oss.str();
 }

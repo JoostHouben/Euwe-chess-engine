@@ -833,6 +833,14 @@ template <bool CalcJacobians>
     evaluatePiecePositionsForSide(
             params, gameState, Side::Black, blackPiecePositionEval, blackPiecePositionJacobians);
 
+    const EvalCalcT tempoFactor = gameState.getSideToMove() == Side::White ? 1 : -1;
+    updateTaperedTerm(
+            params,
+            params.tempoBonus,
+            whitePiecePositionEval.position,
+            whitePiecePositionJacobians.position,
+            tempoFactor);
+
     const auto [earlyFactor, lateFactor, earlyFactorGradient] = calcTaperParams(
             params,
             whitePiecePositionEval,
