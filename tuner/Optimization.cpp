@@ -193,7 +193,7 @@ void solve(ceres::Problem& problem) {
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    std::cout << summary.FullReport() << "\n";
+    std::println("\n{}\n", summary.FullReport());
 }
 
 }  // namespace

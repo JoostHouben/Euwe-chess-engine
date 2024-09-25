@@ -24,13 +24,13 @@ std::array<double, kNumEvalParams> getInitialParams() {
 
 void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
     const EvalParams params = evalParamsFromDoubles(paramsDouble);
-    std::println("\n\nOptimized params:\n{}\n\n", evalParamsToString(params));
+    std::println("Optimized params:\n{}\n", evalParamsToString(params));
 
     const std::string paramsString =
             paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
             | std::ranges::views::join_with(std ::string(", ")) | std::ranges::to<std::string>();
 
-    std::println("Optimized param values: {}", paramsString);
+    std::println("\nOptimized param values: {}", paramsString);
 }
 
 }  // namespace
@@ -42,9 +42,10 @@ int main(int argc, char** argv) {
             R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
             R"(D:\annotated-fens\first-tune-attempts-vs-untuned.txt)",
             R"(D:\annotated-fens\first-fine-tuning.txt)",
-            R"(D:\annotated-fens\more-tapered-eval-terms-tuning.txt)"};
+            R"(D:\annotated-fens\more-tapered-eval-terms-tuning.txt)",
+            R"(D:\annotated-fens\bad-castling-bonus-tune.txt)"};
 
-    const std::vector<int> dropoutRates = {4, 1, 2, 4};
+    const std::vector<int> dropoutRates = {8, 2, 4, 2, 2};
 
     std::println("Loading positions...");
     std::vector<ScoredPosition> scoredPositions;
