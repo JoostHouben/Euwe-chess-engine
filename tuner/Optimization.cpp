@@ -80,10 +80,13 @@ std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
     const auto setConstant = [&](const EvalCalcT& member) {
         constantParamIdxs.push_back(getIdx(member));
     };
+    const auto setTaperedTermConstant = [&](const TaperedTerm& term) {
+        setConstant(term.early);
+        setConstant(term.late);
+    };
 
     // Tempo bonus is incorrectly optimized away.
-    setConstant(params.tempoBonus.early);
-    setConstant(params.tempoBonus.late);
+    setTaperedTermConstant(params.tempoBonus);
 
     if (fixPhaseValues) {
         // Fix phase material values to avoid bad convergence
@@ -103,22 +106,17 @@ std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
 
     // Fix piece values to avoid gauge freedoms with the piece-square tables.
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        setConstant(params.pieceValues[pieceIdx].early);
-        setConstant(params.pieceValues[pieceIdx].late);
+        setTaperedTermConstant(params.pieceValues[pieceIdx]);
     }
 
     // A pawn 1 square away from promotion is always a passed pawn, so this term has a gauge
     // freedom with the piece-square tables.
-    setConstant(params.passedPawnBonus[1].early);
-    setConstant(params.passedPawnBonus[1].late);
+    setTaperedTermConstant(params.passedPawnBonus[1]);
 
     // Fix one value in the pawn adjustment tables to avoid gauge freedoms with the piece values.
-    setConstant(params.bishopPawnSameColorBonus[4].early);
-    setConstant(params.bishopPawnSameColorBonus[4].late);
-    setConstant(params.knightPawnAdjustment[4].early);
-    setConstant(params.knightPawnAdjustment[4].late);
-    setConstant(params.rookPawnAdjustment[4].early);
-    setConstant(params.rookPawnAdjustment[4].late);
+    setTaperedTermConstant(params.bishopPawnSameColorBonus[4]);
+    setTaperedTermConstant(params.knightPawnAdjustment[4]);
+    setTaperedTermConstant(params.rookPawnAdjustment[4]);
 
     // Fix unused values
 
@@ -129,30 +127,22 @@ std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
         const int rank1Position = (int)positionFromFileRank(file, 0);
         const int rank8Position = (int)positionFromFileRank(file, kRanks - 1);
 
-        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position].early);
-        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank8Position].early);
-
-        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position].late);
-        setConstant(params.pieceSquareTablesWhite[pawnIdx][rank8Position].late);
+        setTaperedTermConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position]);
+        setTaperedTermConstant(params.pieceSquareTablesWhite[pawnIdx][rank1Position]);
     }
 
     // Pawns are never on the 8th rank, so the passed pawn bonus there is unused.
-    setConstant(params.passedPawnBonus[0].early);
-    setConstant(params.passedPawnBonus[0].late);
+    setTaperedTermConstant(params.passedPawnBonus[0]);
 
     // We don't calculate mobility for pawns or kings.
-    setConstant(params.mobilityBonus[(int)Piece::Pawn].early);
-    setConstant(params.mobilityBonus[(int)Piece::King].early);
+    setTaperedTermConstant(params.mobilityBonus[(int)Piece::Pawn]);
 
-    setConstant(params.mobilityBonus[(int)Piece::Pawn].late);
-    setConstant(params.mobilityBonus[(int)Piece::King].late);
+    setTaperedTermConstant(params.mobilityBonus[(int)Piece::Pawn]);
 
     // We don't calculate king tropism for pawns or kings.
-    setConstant(params.kingTropismBonus[(int)Piece::Pawn].early);
-    setConstant(params.kingTropismBonus[(int)Piece::King].early);
+    setTaperedTermConstant(params.kingTropismBonus[(int)Piece::Pawn]);
 
-    setConstant(params.kingTropismBonus[(int)Piece::Pawn].late);
-    setConstant(params.kingTropismBonus[(int)Piece::King].late);
+    setTaperedTermConstant(params.kingTropismBonus[(int)Piece::Pawn]);
 
     return constantParamIdxs;
 }

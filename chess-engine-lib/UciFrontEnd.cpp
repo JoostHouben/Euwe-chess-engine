@@ -141,7 +141,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name tempo-bonus");
+    writeUci("id name attack-defend-adjustment");
     writeUci("id author Joost Houben");
 
     writeOptions();

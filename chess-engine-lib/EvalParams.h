@@ -48,6 +48,8 @@ struct EvalParams {
 
     TaperedTerm tempoBonus;
 
+    std::array<std::array<TaperedTerm, 3>, kNumPieceTypes - 1> attackDefendAdjustment;
+
   private:
     EvalParams() = default;
 };

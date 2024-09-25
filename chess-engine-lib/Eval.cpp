@@ -23,6 +23,8 @@ struct PiecePositionEvaluation {
     TaperedEvaluation position{};
 
     EvalCalcT phaseMaterial = 0;
+
+    BitBoard control = BitBoard::Empty;
 };
 
 VectorT zeros() {
@@ -149,8 +151,10 @@ FORCE_INLINE void updateMobilityEvaluation(
         PiecePositionEvaluation& result,
         PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
     const BitBoard control = getPieceControlledSquares(piece, position, anyPiece);
-    const int mobility     = popCount(control & ~ownOccupancy);
 
+    result.control |= control;
+
+    const int mobility = popCount(control & ~ownOccupancy);
     updateTaperedTerm(
             params,
             params.mobilityBonus[(int)piece],
@@ -423,8 +427,45 @@ FORCE_INLINE void evaluatePiecePositionsForSide(
 
         // no mobility bonus for king
 
+        const BitBoard control = getPieceControlledSquares(Piece::King, kingPosition, anyPiece);
+        result.control |= control;
+
         updateForVirtualKingMobility<CalcJacobians>(
                 params, gameState, side, kingPosition, result, jacobians);
+    }
+}
+
+template <bool CalcJacobians>
+FORCE_INLINE void evaluateAttackDefend(
+        const Evaluator::EvalCalcParams& params,
+        const GameState& gameState,
+        const Side side,
+        const BitBoard ownControl,
+        const BitBoard enemyControl,
+        PiecePositionEvaluation& result,
+        PiecePositionEvaluationJacobians<CalcJacobians>& jacobians) {
+    const std::array<BitBoard, 3> attackDefendBitBoards = {
+            ownControl & ~enemyControl,  // defended, not attacked
+            ~ownControl & enemyControl,  // not defended, attacked (hanging)
+            ownControl & enemyControl,   // defended, attacked
+    };
+
+    // Skip the king: defending the king is useless, and the king should never be under attack
+    // (i.e., in check) when running eval.
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
+        const BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, (Piece)pieceIdx);
+
+        for (int attackDefendIdx = 0; attackDefendIdx < 3; ++attackDefendIdx) {
+            const BitBoard relevantPieces = pieceBitBoard & attackDefendBitBoards[attackDefendIdx];
+            const int numRelevantPieces   = popCount(relevantPieces);
+
+            updateTaperedTerm(
+                    params,
+                    params.attackDefendAdjustment[pieceIdx][attackDefendIdx],
+                    result.position,
+                    jacobians.position,
+                    numRelevantPieces);
+        }
     }
 }
 
@@ -540,6 +581,8 @@ FORCE_INLINE void evaluatePawnsForSide(
                     params, params.isolatedPawnPenalty, result.position, jacobians.position, -1);
         }
     }
+
+    result.control |= getPawnControlledSquares(ownPawns, side);
 }
 
 template <bool CalcJacobians>
@@ -832,6 +875,24 @@ template <bool CalcJacobians>
             params, gameState, Side::White, whitePiecePositionEval, whitePiecePositionJacobians);
     evaluatePiecePositionsForSide(
             params, gameState, Side::Black, blackPiecePositionEval, blackPiecePositionJacobians);
+
+    evaluateAttackDefend(
+            params,
+            gameState,
+            Side::White,
+            whitePiecePositionEval.control,
+            blackPiecePositionEval.control,
+            whitePiecePositionEval,
+            whitePiecePositionJacobians);
+
+    evaluateAttackDefend(
+            params,
+            gameState,
+            Side::Black,
+            blackPiecePositionEval.control,
+            whitePiecePositionEval.control,
+            blackPiecePositionEval,
+            blackPiecePositionJacobians);
 
     const EvalCalcT tempoFactor = gameState.getSideToMove() == Side::White ? 1 : -1;
     updateTaperedTerm(
