@@ -43,9 +43,10 @@ int main(int argc, char** argv) {
             R"(D:\annotated-fens\first-tune-attempts-vs-untuned.txt)",
             R"(D:\annotated-fens\first-fine-tuning.txt)",
             R"(D:\annotated-fens\more-tapered-eval-terms-tuning.txt)",
-            R"(D:\annotated-fens\bad-castling-bonus-tune.txt)"};
+            R"(D:\annotated-fens\bad-castling-bonus-tune.txt)",
+            R"(D:\annotated-fens\attack-defend.txt)"};
 
-    const std::vector<int> dropoutRates = {8, 2, 4, 2, 2};
+    const std::vector<int> dropoutRates = {8, 2, 4, 2, 2, 1};
 
     std::println("Loading positions...");
     std::vector<ScoredPosition> scoredPositions;
