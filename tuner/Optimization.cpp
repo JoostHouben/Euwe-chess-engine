@@ -136,13 +136,11 @@ std::vector<int> getConstantParamIdxs(bool fixPhaseValues) {
 
     // We don't calculate mobility for pawns or kings.
     setTaperedTermConstant(params.mobilityBonus[(int)Piece::Pawn]);
-
-    setTaperedTermConstant(params.mobilityBonus[(int)Piece::Pawn]);
+    setTaperedTermConstant(params.mobilityBonus[(int)Piece::King]);
 
     // We don't calculate king tropism for pawns or kings.
     setTaperedTermConstant(params.kingTropismBonus[(int)Piece::Pawn]);
-
-    setTaperedTermConstant(params.kingTropismBonus[(int)Piece::Pawn]);
+    setTaperedTermConstant(params.kingTropismBonus[(int)Piece::King]);
 
     return constantParamIdxs;
 }
