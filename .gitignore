@@ -3,6 +3,7 @@
 Archive/
 ideas.txt
 run-tournament.ps1
+tuner/invocation.txt
 
 ## Build output
 out/

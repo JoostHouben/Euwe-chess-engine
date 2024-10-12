@@ -10,8 +10,11 @@
 #include "chess-engine-lib/Math.h"
 #include "chess-engine-lib/MoveOrder.h"
 
+#include <filesystem>
+#include <format>
 #include <print>
 #include <ranges>
+#include <stdexcept>
 
 namespace {
 
@@ -33,26 +36,46 @@ void printResults(const std::array<double, kNumEvalParams>& paramsDouble) {
     std::println("\nOptimized param values: {}", paramsString);
 }
 
+std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** argv) {
+    if (argc < 3) {
+        std::println(
+                "Usage: {} <dataPath1> <dropoutRate1> [<dataPath2> <dropoutRate2> ...]", argv[0]);
+        std::exit(1);
+    }
+
+    try {
+        std::vector<std::pair<std::filesystem::path, int>> args;
+        for (int i = 1; i + 1 < argc;) {
+            const std::filesystem::path dataPath = argv[i++];
+
+            if (!std::filesystem::exists(dataPath)) {
+                throw std::invalid_argument(
+                        std::format("Path '{}' does not exist", dataPath.string()));
+            }
+
+            const int dropoutRate = std::stoi(argv[i++]);
+
+            args.emplace_back(dataPath, dropoutRate);
+        }
+
+        return args;
+    } catch (const std::exception& e) {
+        std::println("Error: {}", e.what());
+        std::exit(1);
+    }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
+    const auto pathsAndDropOutRates = parseArgs(argc, argv);
+
     std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
-
-    const std::vector<std::string> annotatedFensPaths = {
-            R"(D:\annotated-fens\since_virtual_king_mobility_to_tune_old.txt)",
-            R"(D:\annotated-fens\first-tune-attempts-vs-untuned.txt)",
-            R"(D:\annotated-fens\first-fine-tuning.txt)",
-            R"(D:\annotated-fens\more-tapered-eval-terms-tuning.txt)",
-            R"(D:\annotated-fens\bad-castling-bonus-tune.txt)",
-            R"(D:\annotated-fens\attack-defend.txt)",
-            R"(D:\annotated-fens\global-pawn-adjustment.txt)"};
-
-    const std::vector<int> dropoutRates = {8, 2, 4, 2, 2, 2, 1};
 
     std::println("Loading positions...");
     std::vector<ScoredPosition> scoredPositions;
-    for (int i = 0; i < annotatedFensPaths.size(); ++i) {
-        loadScoredPositions(annotatedFensPaths.at(i), dropoutRates.at(i), scoredPositions);
+    for (const auto pathAndDropoutRate : pathsAndDropOutRates) {
+        loadScoredPositions(pathAndDropoutRate.first, pathAndDropoutRate.second, scoredPositions);
     }
 
     std::println("Quiescing positions...");

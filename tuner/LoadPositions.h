@@ -2,10 +2,10 @@
 
 #include "ScoredPosition.h"
 
-#include <string>
+#include <filesystem>
 #include <vector>
 
 void loadScoredPositions(
-        const std::string& annotatedFensPath,
+        const std::filesystem::path& annotatedFensPath,
         int dropoutRate,
         std::vector<ScoredPosition>& scoredPositions);

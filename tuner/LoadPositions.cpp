@@ -7,7 +7,7 @@
 #include <cstdlib>
 
 void loadScoredPositions(
-        const std::string& annotatedFensPath,
+        const std::filesystem::path& annotatedFensPath,
         const int dropoutRate,
         std::vector<ScoredPosition>& scoredPositions) {
     std::srand(42);
