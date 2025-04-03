@@ -5,8 +5,8 @@ on:
     branches: [main]
 
 jobs:
-  build_and_test:
-    name: Build and test (${{ matrix.os }}, ${{ matrix.config_name }})
+  archive_engine:
+    name: ${{ matrix.os }}, ${{ matrix.config_name }}
     runs-on: ${{ matrix.os }}
 
     strategy:

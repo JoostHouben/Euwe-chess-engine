@@ -18,10 +18,10 @@ jobs:
       with:
         concurrent_skipping: same_content_newer
 
-  build_and_test:
+  build_tuner:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    name: Build and test (${{ matrix.os }}, ${{ matrix.config_name }})
+    name: (${{ matrix.os }}, ${{ matrix.config_name }}
     runs-on: ${{ matrix.os }}
 
     strategy:
