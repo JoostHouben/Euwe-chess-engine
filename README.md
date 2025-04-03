@@ -1,7 +1,7 @@
 Euwe Chess Engine
 =================
 
-[![Euwe-chess-engine](https://github.com/JoostHouben/Euwe-chess-engine/actions/workflows/cmake-multi-platform.yml/badge.svg?branch=main)](https://github.com/JoostHouben/Euwe-chess-engine/actions/workflows/cmake-multi-platform.yml)
+[![Tests][tests-badge][tests-link]
 
 **Author: Joost Houben**
 
@@ -424,5 +424,8 @@ The author would like to thank:
 Euwe is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
 
 Euwe utilizes [Pyrrhic](https://github.com/AndyGrant/Pyrrhic) for Syzygy tablebase probing. Pyrrhic
-is licensed under the MIT license, see the [Pyrrhic license](chess-engine-lib/Pyrrhic/LICENSE) fo
+is licensed under the MIT license, see the [Pyrrhic license](chess-engine-lib/Pyrrhic/LICENSE) for
 details.
+
+[tests-badge]: https://github.com/JoostHouben/Euwe-chess-engine/actions/workflows/run-tests.yml/badge.svg?branch=main
+[tests-link]: https://github.com/JoostHouben/Euwe-chess-engine/actions/workflows/run-tests.yml
