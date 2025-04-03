@@ -1,4 +1,4 @@
-name: Build and test
+name: Run tests
 
 on: [push, pull_request]
 
@@ -67,6 +67,7 @@ jobs:
       run: >
         cmake -B ${{ steps.strings.outputs.build-output-dir }}
         --preset ${{ steps.strings.outputs.os-name }}-${{ matrix.config_name }}
+        -DTARGETS_TO_BUILD="tests"
 
     - name: Build
       run: >
