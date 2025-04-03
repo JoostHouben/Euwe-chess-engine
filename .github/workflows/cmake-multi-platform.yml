@@ -3,7 +3,21 @@ name: Build and test
 on: [push, pull_request]
 
 jobs:
+  pre_job:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+
+    - id: skip_check
+      uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
+      with:
+        concurrent_skipping: same_content_newer
+
   build_and_test:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
     name: Build and test (${{ matrix.os }}, ${{ matrix.config_name }})
     runs-on: ${{ matrix.os }}
 
