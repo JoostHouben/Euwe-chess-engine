@@ -71,7 +71,9 @@ jobs:
 
     - name: Build
       run: >
-        cmake --build ${{ steps.strings.outputs.build-output-dir }}
+        cmake
+        --build ${{ steps.strings.outputs.build-output-dir }}
+        --target tests
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}

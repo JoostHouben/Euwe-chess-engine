@@ -74,4 +74,6 @@ jobs:
 
     - name: Build
       run: >
-        cmake --build ${{ steps.strings.outputs.build-output-dir }}
+        cmake
+        --build ${{ steps.strings.outputs.build-output-dir }}
+        --target Tuner
