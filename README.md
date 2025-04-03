@@ -204,7 +204,13 @@ These dependencies are managed using [vcpkg](https://vcpkg.io/en/) (for C++) and
    you'll also need the 'C++ clang compiler for windows' component.
  - Build the solution. For best playing strength, build using the mode 'Windows clang x64 Release'.
 
-The project has been tested with Visual Studio 2022 Community Edition, version 17.13 (`_MSC_VER` 1943).
+The project has been tested with Visual Studio 2022 Community Edition, version 17.13 (`_MSC_VER`
+1943).
+
+The above instructions will compile not only the engine, but also the tests and the tuner. This
+requires installing dependencies for the tests and the tuner which may take a while. If you only
+want to build the engine, modify `TARGETS_TO_BUILD` in the CMakePresets.json file to just
+`"engine"`.
 
 #### Linux
 
@@ -212,12 +218,20 @@ The project has been tested with Visual Studio 2022 Community Edition, version 1
    and make sure that the `VCPKG_ROOT` environment variable is set (or modify the CMakePresets.json
    file to point to your VCPKG installation directly).
  - If needed, modify CMakePresets.json to match your build environment.
- - Run `cmake` with appropriate options. E.g., run `cmake --preset linux-x64-release` to build in
-   release mode.
+ - Run `cmake` with appropriate options. E.g., run
+   `cmake --preset linux-x64-release -DTARGETS_TO_BUILD="engine"` to build in release mode.
  - Run `cmake --build` on the output directory. E.g., `cmake --build out/build/linux-x64-release/`.
 
-The project has been tested with g++ 14.0. Note that in order to compile the tuner, you will need a
-Fortran compiler, such as GFortran; see
+The project has been tested with g++ 14.2, and clang 19 and 20.
+
+The above instructions will only compile the engine. To also compile the tests and/or the tuner, add
+the appropriate target to the `TARGETS_TO_BUILD` option. So to configure for building all 3 targets,
+run: `cmake --preset linux-x64-release -DTARGETS_TO_BUILD="engine;tests;tuner"`. This will trigger
+installation of the required dependencies using vcpkg.
+
+If `TARGETS_TO_BUILD` is not set, the default is to build all targets.
+
+Note that in order to compile the tuner, you will need a Fortran compiler, such as GFortran; see
 [installation instructions](https://fortran-lang.org/en/learn/os_setup/install_gfortran/). This is
 because the Tuner uses Ceres configured with SuiteSparse, which in turn depends on LAPACK, which is
 written in Fortran.

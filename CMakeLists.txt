@@ -12,6 +12,14 @@ if (POLICY CMP0141)
     "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug>:EditAndContinue>$<$<CONFIG:RelWithDebInfo>:ProgramDatabase>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
+if ("tests" IN_LIST TARGETS_TO_BUILD)
+    list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+endif()
+
+if ("tuner" IN_LIST TARGETS_TO_BUILD)
+    list(APPEND VCPKG_MANIFEST_FEATURES "tuner")
+endif()
+
 project ("Euwe")
 
 # Enable Interprocedural Optimization (Link-time optimization / whole program optimization), if supported.
@@ -52,6 +60,15 @@ enable_testing()
 
 # Include sub-projects.
 add_subdirectory("chess-engine-lib")
-add_subdirectory("chess-engine")
-add_subdirectory("tests")
-add_subdirectory("tuner")
+
+if ("engine" IN_LIST TARGETS_TO_BUILD)
+    add_subdirectory("chess-engine")
+endif()
+
+if ("tests" IN_LIST TARGETS_TO_BUILD)
+    add_subdirectory("tests")
+endif()
+
+if ("tuner" IN_LIST TARGETS_TO_BUILD)
+    add_subdirectory("tuner")
+endif()

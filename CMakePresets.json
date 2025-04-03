@@ -12,7 +12,8 @@
         "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "ENABLE_PROFILE_GENERATION": "OFF"
+        "ENABLE_PROFILE_GENERATION": "OFF",
+        "TARGETS_TO_BUILD": "engine;tests;tuner"
       },
       "condition": {
         "type": "equals",
@@ -78,7 +79,8 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_C_COMPILER": "gcc-14",
-        "CMAKE_CXX_COMPILER": "g++-14"
+        "CMAKE_CXX_COMPILER": "g++-14",
+        "TARGETS_TO_BUILD": "engine;tests;tuner"
       }
     },
     {

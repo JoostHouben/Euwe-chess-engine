@@ -1,9 +1,20 @@
 {
-  "dependencies": [
-    "gtest",
-    {
-      "name": "ceres",
-      "features": [ "suitesparse" ]
+  "dependencies": [],
+  "features": {
+    "tests": {
+      "description": "Dependencies needed for tests",
+      "dependencies": [
+        "gtest"
+      ]
+    },
+    "tuner": {
+      "description": "Dependencies needed for the tuner",
+      "dependencies": [
+        {
+          "name": "ceres",
+          "features": [ "suitesparse" ]
+        }
+      ]
     }
-  ]
+  }
 }
