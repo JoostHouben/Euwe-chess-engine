@@ -134,7 +134,7 @@ class MoveScorer {
     [[nodiscard]] Move getCounterMove(const Move& move, Side side) const;
     void storeCounterMove(const Move& lastMove, const Move& counter, Side side);
 
-    [[nodiscard]] static int getHistoryWeight(int depth);
+    [[nodiscard]] static HistoryValueT getHistoryWeight(int depth);
 
     void updateMainHistoryForCutoff(const Move& move, int depth, Side side);
     void updateMainHistoryForNonCutoff(const Move& move, int depth, Side side);

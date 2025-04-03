@@ -24,7 +24,7 @@ struct EvalCostFunctor : ceres::CostFunction {
 
         parameterBlockSizes.reserve(sparsityStructure_.size() + 1);
         for (const auto& [blockStart, blockSize] : sparsityStructure_) {
-            parameterBlockSizes.push_back(blockSize);
+            parameterBlockSizes.push_back((int)blockSize);
         }
         parameterBlockSizes.push_back(1);
 
@@ -37,7 +37,7 @@ struct EvalCostFunctor : ceres::CostFunction {
 
         bool needParamJacobians = false;
         if (jacobians) {
-            for (int sparseIdx = 0; sparseIdx < sparsityStructure_.size(); ++sparseIdx) {
+            for (std::size_t sparseIdx = 0; sparseIdx < sparsityStructure_.size(); ++sparseIdx) {
                 if (jacobians[sparseIdx]) {
                     needParamJacobians = true;
                     break;
@@ -75,14 +75,15 @@ struct EvalCostFunctor : ceres::CostFunction {
                 const double sigmoidDerivative =
                         std::log(10.) * negPower / (s * (1 + negPower) * (1 + negPower));
 
-                for (int sparseIdx = 0; sparseIdx < sparsityStructure_.size(); ++sparseIdx) {
+                for (std::size_t sparseIdx = 0; sparseIdx < sparsityStructure_.size();
+                     ++sparseIdx) {
                     if (jacobians[sparseIdx] == nullptr) {
                         continue;
                     }
 
                     const auto& [blockStart, blockSize] = sparsityStructure_[sparseIdx];
-                    for (int blockIdx = 0; blockIdx < blockSize; ++blockIdx) {
-                        const int denseIdx = blockStart + blockIdx;
+                    for (std::size_t blockIdx = 0; blockIdx < blockSize; ++blockIdx) {
+                        const std::size_t denseIdx = blockStart + blockIdx;
                         jacobians[sparseIdx][blockIdx] =
                                 -sigmoidDerivative * evalWithGradient.gradient[denseIdx];
                     }
@@ -96,11 +97,11 @@ struct EvalCostFunctor : ceres::CostFunction {
     EvalParams getEvalParams(const double* const* parameters) const {
         auto paramsArray = evalParamsToArray(EvalParams::getDefaultParams());
 
-        for (int sparseIdx = 0; sparseIdx < sparsityStructure_.size(); ++sparseIdx) {
+        for (std::size_t sparseIdx = 0; sparseIdx < sparsityStructure_.size(); ++sparseIdx) {
             const auto& [blockStart, blockSize] = sparsityStructure_[sparseIdx];
-            for (int blockIdx = 0; blockIdx < blockSize; ++blockIdx) {
-                const int denseIdx    = blockStart + blockIdx;
-                paramsArray[denseIdx] = parameters[sparseIdx][blockIdx];
+            for (std::size_t blockIdx = 0; blockIdx < blockSize; ++blockIdx) {
+                const std::size_t denseIdx = blockStart + blockIdx;
+                paramsArray[denseIdx]      = (EvalCalcT)parameters[sparseIdx][blockIdx];
             }
         }
 
@@ -228,7 +229,6 @@ void addResiduals(
         double& scaleParam,
         std::array<double, kNumEvalParams>& paramsDouble,
         const std::vector<ScoredPosition>& scoredPositions,
-        const bool fixPhaseValues,
         const int subsampleRate,
         ceres::Problem& problem) {
     problem.AddParameterBlock(&scaleParam, 1);
@@ -281,8 +281,7 @@ void solve(ceres::Problem& problem, const bool useTrustRegionMethod) {
 void solveScale(
         ceres::Problem& problem,
         double& scaleParam,
-        std::array<double, kNumEvalParams>& paramsDouble,
-        const std::vector<ScoredPosition>& scoredPositions) {
+        std::array<double, kNumEvalParams>& paramsDouble) {
     setAllEvalParameterBlocksConstant(paramsDouble, problem);
     problem.SetParameterBlockVariable(&scaleParam);
 
@@ -293,7 +292,6 @@ void solveParams(
         ceres::Problem& problem,
         double& scaleParam,
         std::array<double, kNumEvalParams>& paramsDouble,
-        const std::vector<ScoredPosition>& scoredPositions,
         const bool fixPhaseValues) {
     setAllEvalParameterBlocksVariable(paramsDouble, problem);
     setParameterBlocksConstantForSolvingEvalParams(paramsDouble, fixPhaseValues, problem);
@@ -315,13 +313,12 @@ void optimize(
             scaleParam,
             paramsDouble,
             scoredPositions,
-            /*fixPhaseValues*/ true,
             /*subSampleRate*/ 1,
             problem);
 
-    solveScale(problem, scaleParam, paramsDouble, scoredPositions);
+    solveScale(problem, scaleParam, paramsDouble);
 
     std::println("Scale param: {}", scaleParam);
 
-    solveParams(problem, scaleParam, paramsDouble, scoredPositions, fixPhaseValues);
+    solveParams(problem, scaleParam, paramsDouble, fixPhaseValues);
 }

@@ -13,7 +13,7 @@ double numericDerivative(
         const GameState& gameState,
         const EvalParamArray& x,
         const std::size_t i,
-        const double eps) {
+        const EvalCalcT eps) {
     EvalCalcT yPlus;
     {
         EvalParamArray xPrime = x;
@@ -60,7 +60,7 @@ TEST(EvalJacobiansTests, TestJacobians) {
 
         for (std::size_t paramIdx = 0; paramIdx < kNumEvalParams; ++paramIdx) {
             const EvalCalcT defaultValue = defaultParamArray[paramIdx];
-            const double epsilon         = max(1e-2, 1e-2 * std::abs(defaultValue));
+            const EvalCalcT epsilon      = max(1e-2f, 1e-2f * std::abs(defaultValue));
             const double numericDeriv =
                     numericDerivative(gameState, defaultParamArray, paramIdx, epsilon);
 

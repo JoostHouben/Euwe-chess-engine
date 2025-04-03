@@ -1,3 +1,18 @@
+// Disable some warnings
+
+#if defined(_MSC_VER) && !defined(__clang__)
+
+// Unsafe strcopy, strcat, etc.
+#pragma warning( disable : 4996 )
+
+// Conversion, possible loss of data
+#pragma warning( disable : 4244 )
+
+// Conditional expression is constant
+#pragma warning( disable : 4127 )
+
+#endif
+
 /*
  * Copyright (c) 2013-2020 Ronald de Man
  * Copyright (c) 2015 Basil, all rights reserved,

@@ -207,7 +207,8 @@ template <bool ReturnBound, bool ReturnMeets>
         const bool attackerMayBePromoting =
                 isAPromotionSquare && minimumAttackerIdx[(int)side] == 0;
 
-        if (ReturnMeets && !attackerMayBePromoting) {
+        const bool mayReturnBeforeUpdatingAttackers = ReturnMeets && !attackerMayBePromoting;
+        if (mayReturnBeforeUpdatingAttackers) {
             if (side == sideToMove) {
                 if (gain[exchangeIdx] < threshold) {
                     // Even if we take the target piece, we're still below the threshold.
@@ -260,7 +261,9 @@ template <bool ReturnBound, bool ReturnMeets>
             targetPiece = Piece::Queen;
         }
 
-        if (ReturnBound || (ReturnMeets && attackerMayBePromoting)) {
+        const bool mayReturnAfterUpdatingAttackers =
+                ReturnBound || (ReturnMeets && attackerMayBePromoting);
+        if (mayReturnAfterUpdatingAttackers) {
             if (side == sideToMove) {
                 if (gain[exchangeIdx] < threshold) {
                     // Even after taking the target piece, we're still below the threshold.

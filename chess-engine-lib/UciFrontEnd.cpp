@@ -43,7 +43,7 @@ struct OptionStringParseResult {
 };
 
 std::string stringToLower(std::string_view str) {
-    return str | std::views::transform([](unsigned char c) { return std::tolower(c); })
+    return str | std::views::transform([](unsigned char c) { return (char)std::tolower(c); })
          | range_to<std::string>();
 }
 

@@ -61,7 +61,7 @@ static_assert(kMaxRegularQuiet < kMinCounterMoveScore);
 }  // namespace checks
 
 [[nodiscard]] FORCE_INLINE MoveEvalT
-scoreQueenPromotion(const Move& move, const GameState& gameState) {
+scoreQueenPromotion(const Move& /*move*/, const GameState& /*gameState*/) {
     MoveEvalT moveScore = kPromotionBonus;
 
     moveScore += getStaticPieceValue(Piece::Queen);
@@ -285,11 +285,11 @@ FORCE_INLINE void MoveOrderer::partitionTacticalMoves() {
 
     MY_ASSERT(firstQuietIdx_ <= moves_.size());
 #ifndef NDEBUG
-    for (int i = currentMoveIdx_; i < firstQuietIdx_; ++i) {
-        MY_ASSERT(isTactical(moves_[i]));
+    for (int moveIdx = currentMoveIdx_; moveIdx < firstQuietIdx_; ++moveIdx) {
+        MY_ASSERT(isTactical(moves_[moveIdx]));
     }
-    for (int i = firstQuietIdx_; i < moves_.size(); ++i) {
-        MY_ASSERT(!isTactical(moves_[i]));
+    for (int moveIdx = firstQuietIdx_; moveIdx < moves_.size(); ++moveIdx) {
+        MY_ASSERT(!isTactical(moves_[moveIdx]));
     }
 #endif
 
@@ -311,6 +311,8 @@ FORCE_INLINE void MoveScorer::reportNonCutoff(
 
 #ifdef TRACK_CUTOFF_STATISTICS
     ++numSearchedByMoveType_[(int)moveType];
+#else
+    (void)moveType;
 #endif
 }
 
@@ -332,6 +334,8 @@ FORCE_INLINE void MoveScorer::reportCutoff(
 #ifdef TRACK_CUTOFF_STATISTICS
     ++numSearchedByMoveType_[(int)moveType];
     ++numCutoffsByMoveType_[(int)moveType];
+#else
+    (void)moveType;
 #endif
 }
 
@@ -463,7 +467,8 @@ void MoveScorer::printCutoffStatistics(std::ostream& out) const {
     for (int i = 1; i < kNumMoveTypes; ++i) {
         std::println(out, "\t{}: {:.1f}%", moveTypeToString((MoveType)i), cutoffFraction[i] * 100);
     }
-
+#else
+    (void)out;
 #endif
 }
 
@@ -505,8 +510,8 @@ FORCE_INLINE void MoveScorer::storeCounterMove(
     counterMoves_[(int)side][(int)lastMove.pieceToMove][(int)lastMove.to] = counter;
 }
 
-FORCE_INLINE int MoveScorer::getHistoryWeight(const int depth) {
-    return depth * depth;
+FORCE_INLINE MoveScorer::HistoryValueT MoveScorer::getHistoryWeight(const int depth) {
+    return (HistoryValueT)(depth * depth);
 }
 
 FORCE_INLINE void MoveScorer::updateMainHistoryForCutoff(
@@ -583,7 +588,8 @@ void MoveScorer::initializeHistoryFromPieceSquare() {
             for (int square = 0; square < kSquares; ++square) {
                 const int pieceSquareValue = evaluator_.getPieceSquareValue(
                         (Piece)piece, (BoardPosition)square, (Side)side);
-                const int historyValue = clamp(pieceSquareValue, -kMaxHistory, kMaxHistory);
+                const HistoryValueT historyValue =
+                        (HistoryValueT)clamp(pieceSquareValue, -kMaxHistory, kMaxHistory);
 
                 history_[side][piece][square] = historyValue;
             }
@@ -610,7 +616,8 @@ void MoveScorer::initializeCaptureHistory() {
 
                     historyValue = clamp(historyValue, -kMaxHistory, kMaxHistory);
 
-                    captureHistory_[side][capturingPiece][capturedPiece][square] = historyValue;
+                    captureHistory_[side][capturingPiece][capturedPiece][square] =
+                            (HistoryValueT)historyValue;
                 }
             }
         }
@@ -623,7 +630,10 @@ FORCE_INLINE void MoveScorer::ignoreMove(
         int& moveIdx,
         const bool ignoredMoveShouldExist) const {
     const auto hashMoveIt = std::find(moves.begin(), moves.end(), moveToIgnore);
+
     MY_ASSERT_DEBUG(IMPLIES(ignoredMoveShouldExist, hashMoveIt != moves.end()));
+    (void)ignoredMoveShouldExist;
+
     if (hashMoveIt != moves.end()) {
         std::swap(*hashMoveIt, moves.front());
         ++moveIdx;

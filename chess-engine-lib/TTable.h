@@ -5,12 +5,12 @@
 #include "Intrinsics.h"
 #include "Move.h"
 
+#include <algorithm>
 #include <bit>
 #include <memory>
 #include <optional>
 
 #include <cstdint>
-#include <cstring>
 
 enum ScoreType : std::uint8_t {
     NotSet     = 0,
@@ -95,7 +95,7 @@ TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor
 
 template <typename PayloadT>
 void TTable<PayloadT>::clear() {
-    std::memset(data_.get(), 0, size_ * sizeof(EntryT));
+    std::fill_n(data_.get(), size_, EntryT{});
     numInUse_ = 0;
 }
 

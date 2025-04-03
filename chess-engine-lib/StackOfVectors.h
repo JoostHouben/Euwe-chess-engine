@@ -70,6 +70,8 @@ class StackVectorIterator {
 
     StackVectorIterator(StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
 
+    StackVectorIterator(const StackVectorIterator& rhs) = default;
+
     StackVectorIterator& operator=(const StackVectorIterator& rhs) {
         MY_ASSERT(&parent_ == &rhs.parent_);
         idx_ = rhs.idx_;
@@ -167,6 +169,8 @@ class StackVectorConstIterator {
     using iterator_concept  = std::contiguous_iterator_tag;
 
     StackVectorConstIterator(const StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+
+    StackVectorConstIterator(const StackVectorConstIterator& rhs) = default;
 
     StackVectorConstIterator& operator=(const StackVectorConstIterator& rhs) {
         MY_ASSERT(&parent_ == &rhs.parent_);
@@ -298,7 +302,7 @@ class StackVector {
     ~StackVector() {
         // Note: when moved-from, size() == 0
         if (size() > 0) {
-            MY_ASSERT(endIdx_ == parent_.size());
+            MY_ASSERT((std::size_t)endIdx_ == parent_.size());
             parent_.items_.resize(startIdx_);
         }
     }

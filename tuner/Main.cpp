@@ -31,7 +31,8 @@ std::array<double, kNumEvalParams> getInitialParams() {
 }
 
 std::string getParamsString(const std::array<double, kNumEvalParams>& paramsDouble) {
-    return paramsDouble | std::ranges::views::transform([](double d) { return std::to_string(d); })
+    return paramsDouble
+         | std::ranges::views::transform([](double d) { return std::to_string(d) + "f"; })
          | joinToString(", ");
 }
 

@@ -23,11 +23,11 @@ FORCE_INLINE int getMateDistanceInPly(const EvalT eval) {
 FORCE_INLINE EvalT mateDistancePlus1(const EvalT eval) {
     MY_ASSERT(isMate(eval));
 
-    return eval - signum(eval);
+    return (EvalT)(eval - signum(eval));
 }
 
 FORCE_INLINE EvalT mateIn(const int mateDistance) {
     MY_ASSERT(mateDistance >= 0);
 
-    return kMateEval - mateDistance;
+    return (EvalT)(kMateEval - mateDistance);
 }

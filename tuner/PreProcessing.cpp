@@ -46,8 +46,6 @@ std::pair<EvalT, GameState> quiesce(
         StackOfVectors<Move>& stack,
         MoveScorer& moveScorer,
         const Evaluator& evaluator) {
-    constexpr EvalT kDeltaPruningThreshold = 200;
-
     if (isDraw(gameState, stack)) {
         return {0, gameState};
     }
@@ -142,7 +140,7 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
                 auto [score, state] = quiesce(
                         scoredPosition.gameState, alpha, beta, moveStack, moveScorer, evaluator);
 
-                const EvalT evalDelta = std::abs(baseEval - score);
+                const EvalT evalDelta = (EvalT)std::abs(baseEval - score);
                 if (evalDelta >= deltaThreshold || std::abs(score) >= evalThreshold) {
                     return std::nullopt;
                 }

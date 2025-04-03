@@ -151,8 +151,8 @@ void setPieceValuesFromPieceSquare(
                     summedPieceSquareValuesLate[pieceIdx] / numPieceOccurrencesLate[pieceIdx];
         }
 
-        evalParams.pieceValues[pieceIdx].early = pieceSquareValueEarly;
-        evalParams.pieceValues[pieceIdx].late  = pieceSquareValueLate;
+        evalParams.pieceValues[pieceIdx].early = (EvalCalcT)pieceSquareValueEarly;
+        evalParams.pieceValues[pieceIdx].late  = (EvalCalcT)pieceSquareValueLate;
     }
 }
 

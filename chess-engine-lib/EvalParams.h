@@ -93,7 +93,7 @@ struct EvalParams {
         const std::byte* paramByte  = (const std::byte*)&param;
         const std::ptrdiff_t offset = paramByte - thisByte;
 
-        MY_ASSERT(offset >= 0 && offset < sizeof(*this));
+        MY_ASSERT(offset >= 0 && (std::size_t)offset < sizeof(*this));
         MY_ASSERT(offset % sizeof(EvalCalcT) == 0);
 
         return (std::size_t)(offset / sizeof(EvalCalcT));

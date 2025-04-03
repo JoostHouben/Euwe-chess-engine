@@ -40,6 +40,15 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2")
 endif()
 
+# Set warnings, and treat them as errors
+if (MSVC)
+    add_compile_options(/W4 /WX)
+    # Disable warning C4714: 'function' : marked as __forceinline not inlined
+    add_compile_options(/wd4714)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 if (MSVC)
     # Set debug options for MSVC
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob2 /DNDEBUG")

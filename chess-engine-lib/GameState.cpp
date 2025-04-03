@@ -319,8 +319,6 @@ StackVector<Move> GameState::generateMovesInCheck(
     const BoardPosition kingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 
-    const BitBoard anyOccupancy = getAnyOccupancy();
-
     const BitBoard anyPieceNoKing = getAnyOccupancy() & ~kingPosition;
 
     const CheckInformation checkInformation = getCheckInformation();

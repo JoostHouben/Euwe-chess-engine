@@ -219,9 +219,9 @@ namespace {
 const auto lmrReductionTable = []() {
     std::array<std::array<int, 64>, 100> table = {};
 
-    for (int depthIdx = 0; depthIdx < table.size(); ++depthIdx) {
+    for (int depthIdx = 0; depthIdx < (int)table.size(); ++depthIdx) {
         const int depth = depthIdx + 1;
-        for (int movesSearched = 0; movesSearched < table[0].size(); ++movesSearched) {
+        for (int movesSearched = 0; movesSearched < (int)table[0].size(); ++movesSearched) {
             table[depthIdx][movesSearched] =
                     (int)max(0., 0.5 + std::log(depth) * std::log(movesSearched) / 3);
         }
@@ -308,7 +308,7 @@ FORCE_INLINE std::optional<Move> getTTableMove(
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForcedEndState(
         const GameState& gameState, StackOfVectors<Move>& stack) {
     if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
-        return 0;
+        return (EvalT)0;
     }
 
     if (gameState.isFiftyMoves()) {
@@ -316,12 +316,12 @@ FORCE_INLINE std::optional<Move> getTTableMove(
         if (moves.size() == 0) {
             return evaluateNoLegalMoves(gameState);
         } else {
-            return 0;
+            return (EvalT)0;
         }
     }
 
     if (isInsufficientMaterial(gameState)) {
-        return 0;
+        return (EvalT)0;
     }
 
     return std::nullopt;
@@ -365,10 +365,10 @@ calculateFutilityMargin(const int reducedDepth, const int movesSearched, const b
     static constexpr EvalT kFutilityMarginPerMoveSearched   = 20;
 
     if (isTactical) {
-        return kFutilityMarginPerDepth * reducedDepth + kFutilityMarginForLosingTactical;
+        return (EvalT)(kFutilityMarginPerDepth * reducedDepth + kFutilityMarginForLosingTactical);
     }
 
-    return max(
+    return (EvalT)max(
             kFutilityMarginPerDepth * reducedDepth - kFutilityMarginPerMoveSearched * movesSearched,
             0);
 }
@@ -533,7 +533,7 @@ std::vector<Move> MoveSearcher::Impl::extractPv(
     std::vector<Move> pv;
     pv.reserve(maxPvLength);
 
-    while (pv.size() < maxPvLength) {
+    while ((int)pv.size() < maxPvLength) {
         const auto ttHit = tTable_.probe(gameState.getBoardHash());
 
         if (!ttHit) {
@@ -624,7 +624,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         // SEE > seeThreshold. This is equivalent to checking if SEE >= seeThreshold + 1.
         const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold + 1);
 
-        futilityValue = eval + futilityMargin + seeBound;
+        futilityValue = (EvalT)(eval + futilityMargin + seeBound);
 
         if (futilityValue > alpha) {
             // Early exit to avoid check calculations.
@@ -1021,7 +1021,7 @@ EvalT MoveSearcher::Impl::quiesce(
     bool completedAnySearch = false;
     const EvalT alphaOrig   = alpha;
 
-    EvalT standPat;
+    EvalT standPat = -kInfiniteEval;
     if (!isInCheck) {
         // Stand pat
         standPat  = evaluator_.evaluate(gameState, boardControl);
@@ -1115,8 +1115,9 @@ EvalT MoveSearcher::Impl::quiesce(
                     // bestScore to match. This should mean that an upper bound returned from this
                     // function if we prune moves is still reliable. Note that this is definitely below
                     // alpha.
-                    const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
-                    bestScore                     = max(bestScore, deltaPruningScore);
+                    const EvalT deltaPruningScore =
+                            (EvalT)(standPat + seeBound + kDeltaPruningThreshold);
+                    bestScore = max(bestScore, deltaPruningScore);
 
                     if (!directCheckBitBoards) {
                         directCheckBitBoards = gameState.getDirectCheckBitBoards();
@@ -1216,8 +1217,9 @@ EvalT MoveSearcher::Impl::quiesce(
                 // bestScore to match. This should mean that an upper bound returned from this
                 // function if we prune moves is still reliable. Note that this is definitely below
                 // alpha.
-                const EvalT deltaPruningScore = standPat + seeBound + kDeltaPruningThreshold;
-                bestScore                     = max(bestScore, deltaPruningScore);
+                const EvalT deltaPruningScore =
+                        (EvalT)(standPat + seeBound + kDeltaPruningThreshold);
+                bestScore = max(bestScore, deltaPruningScore);
 
                 if (!directCheckBitBoards) {
                     directCheckBitBoards = gameState.getDirectCheckBitBoards();
@@ -1496,13 +1498,17 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
 
     moveScorer_.resetCutoffStatistics();
 
-    const auto reportCutoffStatistics = [this]() {
+    const auto reportCutoffStatistics =
 #ifdef TRACK_CUTOFF_STATISTICS
-        std::stringstream ss;
-        moveScorer_.printCutoffStatistics(ss);
-        frontEnd_->reportDebugString(ss.str());
+            [this]() {
+                std::stringstream ss;
+                moveScorer_.printCutoffStatistics(ss);
+                frontEnd_->reportDebugString(ss.str());
+            };
+#else
+            []() {
+            };
 #endif
-    };
 
     if (evalGuess) {
         auto searchResult = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
