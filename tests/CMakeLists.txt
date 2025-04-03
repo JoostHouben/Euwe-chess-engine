@@ -29,4 +29,10 @@ target_link_libraries(tests
     chess-engine-lib-dyn-crt
 )
 
-gtest_discover_tests(tests)
+# We disable test discovery for UBSAN. Since we run UBSAN with -fsanitize-trap=all, the test binary
+# may crash, even when just discovering tests. This causes the build to fail.
+# We don't want the build to fail, just running the tests. So in this scenario we disable test
+# discovery.
+if (NOT DISABLE_TEST_DISCOVERY)
+    gtest_discover_tests(tests)
+endif()

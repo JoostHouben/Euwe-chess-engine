@@ -104,13 +104,37 @@
       }
     },
     {
-      "name": "linux-clang-x64-release",
-      "displayName": "Linux Clang x64 Release",
+      "name": "linux-clang-x64-debug",
+      "displayName": "Linux Clang x64 Debug",
       "inherits": "linux-x64-debug",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_C_COMPILER": "clang-19",
         "CMAKE_CXX_COMPILER": "clang++-19"
+      }
+    },
+    {
+      "name": "linux-asan-ubsan",
+      "displayName": "Linux ASAN/UBSAN",
+      "inherits": "linux-clang-x64-debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fsanitize=undefined -fsanitize-trap=all -fno-omit-frame-pointer -O1",
+        "DISABLE_TEST_DISCOVERY": "true"
+      }
+    },
+    {
+      "name": "linux-tsan",
+      "displayName": "Linux TSAN",
+      "inherits": "linux-clang-x64-debug",
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -O2"
+      }
+    },
+    {
+      "name": "linux-clang-x64-release",
+      "displayName": "Linux Clang x64 Release",
+      "inherits": "linux-clang-x64-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ]
