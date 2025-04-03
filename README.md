@@ -17,7 +17,7 @@ The latest stable release can be downloaded from the
 [releases page](https://github.com/JoostHouben/Euwe-chess-engine/releases/latest).
 
 You can also download pre-release builds from the CI artifacts
-[here](https://github.com/JoostHouben/Euwe-chess-engine/actions?query=is%3Asuccess+event%3Apush+branch%3Amain).
+[here](https://github.com/JoostHouben/Euwe-chess-engine/actions?query=is%3Asuccess+event%3Apush+branch%3Amain+workflow%3A%22Archive+Engine+Binaries%22).
 
 If you prefer to build the engine yourself, see the build instructions [below](#Build-instructions).
 
