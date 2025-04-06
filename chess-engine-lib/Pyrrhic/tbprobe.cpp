@@ -132,8 +132,17 @@ static uint64_t from_be_u64(uint64_t x) { return bswap64(x); }
 static uint32_t from_be_u32(uint32_t x) { return bswap32(x); }
 #endif
 
-inline static uint32_t read_le_u32(void *p) { return from_le_u32(*(uint32_t *)p); }
-inline static uint16_t read_le_u16(void *p) { return from_le_u16(*(uint16_t *)p); }
+inline static uint32_t read_le_u32(void *p) {
+    uint32_t aligned;
+    memcpy(&aligned, p, sizeof(aligned));
+    return from_le_u32(aligned);
+}
+
+inline static uint16_t read_le_u16(void *p) {
+    uint16_t aligned;
+    memcpy(&aligned, p, sizeof(aligned));
+    return from_le_u16(aligned);
+}
 
 static size_t file_size(FD fd) {
 #ifdef _WIN32
