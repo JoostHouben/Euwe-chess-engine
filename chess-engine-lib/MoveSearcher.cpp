@@ -222,8 +222,12 @@ const auto lmrReductionTable = []() {
     for (int depthIdx = 0; depthIdx < (int)table.size(); ++depthIdx) {
         const int depth = depthIdx + 1;
         for (int movesSearched = 0; movesSearched < (int)table[0].size(); ++movesSearched) {
-            table[depthIdx][movesSearched] =
-                    (int)max(0., 0.5 + std::log(depth) * std::log(movesSearched) / 3);
+            if (movesSearched == 0) {
+                table[depthIdx][movesSearched] = 0;
+            } else {
+                table[depthIdx][movesSearched] =
+                        (int)max(0., 0.5 + std::log(depth) * std::log(movesSearched) / 3);
+            }
         }
     }
 
