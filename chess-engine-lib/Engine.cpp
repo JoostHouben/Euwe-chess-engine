@@ -214,8 +214,9 @@ EvalT Engine::Impl::evaluate(const GameState& gameState) const {
 
 void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
     if (!syzygyPathIsValid(syzygyDir)) {
-        throw std::invalid_argument(
-                "invalid syzygy path. Must be a ;-separated list of directories.");
+        throw std::invalid_argument(std::format(
+                "invalid syzygy path. Must be a {}-separated list of directories.",
+                getSyzygyPathSeparator()));
     }
 
     if (hasSyzygy_) {

@@ -8,6 +8,8 @@
 #include "GameState.h"
 #include "Move.h"
 
+[[nodiscard]] char getSyzygyPathSeparator();
+
 [[nodiscard]] bool syzygyPathIsValid(std::string_view syzygyDirs);
 
 [[nodiscard]] int initSyzygy(const std::string& syzygyDirs);

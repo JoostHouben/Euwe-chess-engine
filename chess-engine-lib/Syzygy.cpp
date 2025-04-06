@@ -38,11 +38,20 @@ namespace {
 
 }  // namespace
 
+char getSyzygyPathSeparator() {
+#ifdef _WIN32
+    return ';';
+#else
+    return ':';
+#endif
+}
+
 bool syzygyPathIsValid(std::string_view syzygyDirs) {
-    return std::ranges::all_of(syzygyDirs | std::views::split(';'), [](const auto& part) {
-        const std::filesystem::path p(part.begin(), part.end());
-        return std::filesystem::is_directory(p);
-    });
+    return std::ranges::all_of(
+            syzygyDirs | std::views::split(getSyzygyPathSeparator()), [](const auto& part) {
+                const std::filesystem::path p(part.begin(), part.end());
+                return std::filesystem::is_directory(p);
+            });
 }
 
 int initSyzygy(const std::string& syzygyDirs) {
