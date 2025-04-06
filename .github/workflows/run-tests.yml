@@ -29,6 +29,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         config_name: [x64-debug, x64-release, clang-x64-release]
 
+        include:
+        - os: ubuntu-latest
+          config_name: asan-ubsan
+        - os: ubuntu-latest
+          config_name: tsan
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
