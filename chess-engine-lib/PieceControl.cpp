@@ -159,10 +159,13 @@ BitBoard computeBishopXRaySquares(const BoardPosition origin, BitBoard anyPiece)
     const int firstSWOccupied = kSquares - 1 - std::countl_zero(southWestOccupancy);
     const int firstNWOccupied = std::countr_zero(northWestOccupancy);
 
-    anyPiece &= ~(BoardPosition)firstNEOccupied;
-    anyPiece &= ~(BoardPosition)firstSEOccupied;
-    anyPiece &= ~(BoardPosition)firstSWOccupied;
-    anyPiece &= ~(BoardPosition)firstNWOccupied;
+    for (const auto& position :
+         {firstNEOccupied, firstSEOccupied, firstSWOccupied, firstNWOccupied}) {
+        if (position < 0 || position >= kSquares) {
+            continue;
+        }
+        anyPiece &= ~(BoardPosition)position;
+    }
 
     const std::uint64_t originBitBoard       = 1ULL << (int)origin;
     const std::uint64_t notBlockingPieceMask = ~((std::uint64_t)anyPiece);
@@ -211,10 +214,13 @@ BitBoard computeRookXRaySquares(const BoardPosition origin, BitBoard anyPiece) {
     const int firstSouthOccupied = kSquares - 1 - std::countl_zero(southOccupancy);
     const int firstWestOccupied  = kSquares - 1 - std::countl_zero(westOccupancy);
 
-    anyPiece &= ~(BoardPosition)firstNorthOccupied;
-    anyPiece &= ~(BoardPosition)firstEastOccupied;
-    anyPiece &= ~(BoardPosition)firstSouthOccupied;
-    anyPiece &= ~(BoardPosition)firstWestOccupied;
+    for (const auto& position :
+         {firstNorthOccupied, firstEastOccupied, firstSouthOccupied, firstWestOccupied}) {
+        if (position < 0 || position >= kSquares) {
+            continue;
+        }
+        anyPiece &= ~(BoardPosition)position;
+    }
 
     const std::uint64_t originBitBoard       = 1ULL << (int)origin;
     const std::uint64_t notBlockingPieceMask = ~((std::uint64_t)anyPiece);
