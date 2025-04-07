@@ -10,77 +10,98 @@ jobs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
     steps:
 
-    - id: skip_check
-      uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
-      with:
-        concurrent_skipping: same_content_newer
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
+        with:
+          concurrent_skipping: same_content_newer
 
   build_and_test:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    name: ${{ matrix.os }}, ${{ matrix.config_name }}
-    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.config.preset }}
+    runs-on: ${{ matrix.config.os }}
 
     strategy:
       # Set fail-fast to false to ensure that feedback is delivered for all matrix combinations. Consider changing this to true when your workflow is stable.
       fail-fast: false
 
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        config_name: [x64-debug, x64-release, clang-x64-release]
+        config:
+          # Windows MSVC
+          - {
+              os: windows-latest,
+              preset: windows-msvc-debug
+            }
+          - {
+              os: windows-latest,
+              preset: windows-msvc-release
+            }
 
-        include:
-        - os: ubuntu-latest
-          config_name: asan-ubsan
-        - os: ubuntu-latest
-          config_name: tsan
+          # Windows clang-cl
+          - {
+              os: windows-latest,
+              preset: windows-clang-cl-release
+            }
+
+          # Linux clang
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-debug
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-release
+            }
+
+          # Linux sanitizers
+          - {
+              os: ubuntu-latest,
+              preset: linux-asan-ubsan
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-tsan
+            }
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-    - name: Install required packages
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install gcc-14 g++-14 clang-19
-        clang++-19 --version
-        g++-14 --version
+      - name: Install required packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-19
+          clang++-19 --version
 
-    - name: Get CMake
-      uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+      - name: Get CMake
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
 
-    - name: Setup vcpkg
-      uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
 
-    - name: Set reusable strings
-      id: strings
-      shell: bash
-      run: |
-        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-        if [[ ${{ matrix.os }} = "windows-latest" ]]; then
-          echo "os-name=windows" >> "$GITHUB_OUTPUT"
-        fi
-        if [[ ${{ matrix.os }} = "ubuntu-latest" ]]; then
-          echo "os-name=linux" >> "$GITHUB_OUTPUT"
-        fi
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-    - name: Enable Developer Command Prompt
-      if: matrix.os == 'windows-latest'
-      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+      - name: Enable Developer Command Prompt
+        if: matrix.config.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
 
-    - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.build-output-dir }}
-        --preset ${{ steps.strings.outputs.os-name }}-${{ matrix.config_name }}
-        -DTARGETS_TO_BUILD="tests"
-
-    - name: Build
-      run: >
-        cmake
-        --build ${{ steps.strings.outputs.build-output-dir }}
-        --target tests
-
-    - name: Test
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: tests/tests
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          --preset ${{ matrix.config.preset }}
+          -DTARGETS_TO_BUILD="tests"
+   
+      - name: Build
+        run: >
+          cmake
+          --build ${{ steps.strings.outputs.build-output-dir }}
+          --target tests
+   
+      - name: Test
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        run: tests/tests

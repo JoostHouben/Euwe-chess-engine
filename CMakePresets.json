@@ -1,24 +1,26 @@
 ﻿{
   "version": 3,
   "configurePresets": [
+
     {
       "name": "windows-base",
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
-      "cacheVariables": {
-        "CMAKE_C_COMPILER": "cl.exe",
-        "CMAKE_CXX_COMPILER": "cl.exe",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "ENABLE_PROFILE_GENERATION": "OFF",
-        "TARGETS_TO_BUILD": "engine;tests;tuner"
-      },
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
+      },
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "TARGETS_TO_BUILD": "engine;tests;tuner"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -28,43 +30,24 @@
       }
     },
     {
-      "name": "windows-x64-debug",
-      "displayName": "Windows x64 Debug",
+      "name": "windows-msvc-base",
+      "hidden": true,
       "inherits": "windows-base",
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe"
       }
     },
     {
-      "name": "windows-x64-release-debug",
-      "displayName": "Windows x64 Release w/ Debug info",
-      "inherits": "windows-x64-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
-      }
-    },
-    {
-      "name": "windows-x64-release",
-      "displayName": "Windows x64 Release",
-      "inherits": "windows-x64-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "windows-clang-x64-release",
-      "displayName": "Windows clang x64 Release",
-      "inherits": "windows-x64-debug",
+      "name": "windows-clang-cl-base",
+      "hidden": true,
+      "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl.exe",
-        "CMAKE_CXX_COMPILER": "clang-cl.exe",
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_CXX_COMPILER": "clang-cl.exe"
       }
     },
+
     {
       "name": "linux-base",
       "hidden": true,
@@ -76,47 +59,82 @@
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
       },
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "CMAKE_C_COMPILER": "gcc-14",
-        "CMAKE_CXX_COMPILER": "g++-14",
-        "TARGETS_TO_BUILD": "engine;tests;tuner"
-      }
-    },
-    {
-      "name": "linux-x64-debug",
-      "displayName": "Linux x64 Debug",
-      "inherits": "linux-base",
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "TARGETS_TO_BUILD": "engine;tests;tuner"
       }
     },
     {
-      "name": "linux-x64-release",
-      "displayName": "Linux x64 Release",
-      "inherits": "linux-x64-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    {
-      "name": "linux-clang-x64-debug",
-      "displayName": "Linux Clang x64 Debug",
-      "inherits": "linux-x64-debug",
+      "name": "linux-clang-base",
+      "hidden": true,
+      "inherits": "linux-base",
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-19",
         "CMAKE_CXX_COMPILER": "clang++-19"
       }
     },
+
+    {
+      "name": "windows-msvc-debug",
+      "displayName": "Windows MSVC Debug",
+      "inherits": "windows-msvc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows-msvc-release-debug",
+      "displayName": "Windows MSVC Release w/ Debug info",
+      "inherits": "windows-msvc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "windows-msvc-release",
+      "displayName": "Windows MSVC Release",
+      "inherits": "windows-msvc-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+
+    {
+      "name": "windows-clang-cl-release",
+      "displayName": "Windows clang-cl Release",
+      "inherits": "windows-clang-cl-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+
+    {
+      "name": "linux-clang-debug",
+      "displayName": "Linux clang Debug",
+      "inherits": "linux-clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "linux-clang-release",
+      "displayName": "Linux clang Release",
+      "inherits": "linux-clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+
     {
       "name": "linux-asan-ubsan",
       "displayName": "Linux ASAN/UBSAN",
-      "inherits": "linux-clang-x64-debug",
+      "inherits": "linux-clang-base",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=address -fsanitize=undefined -fsanitize-trap=all -fno-omit-frame-pointer -O1",
         "DISABLE_TEST_DISCOVERY": "true"
       }
@@ -124,17 +142,10 @@
     {
       "name": "linux-tsan",
       "displayName": "Linux TSAN",
-      "inherits": "linux-clang-x64-debug",
+      "inherits": "linux-clang-base",
       "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -O2"
-      }
-    },
-    {
-      "name": "linux-clang-x64-release",
-      "displayName": "Linux Clang x64 Release",
-      "inherits": "linux-clang-x64-debug",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ]

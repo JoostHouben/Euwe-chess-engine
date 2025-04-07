@@ -219,14 +219,14 @@ want to build the engine, modify `TARGETS_TO_BUILD` in the CMakePresets.json fil
    file to point to your VCPKG installation directly).
  - If needed, modify CMakePresets.json to match your build environment.
  - Run `cmake` with appropriate options. E.g., run
-   `cmake --preset linux-x64-release -DTARGETS_TO_BUILD="engine"` to build in release mode.
- - Run `cmake --build` on the output directory. E.g., `cmake --build out/build/linux-x64-release/`.
+   `cmake --preset linux-clang-release -DTARGETS_TO_BUILD="engine"` to build in release mode.
+ - Run `cmake --build` on the output directory. E.g., `cmake --build out/build/linux-clang-release/`.
 
-The project has been tested with g++ 14.2, and clang 19 and 20.
+The project is tested in CI with clang 19, but should also work with clang 20 and gcc 14.
 
 The above instructions will only compile the engine. To also compile the tests and/or the tuner, add
 the appropriate target to the `TARGETS_TO_BUILD` option. So to configure for building all 3 targets,
-run: `cmake --preset linux-x64-release -DTARGETS_TO_BUILD="engine;tests;tuner"`. This will trigger
+run: `cmake --preset linux-clang-release -DTARGETS_TO_BUILD="engine;tests;tuner"`. This will trigger
 installation of the required dependencies using vcpkg.
 
 If `TARGETS_TO_BUILD` is not set, the default is to build all targets.
