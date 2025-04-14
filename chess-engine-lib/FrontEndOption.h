@@ -49,6 +49,11 @@ class FrontEndOption {
     const std::optional<int>& getMaxValue() const { return maxValue_; }
     const std::optional<std::vector<std::string>>& getValidValues() const { return validValues_; }
 
+    const std::string& retrieveDefaultValue() const;
+    int retrieveMinValue() const;
+    int retrieveMaxValue() const;
+    const std::vector<std::string>& retrieveValidValues() const;
+
     Type getType() const { return type_; }
 
     void set(std::string_view value);

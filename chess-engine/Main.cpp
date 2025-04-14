@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <print>
+#include <typeinfo>
 
 void runPerft() {
     GameState gameState = GameState::startingPosition();
@@ -13,7 +14,7 @@ void runPerft() {
     perftPrint(gameState, 7, true);
 }
 
-int main() {
+int main() try {
     std::locale::global(std::locale("en_US.UTF-8"));
 
     while (true) {
@@ -31,4 +32,10 @@ int main() {
             break;
         }
     }
+} catch (const std::exception& e) {
+    std::println(std::cerr, "Uncaught exception of type '{}':\n'{}'", typeid(e).name(), e.what());
+    return 1;
+} catch (...) {
+    std::println(std::cerr, "Uncaught exception of unknown type.");
+    return 1;
 }

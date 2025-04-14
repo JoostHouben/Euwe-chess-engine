@@ -603,20 +603,24 @@ FORCE_INLINE BitBoard
 getPieceXRays(const Piece piece, const BoardPosition position, const BitBoard anyPiece) {
     switch (piece) {
         case Piece::Pawn:
-            return BitBoard::Empty;
         case Piece::Knight:
             return BitBoard::Empty;
+
         case Piece::Bishop:
             return getBishopXRay(position, anyPiece);
+
         case Piece::Rook:
             return getRookXRay(position, anyPiece);
+
         case Piece::Queen: {
             const BitBoard bishopXRays = getBishopXRay(position, anyPiece);
             const BitBoard rookXRays   = getRookXRay(position, anyPiece);
             return bishopXRays | rookXRays;
         }
+
         case Piece::King:
             return BitBoard::Empty;
+
         default:
             UNREACHABLE;
     }

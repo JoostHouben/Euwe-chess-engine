@@ -12,7 +12,7 @@ constexpr char kLowerCaseBit = 1 << 5;
 }  // namespace
 
 Piece pieceFromFenChar(const char c) {
-    const char upperCase = c & ~kLowerCaseBit;
+    const char upperCase = (char)(c & ~kLowerCaseBit);
     switch (upperCase) {
         case 'P':
             return Piece::Pawn;
@@ -55,7 +55,7 @@ char toFenChar(const Piece piece) {
 }
 
 char toLowerCaseFenChar(const Piece piece) {
-    return toFenChar(piece) | kLowerCaseBit;
+    return (char)(toFenChar(piece) | kLowerCaseBit);
 }
 
 char toFenChar(const ColoredPiece coloredPiece) {

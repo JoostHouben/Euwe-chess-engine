@@ -230,6 +230,8 @@ FORCE_INLINE std::optional<EvalT> probeSyzygyWdl(const GameState& gameState) {
 
         case TB_LOSS:
             return (EvalT)-mateIn(200);
+
+        default:
+            UNREACHABLE;
     }
-    UNREACHABLE;
 }

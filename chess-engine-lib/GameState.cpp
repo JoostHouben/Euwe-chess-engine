@@ -61,10 +61,17 @@ void generatePawnMoves(
 
     const int promotionRank = side == Side::White ? 7 : 0;
 
+    enum class FileDelta : int {
+        Left     = -1,
+        Straight = 0,
+        Right    = 1,
+    };
+
     auto generateMoves = [&](BitBoard targetBitBoard,
                              const int originOffset,
-                             const int moveFileIncrement,
+                             const FileDelta fileDelta,
                              MoveFlags baseFlags) FORCE_INLINE {
+        const int moveFileIncrement = (int)fileDelta;
         while (targetBitBoard != BitBoard::Empty) {
             const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
 
@@ -116,12 +123,12 @@ void generatePawnMoves(
         singlePushes = singlePushes & checkResolutionBitBoard;
         doublePushes = doublePushes & checkResolutionBitBoard;
 
-        generateMoves(singlePushes, forwardBits, 0, MoveFlags::None);
-        generateMoves(doublePushes, 2 * forwardBits, 0, MoveFlags::None);
+        generateMoves(singlePushes, forwardBits, FileDelta::Straight, MoveFlags::None);
+        generateMoves(doublePushes, 2 * forwardBits, FileDelta::Straight, MoveFlags::None);
     }
 
-    generateMoves(leftCaptures, forwardBits + leftBits, -1, MoveFlags::IsCapture);
-    generateMoves(rightCaptures, forwardBits + rightBits, 1, MoveFlags::IsCapture);
+    generateMoves(leftCaptures, forwardBits + leftBits, FileDelta::Left, MoveFlags::IsCapture);
+    generateMoves(rightCaptures, forwardBits + rightBits, FileDelta::Right, MoveFlags::IsCapture);
 }
 
 FORCE_INLINE void generateCastlingMoves(
@@ -268,6 +275,7 @@ StackVector<Move> GameState::generateMoves(
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition piecePosition = popFirstSetPosition(pieceBitBoard);
             const BitBoard piecePinBitBoard   = getPiecePinBitBoard(piecePosition);
+            MY_ASSERT((std::size_t)pieceControlIdx < boardControl.pieceControl.size());
             const BitBoard& controlledSquares = boardControl.pieceControl[pieceControlIdx++];
 
             generateSinglePieceMovesFromControl(
@@ -288,6 +296,7 @@ StackVector<Move> GameState::generateMoves(
     const BoardPosition kingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
     // King can't walk into check
+    MY_ASSERT((std::size_t)pieceControlIdx < boardControl.pieceControl.size());
     const BitBoard kingControlledSquares =
             boardControl.pieceControl[pieceControlIdx++] & ~enemyControl;
     generateSinglePieceMovesFromControl(
@@ -873,24 +882,16 @@ void GameState::handleNormalKingMove(const Move& move) {
     updateHashForPiecePosition(sideToMove_, Piece::King, move.to, pawnKingHash_);
 }
 
-void GameState::updateRookCastlingRights(BoardPosition rookPosition, Side rookSide) {
-    if (rookSide == Side::White && rookPosition == BoardPosition::A1
-        && canCastleQueenSide(rookSide)) {
+void GameState::updateRookCastlingRights(const BoardPosition rookPosition, const Side rookSide) {
+    if (canCastleQueenSide(rookSide)
+        && ((rookSide == Side::White && rookPosition == BoardPosition::A1)
+            || (rookSide == Side::Black && rookPosition == BoardPosition::A8))) {
         setCanCastleQueenSide(rookSide, false);
         updateHashForQueenSideCastlingRights(rookSide, boardHash_);
     } else if (
-            rookSide == Side::White && rookPosition == BoardPosition::H1
-            && canCastleKingSide(rookSide)) {
-        setCanCastleKingSide(rookSide, false);
-        updateHashForKingSideCastlingRights(rookSide, boardHash_);
-    } else if (
-            rookSide == Side::Black && rookPosition == BoardPosition::A8
-            && canCastleQueenSide(rookSide)) {
-        setCanCastleQueenSide(rookSide, false);
-        updateHashForQueenSideCastlingRights(rookSide, boardHash_);
-    } else if (
-            rookSide == Side::Black && rookPosition == BoardPosition::H8
-            && canCastleKingSide(rookSide)) {
+            canCastleKingSide(rookSide)
+            && ((rookSide == Side::White && rookPosition == BoardPosition::H1)
+                || (rookSide == Side::Black && rookPosition == BoardPosition::H8))) {
         setCanCastleKingSide(rookSide, false);
         updateHashForKingSideCastlingRights(rookSide, boardHash_);
     }
@@ -903,8 +904,10 @@ FORCE_INLINE const BitBoard& GameState::getPinBitBoard(const Side kingSide) cons
 
 FORCE_INLINE const BitBoard& GameState::getPinBitBoard(
         const Side kingSide, const BoardPosition kingPosition) const {
-    if (pinBitBoards_[(int)kingSide]) {
-        return *pinBitBoards_[(int)kingSide];
+    auto& pinBitBoard = pinBitBoards_[(int)kingSide];
+
+    if (pinBitBoard) {
+        return *pinBitBoard;
     }
 
     const BitBoard anyPiece = getAnyOccupancy();
@@ -955,9 +958,9 @@ FORCE_INLINE const BitBoard& GameState::getPinBitBoard(
         }
     }
 
-    pinBitBoards_[(int)kingSide] = allPins;
+    pinBitBoard = allPins;
 
-    return *pinBitBoards_[(int)kingSide];
+    return *pinBitBoard;
 }
 
 FORCE_INLINE GameState::DirectCheckBitBoards GameState::getDirectCheckBitBoards() const {

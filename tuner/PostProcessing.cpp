@@ -26,7 +26,7 @@ double calculateGamePhase(
             const BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, piece);
             const int numOfPiece         = popCount(pieceBitBoard);
 
-            phaseMaterial += numOfPiece * evalParams.phaseMaterialValues[pieceIdx];
+            phaseMaterial += (double)numOfPiece * evalParams.phaseMaterialValues[pieceIdx];
         }
     }
     return phaseMaterial / maxPhaseMaterial;
@@ -51,14 +51,18 @@ double calculateGamePhase(
     return isPassedPawn && !isDoubledPawn;
 }
 
+struct ExtractedPieceSquareValues {
+    std::array<double, kNumPieceTypes> summedPieceSquareValuesEarly{};
+    std::array<double, kNumPieceTypes> summedPieceSquareValuesLate{};
+    std::array<double, kNumPieceTypes> numPieceOccurrencesEarly{};
+    std::array<double, kNumPieceTypes> numPieceOccurrencesLate{};
+};
+
 void extractPieceSquareValues(
         const EvalParams& evalParams,
         const GameState& gameState,
         const double maxPhaseMaterial,
-        std::array<double, kNumPieceTypes>& summedPieceSquareValuesEarly,
-        std::array<double, kNumPieceTypes>& summedPieceSquareValuesLate,
-        std::array<double, kNumPieceTypes>& numPieceOccurrencesEarly,
-        std::array<double, kNumPieceTypes>& numPieceOccurrencesLate) {
+        ExtractedPieceSquareValues& values) {
     const double earlyFactor = calculateGamePhase(evalParams, maxPhaseMaterial, gameState);
     const double lateFactor  = 1.0 - earlyFactor;
 
@@ -88,6 +92,7 @@ void extractPieceSquareValues(
                     continue;
                 }
 
+                // NOLINTNEXTLINE(bugprone-signed-char-misuse)
                 const int pstSqIdx = (*mapping)[(int)position];
 
                 const EvalCalcT pieceSquareValueEarly =
@@ -95,11 +100,12 @@ void extractPieceSquareValues(
                 const EvalCalcT pieceSquareValueLate =
                         evalParams.pieceSquareTables[pieceIdx][pstSqIdx].late;
 
-                summedPieceSquareValuesEarly[pieceIdx] += earlyFactor * pieceSquareValueEarly;
-                numPieceOccurrencesEarly[pieceIdx] += earlyFactor;
+                values.summedPieceSquareValuesEarly[pieceIdx] +=
+                        earlyFactor * pieceSquareValueEarly;
+                values.numPieceOccurrencesEarly[pieceIdx] += earlyFactor;
 
-                summedPieceSquareValuesLate[pieceIdx] += lateFactor * pieceSquareValueLate;
-                numPieceOccurrencesLate[pieceIdx] += lateFactor;
+                values.summedPieceSquareValuesLate[pieceIdx] += lateFactor * pieceSquareValueLate;
+                values.numPieceOccurrencesLate[pieceIdx] += lateFactor;
             }
         }
     }
@@ -114,41 +120,31 @@ void setPieceValuesFromPieceSquare(
     // We calculate the average across all positions instead of a naive average across all squares,
     // since pieces are not uniformly distributed across the board over the course of a game.
 
-    std::array<double, kNumPieceTypes> summedPieceSquareValuesEarly{};
-    std::array<double, kNumPieceTypes> summedPieceSquareValuesLate{};
-    std::array<double, kNumPieceTypes> numPieceOccurrencesEarly{};
-    std::array<double, kNumPieceTypes> numPieceOccurrencesLate{};
+    ExtractedPieceSquareValues values{};
 
     const double maxPhaseMaterial = calculateMaxPhaseMaterial(evalParams);
 
     for (const ScoredPosition& scoredPosition : scoredPositions) {
         const GameState& gameState = scoredPosition.gameState;
 
-        extractPieceSquareValues(
-                evalParams,
-                gameState,
-                maxPhaseMaterial,
-                summedPieceSquareValuesEarly,
-                summedPieceSquareValuesLate,
-                numPieceOccurrencesEarly,
-                numPieceOccurrencesLate);
+        extractPieceSquareValues(evalParams, gameState, maxPhaseMaterial, values);
     }
 
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
         double pieceSquareValueEarly;
-        if (numPieceOccurrencesEarly[pieceIdx] == 0.0) {
+        if (values.numPieceOccurrencesEarly[pieceIdx] == 0.0) {
             pieceSquareValueEarly = 0.0;
         } else {
-            pieceSquareValueEarly =
-                    summedPieceSquareValuesEarly[pieceIdx] / numPieceOccurrencesEarly[pieceIdx];
+            pieceSquareValueEarly = values.summedPieceSquareValuesEarly[pieceIdx]
+                                  / values.numPieceOccurrencesEarly[pieceIdx];
         }
 
         double pieceSquareValueLate;
-        if (numPieceOccurrencesLate[pieceIdx] == 0.0) {
+        if (values.numPieceOccurrencesLate[pieceIdx] == 0.0) {
             pieceSquareValueLate = 0.0;
         } else {
-            pieceSquareValueLate =
-                    summedPieceSquareValuesLate[pieceIdx] / numPieceOccurrencesLate[pieceIdx];
+            pieceSquareValueLate = values.summedPieceSquareValuesLate[pieceIdx]
+                                 / values.numPieceOccurrencesLate[pieceIdx];
         }
 
         evalParams.pieceValues[pieceIdx].early = (EvalCalcT)pieceSquareValueEarly;

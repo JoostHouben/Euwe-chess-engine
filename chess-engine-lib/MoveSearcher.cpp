@@ -785,6 +785,7 @@ EvalT MoveSearcher::Impl::search(
         if (maybeTbScore) {
             const EvalT tbScore = *maybeTbScore;
 
+            MY_ASSERT(searchStatistics_.tbHits.has_value());
             *searchStatistics_.tbHits += 1;
 
             storeEgtbValueInTTable(tbScore, depth, gameState.getBoardHash());

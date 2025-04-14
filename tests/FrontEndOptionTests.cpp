@@ -31,8 +31,9 @@ TEST(FrontEndOptionTests, TestBoolean) {
 
     EXPECT_EQ(action.getName(), name);
 
-    ASSERT_TRUE(action.getDefaultValue().has_value());
-    EXPECT_EQ(action.getDefaultValue().value(), "false");
+    const auto& defaultValue = action.getDefaultValue();
+    ENFORCE_TRUE(defaultValue.has_value());
+    EXPECT_EQ(defaultValue.value(), "false");
 
     EXPECT_FALSE(action.getMinValue().has_value());
     EXPECT_FALSE(action.getMaxValue().has_value());
@@ -57,8 +58,9 @@ TEST(FrontEndOptionTests, TestString) {
 
     EXPECT_EQ(action.getName(), name);
 
-    ASSERT_TRUE(action.getDefaultValue().has_value());
-    EXPECT_EQ(action.getDefaultValue().value(), value);
+    const auto& defaultValue = action.getDefaultValue();
+    ENFORCE_TRUE(defaultValue.has_value());
+    EXPECT_EQ(defaultValue.value(), value);
 
     EXPECT_FALSE(action.getMinValue().has_value());
     EXPECT_FALSE(action.getMaxValue().has_value());
@@ -78,14 +80,17 @@ TEST(FrontEndOptionTests, TestInteger) {
 
     EXPECT_EQ(action.getName(), name);
 
-    ASSERT_TRUE(action.getDefaultValue().has_value());
-    EXPECT_EQ(action.getDefaultValue().value(), "0");
+    const auto& defaultValue = action.getDefaultValue();
+    ENFORCE_TRUE(defaultValue.has_value());
+    EXPECT_EQ(defaultValue.value(), "0");
 
-    ASSERT_TRUE(action.getMinValue().has_value());
-    EXPECT_EQ(action.getMinValue().value(), -10);
+    const auto& minValue = action.getMinValue();
+    ENFORCE_TRUE(minValue.has_value());
+    EXPECT_EQ(minValue.value(), -10);
 
-    ASSERT_TRUE(action.getMaxValue().has_value());
-    EXPECT_EQ(action.getMaxValue().value(), 10);
+    const auto& maxValue = action.getMaxValue();
+    ENFORCE_TRUE(maxValue.has_value());
+    EXPECT_EQ(maxValue.value(), 10);
 
     EXPECT_FALSE(action.getValidValues().has_value());
 
@@ -109,14 +114,16 @@ TEST(FrontEndOptionTests, TestAlternative) {
 
     EXPECT_EQ(action.getName(), name);
 
-    ASSERT_TRUE(action.getDefaultValue().has_value());
-    EXPECT_EQ(action.getDefaultValue().value(), value);
+    const auto& defaultValue = action.getDefaultValue();
+    ENFORCE_TRUE(defaultValue.has_value());
+    EXPECT_EQ(defaultValue.value(), value);
 
     EXPECT_FALSE(action.getMinValue().has_value());
     EXPECT_FALSE(action.getMaxValue().has_value());
 
-    ASSERT_TRUE(action.getValidValues().has_value());
-    EXPECT_EQ(action.getValidValues().value(), alternatives);
+    const auto& validValues = action.getValidValues();
+    ENFORCE_TRUE(validValues.has_value());
+    EXPECT_EQ(validValues.value(), alternatives);
 
     EXPECT_THROW(action.trigger(), std::logic_error);
 

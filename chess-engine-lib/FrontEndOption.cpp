@@ -158,6 +158,30 @@ FrontEndOption FrontEndOption::createAlternative(
             std::move(name), value, std::move(validValues), [&](std::string_view v) { value = v; });
 }
 
+const std::string& FrontEndOption::retrieveDefaultValue() const {
+    MY_ASSERT(type_ != Type::Action);
+    MY_ASSERT(defaultValue_.has_value());
+    return *defaultValue_;
+}
+
+int FrontEndOption::retrieveMinValue() const {
+    MY_ASSERT(type_ == Type::Integer);
+    MY_ASSERT(minValue_.has_value());
+    return *minValue_;
+}
+
+int FrontEndOption::retrieveMaxValue() const {
+    MY_ASSERT(type_ == Type::Integer);
+    MY_ASSERT(maxValue_.has_value());
+    return *maxValue_;
+}
+
+const std::vector<std::string>& FrontEndOption::retrieveValidValues() const {
+    MY_ASSERT(type_ == Type::Alternative);
+    MY_ASSERT(validValues_.has_value());
+    return *validValues_;
+}
+
 void FrontEndOption::set(std::string_view valueString) {
     onSet_(valueString);
 }

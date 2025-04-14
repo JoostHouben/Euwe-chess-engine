@@ -1,7 +1,6 @@
 # Not (yet) enabled:
 #  - cppcoreguidelines
 #  - modernize
-#  - bugprone
 #  - misc
 #  - performance
 #  - readability
@@ -9,6 +8,19 @@ Checks:
     - clang-analyzer-*
     # Doesn't support 'flags' enums or enums like BitBoard which accept all values even though only a few are named.
     - -clang-analyzer-optin.core.EnumCastOutOfRange
+
+    - bugprone-*
+    # Triggers even with an explicit try/catch
+    - -bugprone-exception-escape
+    # Equivalent non-cloned code is often less readable if the conditions are complex.
+    - -bugprone-branch-clone
+    # Too noisy due to integer promotions
+    - -bugprone-narrowing-conversions
+    # Too noisy
+    - -bugprone-easily-swappable-parameters
+    # False positives when using int8_t
+    - -bugprone-signed-char-misuse
+
 ExtraArgs:
     # Incorrectly triggers because Visual Studio runs clang-tidy directly on headers
     - -Wno-pragma-once-outside-header

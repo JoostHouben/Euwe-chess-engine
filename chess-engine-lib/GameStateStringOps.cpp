@@ -428,17 +428,15 @@ std::string GameState::toVisualString() const {
 
             bool castleCharacter = false;
             if (coloredPiece == ColoredPiece::WhiteRook) {
-                if (canCastleKingSide(Side::White) && position == positionFromFileRank(7, 0)) {
+                if (canCastleKingSide(Side::White) && position == BoardPosition::H1) {
                     castleCharacter = true;
-                } else if (
-                        canCastleQueenSide(Side::White) && position == positionFromFileRank(0, 0)) {
+                } else if (canCastleQueenSide(Side::White) && position == BoardPosition::A1) {
                     castleCharacter = true;
                 }
             } else if (coloredPiece == ColoredPiece::BlackRook) {
-                if (canCastleKingSide(Side::Black) && position == positionFromFileRank(7, 7)) {
+                if (canCastleKingSide(Side::Black) && position == BoardPosition::H8) {
                     castleCharacter = true;
-                } else if (
-                        canCastleQueenSide(Side::Black) && position == positionFromFileRank(0, 7)) {
+                } else if (canCastleQueenSide(Side::Black) && position == BoardPosition::A8) {
                     castleCharacter = true;
                 }
             }

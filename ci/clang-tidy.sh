@@ -12,7 +12,7 @@ status=0
 for file in $file_list; do
     ((counter++))
     echo $counter/$length: $file
-    clang-tidy-19 "$file" -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci
+    clang-tidy-19 "$file" -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet 2>/dev/null
     code=$?
     if [ $code -ne 0 ]; then
         status=$code

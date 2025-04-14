@@ -677,12 +677,18 @@ void UciFrontEnd::Impl::writeOptions() const {
             }
 
             case FrontEndOption::Type::Boolean: {
-                writeUci("option name {} type check default {}", name, *option.getDefaultValue());
+                writeUci(
+                        "option name {} type check default {}",
+                        name,
+                        option.retrieveDefaultValue());
                 break;
             }
 
             case FrontEndOption::Type::String: {
-                writeUci("option name {} type string default {}", name, *option.getDefaultValue());
+                writeUci(
+                        "option name {} type string default {}",
+                        name,
+                        option.retrieveDefaultValue());
                 break;
             }
 
@@ -690,22 +696,21 @@ void UciFrontEnd::Impl::writeOptions() const {
                 writeUci(
                         "option name {} type spin default {} min {} max {}",
                         name,
-                        *option.getDefaultValue(),
-                        *option.getMinValue(),
-                        *option.getMaxValue());
+                        option.retrieveDefaultValue(),
+                        option.retrieveMinValue(),
+                        option.retrieveMaxValue());
                 break;
             }
 
             case FrontEndOption::Type::Alternative: {
-                const std::vector<std::string> validValues = *option.getValidValues();
                 const std::string varsString =
-                        validValues
+                        option.retrieveValidValues()
                         | std::views::transform([](auto v) { return std::format("var {}", v); })
                         | joinToString(" ");
                 writeUci(
                         "option name {} type combo default {} {}",
                         name,
-                        *option.getDefaultValue(),
+                        option.retrieveDefaultValue(),
                         varsString);
                 break;
             }

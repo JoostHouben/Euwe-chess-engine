@@ -92,7 +92,7 @@ TEST(GameStateHelpers, TestToVisualStringPosition4) {
 
     // Make a pawn move for white, then move one of the black rooks to test changing castling rights
     (void)gameState.makeMove({Piece::Pawn, BoardPosition::H2, BoardPosition::H3});
-    (void)gameState.makeMove({Piece::Rook, BoardPosition::H8, BoardPosition::H7});
+    (void)gameState.makeMove({Piece::Rook, BoardPosition::H8, BoardPosition::G8});
 
     const std::string visual2 = gameState.toVisualString();
     const std::string expectedVisual2 =
@@ -114,6 +114,8 @@ TEST(GameStateHelpers, TestToVisualStringPosition4) {
             "1 | R |   |   | Q |   | R | K |   | w\n"
             "  '-------------------------------'\n"
             "    a   b   c   d   e   f   g   h\n";
+
+    EXPECT_EQ(visual2, expectedVisual2);
 }
 
 }  // namespace GameStateHelperTests

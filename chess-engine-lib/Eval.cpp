@@ -13,7 +13,7 @@
 #include <utility>
 
 namespace {
-constexpr std::size_t kPawnKingHashTableSizeBytes = 4 * 1024 * 1024;
+constexpr std::size_t kPawnKingHashTableSizeBytes = 4ULL * 1024 * 1024;
 constexpr std::size_t kPawnKingHashTableEntries =
         kPawnKingHashTableSizeBytes / sizeof(PawnKingEvalInfo);
 
