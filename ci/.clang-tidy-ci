@@ -1,0 +1,11 @@
+# Not (yet) enabled:
+#  - cppcoreguidelines
+#  - modernize
+#  - bugprone
+#  - misc
+#  - performance
+#  - readability
+Checks:
+    - clang-analyzer-*
+    # Doesn't support 'flags' enums or enums like BitBoard which accept all values even though only a few are named.
+    - -clang-analyzer-optin.core.EnumCastOutOfRange

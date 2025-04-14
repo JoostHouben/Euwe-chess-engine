@@ -22,7 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Run clang-format style check for C/C++/Protobuf programs.
         uses: jidicula/clang-format-action@4726374d1aa3c6aecf132e5197e498979588ebc8

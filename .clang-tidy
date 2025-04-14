@@ -7,6 +7,8 @@
 #  - readability
 Checks:
     - clang-analyzer-*
+    # Doesn't support 'flags' enums or enums like BitBoard which accept all values even though only a few are named.
+    - -clang-analyzer-optin.core.EnumCastOutOfRange
 ExtraArgs:
     # Incorrectly triggers because Visual Studio runs clang-tidy directly on headers
     - -Wno-pragma-once-outside-header

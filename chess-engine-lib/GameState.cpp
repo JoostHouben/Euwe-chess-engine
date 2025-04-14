@@ -68,7 +68,9 @@ void generatePawnMoves(
         while (targetBitBoard != BitBoard::Empty) {
             const BoardPosition targetPosition = popFirstSetPosition(targetBitBoard);
 
-            const int originIdx                = (int)targetPosition - originOffset;
+            const int originIdx = (int)targetPosition - originOffset;
+            MY_ASSERT(originIdx >= 0 && originIdx < kSquares);
+
             const BoardPosition originPosition = (BoardPosition)originIdx;
 
             if (pinBitBoard & originPosition) [[unlikely]] {

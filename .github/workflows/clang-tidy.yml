@@ -1,0 +1,48 @@
+name: clang-tidy Check
+
+on: [push, pull_request]
+
+jobs:
+  pre_job:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
+        with:
+          concurrent_skipping: same_content_newer
+
+  lint_check:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    name: Run
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install required packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-tidy-19
+          clang-tidy-19 --version
+
+      - name: Get CMake
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+
+      - name: Configure CMake
+        run: >
+          cmake --preset linux-clang-debug
+          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run clang-tidy script
+        run: |
+          bash ci/clang-tidy-parallel.sh
