@@ -19,7 +19,13 @@ class UciFrontEnd final : public IFrontEnd {
             std::istream& in    = std::cin,
             std::ostream& out   = std::cout,
             std::ostream& debug = std::cerr);
-    ~UciFrontEnd();
+    ~UciFrontEnd() override;
+
+    UciFrontEnd(const UciFrontEnd&)            = delete;
+    UciFrontEnd& operator=(const UciFrontEnd&) = delete;
+
+    UciFrontEnd(UciFrontEnd&&)            = default;
+    UciFrontEnd& operator=(UciFrontEnd&&) = default;
 
     void run() override;
 

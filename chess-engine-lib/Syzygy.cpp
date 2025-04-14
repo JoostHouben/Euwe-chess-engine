@@ -78,7 +78,7 @@ FORCE_INLINE bool canProbeSyzgyRoot(const GameState& gameState) {
 std::vector<Move> getSyzygyRootMoves(const GameState& gameState) {
     MY_ASSERT_DEBUG(canProbeSyzgyRoot(gameState));
 
-    TbRootMoves tbRootMoves;
+    TbRootMoves tbRootMoves{};
 
     int probeResult = tb_probe_root_dtz(
             getSyzygyOccupancy(gameState, Side::White),

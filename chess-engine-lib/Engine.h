@@ -10,7 +10,13 @@
 class Engine final : public IEngine {
   public:
     Engine();
-    ~Engine();
+    ~Engine() override;
+
+    Engine(const Engine&)            = delete;
+    Engine& operator=(const Engine&) = delete;
+
+    Engine(Engine&&)            = default;
+    Engine& operator=(Engine&&) = default;
 
     TimeManager& getTimeManager() override;
 

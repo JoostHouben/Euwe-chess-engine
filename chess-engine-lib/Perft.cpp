@@ -83,7 +83,7 @@ void perftPrint(GameState& gameState, const int maxDepth, const bool useUnmake) 
 
     for (int depth = 1; depth <= maxDepth; ++depth) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        std::size_t nodes;
+        std::size_t nodes{};
         if (useUnmake) {
             nodes = perftUnmake(gameState, depth, stack);
         } else {

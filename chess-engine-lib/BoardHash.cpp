@@ -7,6 +7,8 @@
 
 namespace {
 
+// The random generator needs to be mutable to use it for initializing Zobrist hashes.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::mt19937_64 gRandomGenerator;
 
 using PiecePositionHashesT =
@@ -26,9 +28,9 @@ PiecePositionHashesT getPiecePositionHashes() {
     return piecePositionhashes;
 }
 
-PiecePositionHashesT gPiecePositionHashes = getPiecePositionHashes();
+const PiecePositionHashesT gPiecePositionHashes = getPiecePositionHashes();
 
-HashT gSideToMoveHash = gRandomGenerator();
+const HashT gSideToMoveHash = gRandomGenerator();
 
 using EnPassantHashesT = std::array<HashT, kFiles>;
 
@@ -42,7 +44,7 @@ EnPassantHashesT getEnPassantHashes() {
     return enPassantHashes;
 }
 
-EnPassantHashesT gEnPassantHashes = getEnPassantHashes();
+const EnPassantHashesT gEnPassantHashes = getEnPassantHashes();
 
 using CastlingRightsHashesT = std::array<std::array<HashT, 2>, kNumSides>;
 
@@ -57,7 +59,7 @@ CastlingRightsHashesT getCastlingRightsHashes() {
     return castlingRightsHashes;
 }
 
-CastlingRightsHashesT gCastlingRightsHashes = getCastlingRightsHashes();
+const CastlingRightsHashesT gCastlingRightsHashes = getCastlingRightsHashes();
 
 }  // namespace
 

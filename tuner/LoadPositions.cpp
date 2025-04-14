@@ -75,7 +75,7 @@ std::vector<ScoredPosition> loadScoredPositions(
             continue;
         }
 
-        double score;
+        double score{};
         lineSStream >> score;
 
         lineSStream >> token;

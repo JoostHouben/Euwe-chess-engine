@@ -31,9 +31,12 @@ void tryAdvance(IteratorT& it, const EndIteratorT end) {
         const std::string_view::const_iterator endIt,
         std::string_view valueDescription) {
     int value{};
+    // Note that dereferencing endIt is unsafe. So we need to use pointer arithmetic here ion order
+    // to use from_chars.
     const std::size_t distanceToEnd = endIt - strIt;
     const char* strStart            = &*strIt;
-    const auto result               = std::from_chars(strStart, strStart + distanceToEnd, value);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+    const auto result = std::from_chars(strStart, strStart + distanceToEnd, value);
 
     if (result.ec != std::errc{}) {
         throw std::invalid_argument(std::format(

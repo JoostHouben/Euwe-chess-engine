@@ -17,7 +17,8 @@ static_assert(sizeof(WORD) == sizeof(std::uint16_t));
 ScopedConsoleColor::ScopedConsoleColor(
         const ConsoleColor color, [[maybe_unused]] std::ostream& stream)
 #ifdef _POSIX_SOURCE
-    : stream_(stream)
+    : isTerminal_(isatty(fileno(stdout))),
+      stream_(stream)
 #endif
 {
 #ifdef _WIN32
@@ -62,7 +63,6 @@ ScopedConsoleColor::ScopedConsoleColor(
 #endif
 
 #ifdef _POSIX_SOURCE
-    isTerminal_ = isatty(fileno(stdout));
     if (!isTerminal_) {
         return;
     }

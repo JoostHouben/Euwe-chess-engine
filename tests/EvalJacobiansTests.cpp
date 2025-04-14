@@ -14,7 +14,7 @@ double numericDerivative(
         const EvalParamArray& x,
         const std::size_t i,
         const EvalCalcT eps) {
-    EvalCalcT yPlus;
+    EvalCalcT yPlus{};
     {
         EvalParamArray xPrime = x;
         xPrime[i] += eps;
@@ -23,7 +23,7 @@ double numericDerivative(
         yPlus                = evaluator->evaluateRaw(gameState);
     }
 
-    EvalCalcT yMinus;
+    EvalCalcT yMinus{};
     {
         EvalParamArray xPrime = x;
         xPrime[i] -= eps;

@@ -29,6 +29,12 @@ class MoveSearcher {
     MoveSearcher(const TimeManager& timeManager, const Evaluator& evaluator);
     ~MoveSearcher();
 
+    MoveSearcher(const MoveSearcher&)            = delete;
+    MoveSearcher& operator=(const MoveSearcher&) = delete;
+
+    MoveSearcher(MoveSearcher&&)            = default;
+    MoveSearcher& operator=(MoveSearcher&&) = default;
+
     void setFrontEnd(IFrontEnd* frontEnd);
 
     void setSyzygyEnabled(bool enabled);

@@ -124,8 +124,8 @@ struct PiecePositionEvaluation {
 
     int numKingAttackers = 0;
 
-    const PstMapping* pstIndex;
-    const PstMapping* pstIndexKing;
+    const PstMapping* pstIndex{};
+    const PstMapping* pstIndexKing{};
 };
 
 template <bool CalcJacobians>
@@ -163,7 +163,7 @@ FORCE_INLINE void updatePiecePositionEvaluation(
         result.phaseMaterial.grad[params.getParamIndex(params.phaseMaterialValues[pieceIdx])] += 1;
     }
 
-    int pstIndex;
+    int pstIndex{};
     if constexpr (IsKing) {
         pstIndex = (int)((*result.pstIndexKing)[(int)position]);
     } else {
@@ -890,8 +890,8 @@ FORCE_INLINE void evaluatePawnKing(
         PawnKingEvalHashTable& pawnKingEvalHashTable,
         PiecePositionEvaluation<CalcJacobians>& whiteResult,
         PiecePositionEvaluation<CalcJacobians>& blackResult) {
-    bool whiteHasConditionallyUnstoppablePawn;
-    bool blackHasConditionallyUnstoppablePawn;
+    bool whiteHasConditionallyUnstoppablePawn{};
+    bool blackHasConditionallyUnstoppablePawn{};
 
     evaluatePawnKingForSide(
             params,
@@ -1338,6 +1338,7 @@ template <bool CalcJacobians>
 
 PawnKingEvalHashTable::PawnKingEvalHashTable(const bool nonEmpty) {
     if (nonEmpty) {
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
         data_ = std::make_unique<Entry[]>(kPawnKingHashTableEntries);
     }
 }
@@ -1373,14 +1374,15 @@ FORCE_INLINE void PawnKingEvalHashTable::store(HashT hash, const PawnKingEvalInf
     entry.info   = info;
 }
 
-Evaluator::EvalCalcParams::EvalCalcParams(const EvalParams& evalParams) : EvalParams(evalParams) {
-    maxPhaseMaterial_ = 2 * 8 * evalParams.phaseMaterialValues[(int)Piece::Pawn]
-                      + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Knight]
-                      + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Bishop]
-                      + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Rook]
-                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
-                      + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King];
-}
+Evaluator::EvalCalcParams::EvalCalcParams(const EvalParams& evalParams)
+    : EvalParams(evalParams),
+      maxPhaseMaterial_(
+              2 * 8 * evalParams.phaseMaterialValues[(int)Piece::Pawn]
+              + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Knight]
+              + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Bishop]
+              + 2 * 2 * evalParams.phaseMaterialValues[(int)Piece::Rook]
+              + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::Queen]
+              + 2 * 1 * evalParams.phaseMaterialValues[(int)Piece::King]) {}
 
 Evaluator::Evaluator(bool usePawnKingEvalHashTable)
     : Evaluator(EvalParams::getDefaultParams(), usePawnKingEvalHashTable) {}

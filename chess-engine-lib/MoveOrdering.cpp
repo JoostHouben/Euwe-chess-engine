@@ -547,7 +547,7 @@ FORCE_INLINE void MoveScorer::updateCaptureHistory(
         const Move& move, const GameState& gameState, const HistoryValueT update) {
     MY_ASSERT(isCapture(move));
 
-    Piece capturedPiece;
+    Piece capturedPiece{};
     BoardPosition captureTarget = move.to;
     if (isEnPassant(move.flags)) {
         capturedPiece = Piece::Pawn;
@@ -754,7 +754,7 @@ FORCE_INLINE MoveEvalT
 MoveScorer::scoreCapture(const Move& move, const GameState& gameState) const {
     MoveEvalT moveScore = kCaptureBonus;
 
-    Piece capturedPiece;
+    Piece capturedPiece{};
     BoardPosition captureTarget = move.to;
     if (isEnPassant(move.flags)) {
         capturedPiece = Piece::Pawn;

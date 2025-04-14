@@ -76,7 +76,7 @@ TEST_P(SEETests, TestStaticExchangeEvaluationWithoutVictim) {
     testSee(gameState, moveNonCapture, expectedScoreWithoutVictim);
 }
 
-auto testCases = ::testing::Values(
+const auto testCases = ::testing::Values(
         SEETestConfig{
                 .name = "knightWinsPawnAfterRecapture",
                 .fen  = "k7/8/5n2/3p4/8/2N2B2/8/K7 w - - 0 1",

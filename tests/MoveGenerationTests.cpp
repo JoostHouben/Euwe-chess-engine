@@ -133,6 +133,7 @@ void countMoveStatisticsAtPlyWithUnmake(
 
 using StatisticsTTable = TTable<MoveStatistics>;
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 StatisticsTTable gTtable(1'000'000);
 
 MoveStatistics countMoveStatisticsAtPlyWithTTable(
@@ -289,7 +290,7 @@ std::string validateMoveStatsName(const ::testing::TestParamInfo<TestStatsConfig
     return fenName + "_depth" + std::to_string(info.param.depth);
 }
 
-auto testCasesFast = ::testing::Values(
+const auto testCasesFast = ::testing::Values(
         // root
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
@@ -494,7 +495,7 @@ auto testCasesFast = ::testing::Values(
                         .numCastle     = 0,
                         .numPromotions = 0}});
 
-auto testCasesSlow = ::testing::Values(
+const auto testCasesSlow = ::testing::Values(
         TestStatsConfig{
                 .fen   = getStartingPositionFen(),
                 .depth = 4,

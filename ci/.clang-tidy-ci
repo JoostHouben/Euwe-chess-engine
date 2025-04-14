@@ -20,3 +20,11 @@ Checks:
     - -bugprone-easily-swappable-parameters
     # False positives when using int8_t
     - -bugprone-signed-char-misuse
+
+    - cppcoreguidelines-*
+    - -cppcoreguidelines-macro-usage
+    - -cppcoreguidelines-avoid-do-while
+    - -cppcoreguidelines-avoid-magic-numbers
+    - -cppcoreguidelines-pro-bounds-constant-array-index
+    - -cppcoreguidelines-pro-type-reinterpret-cast
+    - -cppcoreguidelines-narrowing-conversions

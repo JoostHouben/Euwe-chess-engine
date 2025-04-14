@@ -287,7 +287,7 @@ FORCE_INLINE void updateMateDistance(EvalT& score) {
 // Compute the delta between two wrapping counters
 FORCE_INLINE std::int8_t computeWrappingTickDelta(std::uint8_t tickA, std::uint8_t tickB) {
     const std::uint8_t wrappingTickDelta = tickA - tickB;
-    std::int8_t signedTickDelta;
+    std::int8_t signedTickDelta{};
     // 2's complement is guaranteed
     // if the absolute value of the true tick difference is <= 127, the resulting signedTickDelta
     // is correct
@@ -429,7 +429,7 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
         const int depth,
         const HashT hash,
         const bool isPvNode) {
-    ScoreType scoreType;
+    ScoreType scoreType{};
     if (stoppedEarly) {
         if (bestScore > alphaOrig) {
             // Alpha was raised (but didn't cause a cut off), and the search was interrupted.
@@ -612,7 +612,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
 
     const int seeThreshold = alpha - (eval + futilityMargin);
 
-    EvalT futilityValue;
+    EvalT futilityValue{};
     if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isLosingTactical) {
         // We know the move is losing, so no need to check whether SEE is above the losing
         // threshold.
@@ -1307,7 +1307,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     tTable_.prefetch(gameState.getBoardHash());
     evaluator_.prefetch(gameState);
 
-    EvalT score;
+    EvalT score{};
     if (useScoutSearch) {
         // Zero window (scout) search
         score = -search(

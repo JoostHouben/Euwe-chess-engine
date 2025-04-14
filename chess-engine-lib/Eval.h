@@ -45,6 +45,7 @@ class PawnKingEvalHashTable {
         PawnKingEvalInfo info{};
     };
 
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
     std::unique_ptr<Entry[]> data_;
 };
 

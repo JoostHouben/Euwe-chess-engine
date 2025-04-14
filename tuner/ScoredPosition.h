@@ -4,5 +4,5 @@
 
 struct ScoredPosition {
     GameState gameState;
-    double score;
+    double score{};
 };

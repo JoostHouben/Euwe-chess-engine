@@ -66,6 +66,7 @@ class TTable {
   private:
     [[nodiscard]] std::size_t computeIndex(HashT hash) const;
 
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
     std::unique_ptr<EntryT[]> data_;
     std::size_t size_;
     std::size_t mask_;
@@ -84,6 +85,7 @@ template <typename PayloadT>
 TTable<PayloadT>::TTable(const std::size_t requestedSize) : size_(std::bit_floor(requestedSize)) {
     MY_ASSERT(size_ >= 2);
 
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
     data_ = std::make_unique<EntryT[]>(size_);
 
     // size_ is a power of 2, so size_ - 1 is all 1s in binary.
@@ -120,6 +122,7 @@ std::optional<TTEntry<PayloadT>> TTable<PayloadT>::probe(const HashT hash) const
 
 template <typename PayloadT>
 template <typename FuncT>
+// NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward), see https://joelfilho.com/blog/2020/forwarding_references/
 void TTable<PayloadT>::store(const TTEntry<PayloadT>& entryToStore, FuncT&& isMoreValuable) {
     const std::size_t index         = computeIndex(entryToStore.hash);
     const std::size_t valuableIndex = index;

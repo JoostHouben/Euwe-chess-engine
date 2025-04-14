@@ -131,7 +131,7 @@ void setPieceValuesFromPieceSquare(
     }
 
     for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        double pieceSquareValueEarly;
+        double pieceSquareValueEarly{};
         if (values.numPieceOccurrencesEarly[pieceIdx] == 0.0) {
             pieceSquareValueEarly = 0.0;
         } else {
@@ -139,7 +139,7 @@ void setPieceValuesFromPieceSquare(
                                   / values.numPieceOccurrencesEarly[pieceIdx];
         }
 
-        double pieceSquareValueLate;
+        double pieceSquareValueLate{};
         if (values.numPieceOccurrencesLate[pieceIdx] == 0.0) {
             pieceSquareValueLate = 0.0;
         } else {

@@ -10,6 +10,12 @@ class Engine::Impl {
     Impl();
     ~Impl();
 
+    Impl(const Impl&)            = delete;
+    Impl& operator=(const Impl&) = delete;
+
+    Impl(Impl&&)            = delete;
+    Impl& operator=(Impl&&) = delete;
+
     TimeManager& getTimeManager();
 
     void setFrontEnd(IFrontEnd* frontEnd);

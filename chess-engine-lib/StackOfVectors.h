@@ -12,16 +12,20 @@ class StackVector;
 template <typename T>
 class StackOfVectors {
   public:
-    StackOfVectors()
-#ifndef NDEBUG
-        : isLocked_(false)
-#endif
-    {
-    }
+    StackOfVectors() = default;
 
     // Can't be copied or moved because that would invalidate all the StackVector objects.
     StackOfVectors(const StackOfVectors&) = delete;
     StackOfVectors(StackOfVectors&&)      = delete;
+
+    StackOfVectors& operator=(const StackOfVectors&) = delete;
+    StackOfVectors& operator=(StackOfVectors&&)      = delete;
+
+    ~StackOfVectors() {
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
+    }
 
     void reserve(size_t size) { items_.reserve(size); }
 
@@ -51,7 +55,7 @@ class StackOfVectors {
 
     ContainerT items_;
 #ifndef NDEBUG
-    bool isLocked_;
+    bool isLocked_ = false;
 #endif
 };
 
@@ -68,20 +72,20 @@ class StackVectorIterator {
     using iterator_category = std::random_access_iterator_tag;
     using iterator_concept  = std::contiguous_iterator_tag;
 
-    StackVectorIterator(StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+    StackVectorIterator(StackVector<T>& parent, int idx) : parent_(&parent), idx_(idx) {}
 
-    StackVectorIterator(const StackVectorIterator& rhs) = default;
+    StackVectorIterator(const StackVectorIterator& rhs)            = default;
+    StackVectorIterator& operator=(const StackVectorIterator& rhs) = default;
 
-    StackVectorIterator& operator=(const StackVectorIterator& rhs) {
-        MY_ASSERT(&parent_ == &rhs.parent_);
-        idx_ = rhs.idx_;
-        return *this;
-    }
+    StackVectorIterator(StackVectorIterator&& rhs)                     = default;
+    StackVectorIterator& operator=(StackVectorIterator&& rhs) noexcept = default;
 
-    T& operator*() const { return parent_[idx_]; }
+    ~StackVectorIterator() = default;
 
-    T* operator->() { return &parent_[idx_]; }
-    const T* operator->() const { return &parent_[idx_]; }
+    T& operator*() const { return (*parent_)[idx_]; }
+
+    T* operator->() { return &(*parent_)[idx_]; }
+    const T* operator->() const { return &(*parent_)[idx_]; }
 
     StackVectorIterator& operator+=(int offset) {
         idx_ += offset;
@@ -127,24 +131,24 @@ class StackVectorIterator {
     }
 
     int operator-(const StackVectorIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ - rhs.idx_;
     }
 
     T& operator[](int offset) { return *(*this + offset); }
 
     auto operator<=>(const StackVectorIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ <=> rhs.idx_;
     }
 
     bool operator==(const StackVectorIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ == rhs.idx_;
     }
 
   private:
-    StackVector<T>& parent_;
+    StackVector<T>* parent_;
     int idx_;
 };
 
@@ -168,19 +172,19 @@ class StackVectorConstIterator {
     using iterator_category = std::random_access_iterator_tag;
     using iterator_concept  = std::contiguous_iterator_tag;
 
-    StackVectorConstIterator(const StackVector<T>& parent, int idx) : parent_(parent), idx_(idx) {}
+    StackVectorConstIterator(const StackVector<T>& parent, int idx) : parent_(&parent), idx_(idx) {}
 
-    StackVectorConstIterator(const StackVectorConstIterator& rhs) = default;
+    StackVectorConstIterator(const StackVectorConstIterator& rhs)            = default;
+    StackVectorConstIterator& operator=(const StackVectorConstIterator& rhs) = default;
 
-    StackVectorConstIterator& operator=(const StackVectorConstIterator& rhs) {
-        MY_ASSERT(&parent_ == &rhs.parent_);
-        idx_ = rhs.idx_;
-        return *this;
-    }
+    StackVectorConstIterator(StackVectorConstIterator&& rhs)                     = default;
+    StackVectorConstIterator& operator=(StackVectorConstIterator&& rhs) noexcept = default;
 
-    const T& operator*() const { return parent_[idx_]; }
+    ~StackVectorConstIterator() = default;
 
-    const T* operator->() const { return &parent_[idx_]; }
+    const T& operator*() const { return (*parent_)[idx_]; }
+
+    const T* operator->() const { return &(*parent_)[idx_]; }
 
     StackVectorConstIterator& operator+=(int offset) {
         idx_ += offset;
@@ -226,24 +230,24 @@ class StackVectorConstIterator {
     }
 
     int operator-(const StackVectorConstIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ - rhs.idx_;
     }
 
     const T& operator[](int offset) { return *(*this + offset); }
 
     auto operator<=>(const StackVectorConstIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ <=> rhs.idx_;
     }
 
     bool operator==(const StackVectorConstIterator& rhs) const {
-        MY_ASSERT(&parent_ == &rhs.parent_);
+        MY_ASSERT(parent_ == rhs.parent_);
         return idx_ == rhs.idx_;
     }
 
   private:
-    const StackVector<T>& parent_;
+    const StackVector<T>* parent_;
     int idx_;
 };
 
@@ -289,36 +293,67 @@ class StackVector {
     using iterator_category = std::random_access_iterator_tag;
     using iterator_concept  = std::contiguous_iterator_tag;
 
-    StackVector(const StackVector&) = delete;
+    StackVector(const StackVector&)            = delete;
+    StackVector& operator=(const StackVector&) = delete;
+
     StackVector(StackVector&& other) noexcept
-        : parent_(other.parent_), startIdx_(other.startIdx_), endIdx_(other.endIdx_) {
+        : parent_(other.parent_),
+          startIdx_(other.startIdx_),
+          endIdx_(other.endIdx_)
+#ifndef NDEBUG
+          ,
+          isLocked_(other.isLocked_)
+#endif
+    {
         other.endIdx_ = other.startIdx_;
+#ifndef NDEBUG
+        other.isLocked_ = true;
+#endif
+    }
+
+    StackVector& operator=(StackVector&& other) noexcept {
+#ifndef NDEBUG
+        MY_ASSERT(!isLocked_);
+#endif
+        MY_ASSERT(parent_ == other.parent_);
+
+        startIdx_ = other.startIdx_;
+        endIdx_   = other.endIdx_;
+
+        other.endIdx_ = other.startIdx_;
+
 #ifndef NDEBUG
         isLocked_       = other.isLocked_;
         other.isLocked_ = true;
 #endif
+        return *this;
     }
 
     ~StackVector() {
         // Note: when moved-from, size() == 0
         if (size() > 0) {
-            MY_ASSERT((std::size_t)endIdx_ == parent_.size());
-            parent_.items_.resize(startIdx_);
+            MY_ASSERT((std::size_t)endIdx_ == parent_->size());
+            parent_->items_.resize(startIdx_);
         }
+#ifndef NDEBUG
+        if (!isLocked_) {
+            lock();
+        }
+#endif
     }
 
     void push_back(const T& item) {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.items_.push_back(item);
+        parent_->items_.push_back(item);
         ++endIdx_;
     }
     void push_back(T&& item) {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.items_.push_back(std::move(item));
+        parent_->items_.push_back(std::move(item));
         ++endIdx_;
     }
 
@@ -327,7 +362,7 @@ class StackVector {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.items_.emplace_back(std::forward<Args>(args)...);
+        parent_->items_.emplace_back(std::forward<Args>(args)...);
         ++endIdx_;
     }
 
@@ -336,7 +371,7 @@ class StackVector {
         MY_ASSERT(!isLocked_);
 #endif
         MY_ASSERT(endIdx_ > startIdx_);
-        parent_.items_.pop_back();
+        parent_->items_.pop_back();
         --endIdx_;
     }
 
@@ -344,15 +379,15 @@ class StackVector {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.items_.resize(startIdx_);
+        parent_->items_.resize(startIdx_);
         endIdx_ = startIdx_;
     }
 
     void lock() {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
-        isLocked_         = true;
-        parent_.isLocked_ = false;
+        isLocked_          = true;
+        parent_->isLocked_ = false;
 #endif
     }
 
@@ -360,14 +395,14 @@ class StackVector {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.reserve(size + startIdx_);
+        parent_->reserve(size + startIdx_);
     }
 
     void resize(int size) {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
 #endif
-        parent_.items_.resize(size + startIdx_);
+        parent_->items_.resize(size + startIdx_);
         endIdx_ = startIdx_ + size;
     }
 
@@ -384,12 +419,12 @@ class StackVector {
 
     T& operator[](int idx) {
         MY_ASSERT(idx < size());
-        return parent_.items_[startIdx_ + idx];
+        return parent_->items_[startIdx_ + idx];
     }
 
     const T& operator[](int idx) const {
         MY_ASSERT(idx < size());
-        return parent_.items_[startIdx_ + idx];
+        return parent_->items_[startIdx_ + idx];
     }
 
     T& front() {
@@ -410,29 +445,21 @@ class StackVector {
         return (*this)[size() - 1];
     }
 
-    T* data() { return parent_.items_.data() + startIdx_; }
-    const T* data() const { return parent_.items_.data() + startIdx_; }
+    T* data() { return parent_->items_.data() + startIdx_; }
+    const T* data() const { return parent_->items_.data() + startIdx_; }
 
   private:
     friend class StackOfVectors<T>;
 
     StackVector(StackOfVectors<T>& parent)
-        : parent_(parent),
-          startIdx_((int)parent.size()),
-          endIdx_((int)parent.size())
-#ifndef NDEBUG
-          ,
-          isLocked_(false)
-#endif
-    {
-    }
+        : parent_(&parent), startIdx_((int)parent.size()), endIdx_((int)parent.size()) {}
 
-    StackOfVectors<T>& parent_;
+    StackOfVectors<T>* parent_;
 
     int startIdx_;
     int endIdx_;
 
 #ifndef NDEBUG
-    bool isLocked_;
+    bool isLocked_ = false;
 #endif
 };

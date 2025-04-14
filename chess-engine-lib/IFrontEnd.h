@@ -49,4 +49,10 @@ class IFrontEnd {
 
     // Add option that can be configured through the frontend.
     virtual void addOption(FrontEndOption option) = 0;
+
+  protected:
+    IFrontEnd(const IFrontEnd&)            = default;
+    IFrontEnd& operator=(const IFrontEnd&) = default;
+    IFrontEnd(IFrontEnd&&)                 = default;
+    IFrontEnd& operator=(IFrontEnd&&)      = default;
 };

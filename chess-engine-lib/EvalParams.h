@@ -89,8 +89,8 @@ struct EvalParams {
     TaperedTerm passedPawnOutsideKingSquare;
 
     [[nodiscard]] FORCE_INLINE std::size_t getParamIndex(const EvalCalcT& param) const {
-        const std::byte* thisByte   = (const std::byte*)this;
-        const std::byte* paramByte  = (const std::byte*)&param;
+        const std::byte* thisByte   = reinterpret_cast<const std::byte*>(this);
+        const std::byte* paramByte  = reinterpret_cast<const std::byte*>(&param);
         const std::ptrdiff_t offset = paramByte - thisByte;
 
         MY_ASSERT(offset >= 0 && (std::size_t)offset < sizeof(*this));

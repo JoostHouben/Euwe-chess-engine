@@ -56,7 +56,13 @@ class UciFrontEnd::Impl final : public IFrontEnd {
          std::istream& in,
          std::ostream& out,
          std::ostream& debug);
-    ~Impl();
+    ~Impl() override;
+
+    Impl(const Impl&)            = delete;
+    Impl& operator=(const Impl&) = delete;
+
+    Impl(Impl&&)            = delete;
+    Impl& operator=(Impl&&) = delete;
 
     void run() override;
 
@@ -428,32 +434,32 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
         }
 
         if (token == ourIncString) {
-            int incMs;
+            int incMs{};
             if (lineSStream >> incMs) {
                 timeIncrement = std::chrono::milliseconds(incMs);
             }
         } else if (token == ourTimeString) {
-            int timeMs;
+            int timeMs{};
             if (lineSStream >> timeMs) {
                 timeLeft = std::chrono::milliseconds(timeMs);
             }
         } else if (token == "movestogo") {
-            int movesToGoVal;
+            int movesToGoVal{};
             if (lineSStream >> movesToGoVal) {
                 movesToGo = movesToGoVal;
             }
         } else if (token == "depth") {
-            int depthVal;
+            int depthVal{};
             if (lineSStream >> depthVal) {
                 depth = depthVal;
             }
         } else if (token == "nodes") {
-            std::uint64_t nodesVal;
+            std::uint64_t nodesVal{};
             if (lineSStream >> nodesVal) {
                 nodes = nodesVal;
             }
         } else if (token == "movetime") {
-            int timeMs;
+            int timeMs{};
             if (lineSStream >> timeMs) {
                 fixedTime = std::chrono::milliseconds(timeMs);
             }
@@ -516,7 +522,7 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
 
     MY_ASSERT(!goFuture_.valid());
 
-    goFuture_ = std::async(std::launch::async, [=, this] {
+    goFuture_ = std::async(std::launch::async, [searchMoves, this] {
         try {
             const auto searchInfo = engine_.findMove(gameState_, searchMoves);
 

@@ -17,7 +17,7 @@ struct JoinToString {
     std::string operator()(R&& range) const {
         std::string result;
         bool first = true;
-        for (const auto& value : range) {
+        for (const auto& value : std::forward<R>(range)) {
             if (!first) {
                 result += pattern_;
             }
@@ -37,7 +37,7 @@ inline JoinToString joinToString(std::string_view pattern) {
 
 template <typename R>
 std::string operator|(R&& range, JoinToString f) {
-    return f(range);
+    return f(std::forward<R>(range));
 }
 
 // Replacement for to<T>, necessary because of some clang-20 / libstdc++ compatibility issue.
@@ -51,7 +51,7 @@ struct RangeTo {
     template <typename R>
     T operator()(R&& range) const {
         T result{};
-        for (auto&& value : range) {
+        for (auto&& value : std::forward<R>(range)) {
             result.push_back(std::move(value));
         }
         return result;
@@ -65,5 +65,5 @@ RangeTo<T> range_to() {
 
 template <typename R, typename T>
 T operator|(R&& range, RangeTo<T> f) {
-    return f(range);
+    return f(std::forward<R>(range));
 }

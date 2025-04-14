@@ -7,6 +7,7 @@
 
 namespace HashingTests {
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::unordered_map<HashT, std::string> gHashToFen;
 
 void findHashCollisions(GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
@@ -49,6 +50,7 @@ struct PawnKingInfo {
     [[nodiscard]] bool operator==(const PawnKingInfo& other) const = default;
 };
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::unordered_map<HashT, PawnKingInfo> gHashToPawnKingInfo;
 
 void findPawnKingHashCollisions(
@@ -172,7 +174,7 @@ std::string hashTestName(const ::testing::TestParamInfo<HashCollisionTestConfig>
     return fenName + "_depth" + std::to_string(info.param.depth);
 }
 
-auto testCases = ::testing::Values(
+const auto testCases = ::testing::Values(
         HashCollisionTestConfig{.fen = getStartingPositionFen(), .depth = 4},
         HashCollisionTestConfig{.fen = kKiwipeteFen, .depth = 3},
         HashCollisionTestConfig{.fen = kPosition3Fen, .depth = 5},

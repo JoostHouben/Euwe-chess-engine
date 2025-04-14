@@ -274,6 +274,7 @@ struct PackedRookAttacks {
     std::array<std::uint16_t*, kSquares> entries;
     std::array<std::uint64_t, kSquares> depositMasks;
 };
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::array<std::uint64_t, kSquares> gRookLookupExtractMasks;  // NB: shared for x-rays and attacks
 
 struct PackedBishopAttacks {
@@ -281,12 +282,17 @@ struct PackedBishopAttacks {
     std::array<std::uint16_t*, kSquares> entries;
     std::array<std::uint64_t, kSquares> depositMasks;
 };
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::array<std::uint64_t, kSquares> gBishopLookupExtractMasks;  // NB: shared for x-rays and attacks
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 PackedRookAttacks gPackedRookAttacks;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 PackedRookAttacks gPackedRookXRays;
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 PackedBishopAttacks gPackedBishopAttacks;
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 PackedBishopAttacks gPackedBishopXRays;
 
 int calculatePackedRookAttacks() {
@@ -510,11 +516,11 @@ int calculatePackedBishopXRays() {
     return entriesCalculated;
 }
 
-int dummyRookAttacks = calculatePackedRookAttacks();
-int dummyRookXRays   = calculatePackedRookXRays();
+const int dummyRookAttacks = calculatePackedRookAttacks();
+const int dummyRookXRays   = calculatePackedRookXRays();
 
-int dummyBishopAttacks = calculatePackedBishopAttacks();
-int dummyBishopXRays   = calculatePackedBishopXRays();
+const int dummyBishopAttacks = calculatePackedBishopAttacks();
+const int dummyBishopXRays   = calculatePackedBishopXRays();
 
 template <typename PackedAttacksT>
 FORCE_INLINE BitBoard getSliderAttack(

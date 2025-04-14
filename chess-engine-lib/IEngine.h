@@ -29,4 +29,10 @@ class IEngine {
     virtual void setTTableSize(int requestedSizeInMb) = 0;
 
     [[nodiscard]] virtual EvalT evaluate(const GameState& gameState) const = 0;
+
+  protected:
+    IEngine(const IEngine&)            = default;
+    IEngine& operator=(const IEngine&) = default;
+    IEngine(IEngine&&)                 = default;
+    IEngine& operator=(IEngine&&)      = default;
 };

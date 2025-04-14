@@ -31,6 +31,7 @@ struct EvalCostFunctor : ceres::CostFunction {
         set_num_residuals(1);
     }
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
     bool Evaluate(
             double const* const* parameters, double* residuals, double** jacobians) const override {
         const double* const scaleParam = parameters[sparsityStructure_.size()];
@@ -107,6 +108,7 @@ struct EvalCostFunctor : ceres::CostFunction {
 
         return evalParamsFromArray(paramsArray);
     }
+    // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   private:
     ScoredPosition scoredPosition_;

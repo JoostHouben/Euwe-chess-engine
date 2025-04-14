@@ -18,6 +18,12 @@ class ScopedConsoleColor {
     explicit ScopedConsoleColor(ConsoleColor color, std::ostream& stream);
     ~ScopedConsoleColor();
 
+    ScopedConsoleColor(const ScopedConsoleColor&)            = delete;
+    ScopedConsoleColor& operator=(const ScopedConsoleColor&) = delete;
+
+    ScopedConsoleColor(ScopedConsoleColor&&)            = delete;
+    ScopedConsoleColor& operator=(ScopedConsoleColor&&) = delete;
+
   private:
 #ifdef _WIN32
     std::uint16_t oldAttributes_;
