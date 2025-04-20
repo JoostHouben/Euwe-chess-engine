@@ -2,7 +2,7 @@ name: Build Tuner
 
 on:
   push:
-    branches: [main, develop, ci]
+    branches: [main, ci]
   pull_request:
 
 jobs:

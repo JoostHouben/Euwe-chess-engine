@@ -5,6 +5,7 @@
 #include "MyGTest.h"
 
 #include <algorithm>
+#include <format>
 #include <iostream>
 #include <optional>
 
@@ -197,6 +198,11 @@ struct TestStatsConfig {
     std::string fen;
     int depth;
     ExpectedMoveStatistics expectedStats;
+
+    friend std::ostream& operator<<(std::ostream& os, const TestStatsConfig& config) {
+        os << std::format("{{.fen = \"{}\", .depth = {}}}", config.fen, config.depth);
+        return os;
+    }
 };
 
 class ValidateMoveStats : public ::testing::TestWithParam<TestStatsConfig> {};

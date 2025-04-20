@@ -2,6 +2,8 @@
 
 #include "MyGTest.h"
 
+#include <format>
+#include <ostream>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -122,6 +124,11 @@ void findPawnKingHashCollisions(
 struct HashCollisionTestConfig {
     std::string fen;
     int depth;
+
+    friend std::ostream& operator<<(std::ostream& os, const HashCollisionTestConfig& config) {
+        os << std::format("{{.fen = \"{}\", .depth = {}}}", config.fen, config.depth);
+        return os;
+    }
 };
 
 class HashCollisionTests : public ::testing::TestWithParam<HashCollisionTestConfig> {};

@@ -4,6 +4,8 @@
 
 #include "MyGTest.h"
 
+#include <ostream>
+
 namespace SEETests {
 
 struct SEETestConfig {
@@ -11,6 +13,11 @@ struct SEETestConfig {
     std::string fen;
     Move move;
     int expectedScore;
+
+    friend std::ostream& operator<<(std::ostream& os, const SEETestConfig& config) {
+        os << config.name;
+        return os;
+    }
 };
 
 std::string getTestName(const ::testing::TestParamInfo<SEETestConfig>& info) {
