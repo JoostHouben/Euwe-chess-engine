@@ -5,8 +5,8 @@ if [ ! -f out/build/linux-clang-debug/compile_commands.json ]; then
     exit 1
 fi
 
-file_list=$(find chess-engine chess-engine-lib tests tuner \
-  ! -path "chess-engine-lib/Pyrrhic/*" \
+file_list=$(find src \
+  ! -path "src/chess-engine-lib/Pyrrhic/*" \
   -type f \( -name "*.cpp" -o -name "*.h" \))
 
 length=$(wc -w <<< "$file_list")

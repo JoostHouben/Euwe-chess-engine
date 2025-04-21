@@ -72,7 +72,7 @@ jobs:
         working-directory: .
         run: |
           mkdir artifacts
-          cp ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe* artifacts
+          cp ${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe* artifacts
           cp LICENSE artifacts
           cp NOTICE artifacts
 

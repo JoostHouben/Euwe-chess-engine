@@ -128,7 +128,7 @@ jobs:
           --target tests
    
       - name: Run tests
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}/src
         run: tests/tests
 
       - name: Install Valgrind
@@ -139,6 +139,6 @@ jobs:
 
       - name: Run tests under Valgrind
         if: matrix.config.preset == 'linux-clang-debug'
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}/src
         run: |
           valgrind --leak-check=full --track-origins=yes --show-leak-kinds=all --error-exitcode=1 tests/tests
