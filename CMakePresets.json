@@ -147,6 +147,20 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -O2"
       }
+    },
+    {
+      "name": "linux-msan",
+      "displayName": "Linux MSAN",
+      "inherits": "linux-clang-base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-fsanitize=memory -fPIE -fno-omit-frame-pointer -O2 -stdlib=libc++ -I${sourceDir}/toolchains/llvm-project/build/msan/include -I${sourceDir}/toolchains/llvm-project/build/msan/include/c++/v1",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=memory -pie -L${sourceDir}/toolchains/llvm-project/build/msan/lib -lc++abi -Wl,-rpath,${sourceDir}/toolchains/llvm-project/build/msan/lib",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=memory -pie -L${sourceDir}/toolchains/llvm-project/build/msan/lib -lc++abi -Wl,-rpath,${sourceDir}/toolchains/llvm-project/build/msan/lib",
+        "CMAKE_MODULE_LINKER_FLAGS": "-fsanitize=memory -pie -L${sourceDir}/toolchains/llvm-project/build/msan/lib -lc++abi -Wl,-rpath,${sourceDir}/toolchains/llvm-project/build/msan/lib",
+        "VCPKG_TARGET_TRIPLET": "x64-linux-msan",
+        "TARGETS_TO_BUILD": "engine;tests"
+      }
     }
   ]
 }

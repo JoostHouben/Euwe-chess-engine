@@ -62,6 +62,10 @@ jobs:
               os: ubuntu-latest,
               preset: linux-tsan
             }
+          - {
+              os: ubuntu-latest,
+              preset: linux-msan
+            }
 
     steps:
       - name: Checkout repository
@@ -74,6 +78,11 @@ jobs:
           sudo apt-get install clang-19
           clang++-19 --version
 
+      - name: Install clang-dev
+        if: matrix.config.preset == 'linux-msan'
+        run: |
+          sudo apt-get install libclang-19-dev llvm-19-dev
+
       - name: Get CMake
         uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
 
@@ -85,6 +94,21 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Restore cached MSan libc++
+        if: matrix.config.preset == 'linux-msan'
+        id: cache-msan-libcxx
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              toolchains/llvm-project/build/msan/include/
+              toolchains/llvm-project/build/msan/lib/
+           key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
+
+      - name: Build MSan libc++
+        if: matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        run: |
+          toolchains/build-msan-libcxx.sh
 
       - name: Enable Developer Command Prompt
         if: matrix.config.os == 'windows-latest'

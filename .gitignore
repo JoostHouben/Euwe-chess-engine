@@ -22,3 +22,6 @@ CMakeUserPresets.json
 
 ## vcpkg
 vcpkg_installed
+
+## MSan libc++ Build
+toolchains/llvm-project
