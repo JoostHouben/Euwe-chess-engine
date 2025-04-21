@@ -84,8 +84,8 @@ class StackVectorIterator {
 
     T& operator*() const { return (*parent_)[idx_]; }
 
-    T* operator->() { return &(*parent_)[idx_]; }
-    const T* operator->() const { return &(*parent_)[idx_]; }
+    T* operator->() { return parent_->addressOf(idx_); }
+    const T* operator->() const { return parent_->addressOf(idx_); }
 
     StackVectorIterator& operator+=(int offset) {
         idx_ += offset;
@@ -184,7 +184,7 @@ class StackVectorConstIterator {
 
     const T& operator*() const { return (*parent_)[idx_]; }
 
-    const T* operator->() const { return &(*parent_)[idx_]; }
+    const T* operator->() const { return parent_->addressOf(idx_); }
 
     StackVectorConstIterator& operator+=(int offset) {
         idx_ += offset;
@@ -450,9 +450,23 @@ class StackVector {
 
   private:
     friend class StackOfVectors<T>;
+    friend class StackVectorIterator<T>;
+    friend class StackVectorConstIterator<T>;
 
     StackVector(StackOfVectors<T>& parent)
         : parent_(&parent), startIdx_((int)parent.size()), endIdx_((int)parent.size()) {}
+
+    T* addressOf(int idx) {
+        // NOTE: allowing idx == size() here because this is used for the end iterator.
+        MY_ASSERT(idx <= size());
+        return parent_->items_.data() + startIdx_ + idx;
+    }
+
+    const T* addressOf(int idx) const {
+        // NOTE: allowing idx == size() here because this is used for the end iterator.
+        MY_ASSERT(idx <= size());
+        return parent_->items_.data() + startIdx_ + idx;
+    }
 
     StackOfVectors<T>* parent_;
 
