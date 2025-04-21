@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Prepare clean llvm-project directory
 rm -rf llvm-project
 mkdir llvm-project
