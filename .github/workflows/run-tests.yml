@@ -107,8 +107,9 @@ jobs:
 
       - name: Build MSan libc++
         if: matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        working-directory: toolchains
         run: |
-          bash toolchains/build-msan-libcxx.sh
+          bash build-msan-libcxx.sh
 
       - name: Enable Developer Command Prompt
         if: matrix.config.os == 'windows-latest'
