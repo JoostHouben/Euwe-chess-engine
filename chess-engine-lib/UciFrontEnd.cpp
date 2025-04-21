@@ -7,6 +7,7 @@
 #include "MyAssert.h"
 #include "RangePatches.h"
 
+#include <algorithm>
 #include <future>
 #include <iostream>
 #include <map>
