@@ -119,6 +119,13 @@ jobs:
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
           --preset ${{ matrix.config.preset }}
           -DTARGETS_TO_BUILD="tests"
+
+      - name: Print debug logs
+        if: ${{ failure() }}
+        run: |
+          cat vcpkg/buildtrees/detect_compiler/config-x64-linux-msan-rel-err.log
+          cat vcpkg/buildtrees/detect_compiler/config-x64-linux-msan-rel-CMakeCache.txt.log
+          cat vcpkg/buildtrees/detect_compiler/config-x64-linux-msan-rel-out.log
    
       - name: Build
         run: >
