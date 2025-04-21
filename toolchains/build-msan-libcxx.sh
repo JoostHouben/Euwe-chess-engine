@@ -18,8 +18,8 @@ cmake -GNinja -S ../../runtimes \
     -DCMAKE_BUILD_TYPE=Release \
     -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi" \
     -DLIBCXXABI_USE_LLVM_UNWINDER=off \
-    -DCMAKE_C_COMPILER=clang \
-    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_C_COMPILER=clang-19 \
+    -DCMAKE_CXX_COMPILER=clang++-19 \
     -DLLVM_USE_SANITIZER=MemoryWithOrigins
 
 # build the libraries
