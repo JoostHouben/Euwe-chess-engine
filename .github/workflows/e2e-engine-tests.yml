@@ -87,7 +87,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
           if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
             echo "syzygy-paths=\"./3-4-5-wdl;./3-4-5-dtz\"" >> "$GITHUB_OUTPUT"
           fi
@@ -111,21 +111,13 @@ jobs:
         run: |
           bash build-msan-libcxx.sh
 
-      - name: Enable Developer Command Prompt
-        if: matrix.config.os == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-
-      - name: Configure CMake
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          --preset ${{ matrix.config.preset }}
-          -DTARGETS_TO_BUILD="engine"
-
-      - name: Build
-        run: >
-          cmake
-          --build ${{ steps.strings.outputs.build-output-dir }}
-          --target Euwe
+      - name: Run CMake
+        uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
+        with:
+          configurePreset: ${{ matrix.config.preset }}
+          configurePresetAdditionalArgs: "['-DTARGETS_TO_BUILD=engine']"
+          buildPreset: ${{ matrix.config.preset }}
+          buildPresetAdditionalArgs: "['--target', 'Euwe']"
 
       - name: Get fastchess (Linux)
         if: matrix.config.os == 'ubuntu-latest'
@@ -185,8 +177,8 @@ jobs:
       - name: Run tournament
         run: >
           ./fastchess
-          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe1
-          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe2
+          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe name=Euwe1
+          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe name=Euwe2
           -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath=${{ steps.strings.outputs.syzygy-paths }}
           -openings file=UHO_4060_v2.epd format=epd order=sequential
           -rounds 50
