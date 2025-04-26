@@ -151,7 +151,7 @@ SearchInfo Engine::Impl::findMove(
 
     const auto rootNodeInfo = moveSearcher_.getRootNodeInfo(gameState);
     if (rootNodeInfo) {
-        depth     = rootNodeInfo->depth;
+        depth     = max(depth, rootNodeInfo->depth);
         evalGuess = rootNodeInfo->eval;
 
         maxDepth = max(maxDepth, depth);

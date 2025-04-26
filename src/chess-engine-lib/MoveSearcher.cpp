@@ -1499,6 +1499,8 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
         const int depth,
         StackOfVectors<Move>& stack,
         std::optional<EvalT> evalGuess) {
+    MY_ASSERT(depth > 0);
+
     searchStatistics_.selectiveDepth = 0;
 
     moveScorer_.resetCutoffStatistics();
