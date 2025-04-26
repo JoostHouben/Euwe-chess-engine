@@ -93,7 +93,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached MSan libc++
         if: matrix.config.preset == 'linux-msan'
@@ -111,24 +111,16 @@ jobs:
         run: |
           bash build-msan-libcxx.sh
 
-      - name: Enable Developer Command Prompt
-        if: matrix.config.os == 'windows-latest'
-        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
-
-      - name: Configure CMake
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          --preset ${{ matrix.config.preset }}
-          -DTARGETS_TO_BUILD="tests"
-   
-      - name: Build
-        run: >
-          cmake
-          --build ${{ steps.strings.outputs.build-output-dir }}
-          --target tests
+      - name: Run CMake
+        uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
+        with:
+          configurePreset: ${{ matrix.config.preset }}
+          configurePresetAdditionalArgs: "['-DTARGETS_TO_BUILD=\"tests\"']"
+          buildPreset: ${{ matrix.config.preset }}
+          buildPresetAdditionalArgs: "['--target', 'tests']"
    
       - name: Run tests
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}/src
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: tests/tests
 
       - name: Install Valgrind
@@ -139,6 +131,6 @@ jobs:
 
       - name: Run tests under Valgrind
         if: matrix.config.preset == 'linux-clang-debug'
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}/src
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: |
           valgrind --leak-check=full --track-origins=yes --show-leak-kinds=all --error-exitcode=1 tests/tests
