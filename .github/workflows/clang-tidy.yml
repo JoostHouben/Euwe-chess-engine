@@ -45,4 +45,4 @@ jobs:
 
       - name: Run clang-tidy script
         run: |
-          bash ci/clang-tidy.sh
+          bash ci/clang-tidy-parallel.sh
