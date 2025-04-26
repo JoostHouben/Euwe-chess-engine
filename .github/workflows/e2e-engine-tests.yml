@@ -150,7 +150,7 @@ jobs:
           wget --no-verbose https://github.com/official-stockfish/books/raw/master/UHO_4060_v2.epd.zip
           unzip UHO_4060_v2.epd.zip
 
-      - name: Get openeing book (Windows)
+      - name: Get opening book (Windows)
         if: matrix.config.os == 'windows-latest'
         shell: powershell
         run: |
@@ -178,8 +178,9 @@ jobs:
         if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'windows-latest'
         shell: powershell
         run: |
-          ci/download-folder.ps1 -Url https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/ -Destination 3-4-5-wdl
-          ci/download-folder.ps1 -Url https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/ -Destination 3-4-5-dtz
+          wget https://eternallybored.org/misc/wget/1.21.4/64/wget.exe -OutFile wget.exe
+          ./wget.exe --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
+          ./wget.exe --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
 
       - name: Run tournament
         run: >
