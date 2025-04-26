@@ -13,6 +13,7 @@ jobs:
       - id: skip_check
         uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
         with:
+          cancel_others: true
           concurrent_skipping: same_content_newer
 
   formatting_check:
