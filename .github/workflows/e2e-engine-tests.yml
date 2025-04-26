@@ -30,16 +30,16 @@ jobs:
       matrix:
         config:
           # Windows MSVC
-          #- {
-          #    os: windows-latest,
-          #    preset: windows-msvc-debug
-          #  }
+          - {
+             os: windows-latest,
+             preset: windows-msvc-debug
+           }
 
           # Windows clang-cl
-          #- {
-          #    os: windows-latest,
-          #    preset: windows-clang-cl-release
-          #  }
+          - {
+             os: windows-latest,
+             preset: windows-clang-cl-release
+           }
 
           # Linux clang
           - {
@@ -88,6 +88,12 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
+            echo "syzygy-paths=\"./3-4-5-wdl;./3-4-5-dtz\"" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
+            echo "syzygy-paths=./3-4-5-wdl:./3-4-5-dtz" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Restore cached MSan libc++
         if: matrix.config.preset == 'linux-msan'
@@ -121,15 +127,36 @@ jobs:
           --build ${{ steps.strings.outputs.build-output-dir }}
           --target Euwe
 
-      - name: Get fastchess
+      - name: Get fastchess (Linux)
+        if: matrix.config.os == 'ubuntu-latest'
+        shell: bash
         run: |
-          wget https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-ubuntu-22.04.zip
+          wget --no-verbose https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-ubuntu-22.04.zip
           unzip fastchess-ubuntu-22.04.zip fastchess-ubuntu-22.04
+          mv fastchess-ubuntu-22.04 fastchess
 
-      - name: Get opening book
+      - name: Get fastchess (Windows)
+        if: matrix.config.os == 'windows-latest'
+        shell: powershell
+        run: |
+          wget https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-windows-latest.zip -OutFile fastchess-windows-latest.zip
+          Expand-Archive .\fastchess-windows-latest.zip fastchess-windows
+          mv fastchess-windows/fastchess-windows-latest.exe fastchess.exe
+
+      - name: Get opening book (Linux)
+        if: matrix.config.os == 'ubuntu-latest'
+        shell: bash
         run: |
           wget --no-verbose https://github.com/official-stockfish/books/raw/master/UHO_4060_v2.epd.zip
           unzip UHO_4060_v2.epd.zip
+
+      - name: Get openeing book (Windows)
+        if: matrix.config.os == 'windows-latest'
+        shell: powershell
+        run: |
+           wget https://github.com/official-stockfish/books/raw/master/UHO_4060_v2.epd.zip -OutFile UHO_4060_v2.epd.zip
+           Expand-Archive UHO_4060_v2.epd.zip book
+           mv book/UHO_4060_v2.epd UHO_4060_v2.epd
 
       - name: Cache Syzygy
         id: cache-syzygy
@@ -140,24 +167,27 @@ jobs:
               3-4-5-dtz/
            key: key-syzygy
            
-      - name: Download Syzygy 3-4-5 if needed
-        if: steps.cache-syzygy.outputs.cache-hit != 'true'
+      # On Windows we just skip this. Hopefully we get it from the cache most of the time.
+      - name: Download Syzygy 3-4-5 if needed (Linux)
+        if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'ubuntu-latest'
+        shell: bash
         run: |
           wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
           wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
 
       - name: Run tournament
         run: >
-          ./fastchess-ubuntu-22.04
+          ./fastchess
           -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe1
           -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe2
-          -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath="./3-4-5-wdl:/3-4-5-dtz"
+          -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath=${{ steps.strings.outputs.syzygy-paths }}
           -openings file=UHO_4060_v2.epd format=epd order=sequential
           -rounds 50
           -concurrency 4
           -log file=tournament.log engine=true
 
-      - name: The job has failed
+      - name: Print tournament log on failure
         if: ${{ failure() }}
+        shell: bash
         run: |
           cat tournament.log
