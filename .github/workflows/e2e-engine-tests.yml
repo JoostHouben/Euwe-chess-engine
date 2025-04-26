@@ -1,6 +1,9 @@
 name: E2E Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
   pre_job:
@@ -86,6 +89,22 @@ jobs:
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
+      - name: Restore cached MSan libc++
+        if: matrix.config.preset == 'linux-msan'
+        id: cache-msan-libcxx
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              toolchains/llvm-project/build/msan/include/
+              toolchains/llvm-project/build/msan/lib/
+           key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
+
+      - name: Build MSan libc++
+        if: matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        working-directory: toolchains
+        run: |
+          bash build-msan-libcxx.sh
+
       - name: Enable Developer Command Prompt
         if: matrix.config.os == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
@@ -106,6 +125,11 @@ jobs:
         run: |
           wget https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-ubuntu-22.04.zip
           unzip fastchess-ubuntu-22.04.zip fastchess-ubuntu-22.04
+
+      - name: Get opening book
+        run: |
+          wget --no-verbose https://github.com/official-stockfish/books/raw/master/UHO_4060_v2.epd.zip
+          unzip UHO_4060_v2.epd.zip
 
       - name: Cache Syzygy
         id: cache-syzygy
@@ -128,5 +152,6 @@ jobs:
           -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe1
           -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe2
           -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath="./3-4-5-wdl:/3-4-5-dtz"
+          -openings file=UHO_4060_v2.epd format=epd order=sequential
           -rounds 50
           -concurrency 4
