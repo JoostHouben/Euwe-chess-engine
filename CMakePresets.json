@@ -1,5 +1,6 @@
 ﻿{
   "version": 3,
+
   "configurePresets": [
 
     {
@@ -162,6 +163,48 @@
         "VCPKG_TARGET_TRIPLET": "x64-linux-msan",
         "TARGETS_TO_BUILD": "engine;tests"
       }
+    }
+  ],
+
+  "buildPresets": [
+    {
+      "name": "windows-msvc-debug",
+      "configurePreset": "windows-msvc-debug"
+    },
+    {
+      "name": "windows-msvc-release-debug",
+      "configurePreset": "windows-msvc-release-debug"
+    },
+    {
+      "name": "windows-msvc-release",
+      "configurePreset": "windows-msvc-release"
+    },
+
+    {
+      "name": "windows-clang-cl-release",
+      "configurePreset": "windows-clang-cl-release"
+    },
+
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug"
+    },
+    {
+      "name": "linux-clang-release",
+      "configurePreset": "linux-clang-release"
+    },
+
+    {
+      "name": "linux-asan-ubsan",
+      "configurePreset": "linux-asan-ubsan"
+    },
+    {
+      "name": "linux-tsan",
+      "configurePreset": "linux-tsan"
+    },
+    {
+      "name": "linux-msan",
+      "configurePreset": "linux-msan"
     }
   ]
 }
