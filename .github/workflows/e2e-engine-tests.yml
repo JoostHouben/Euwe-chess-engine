@@ -1,0 +1,132 @@
+name: E2E Tests
+
+on: [push, pull_request]
+
+jobs:
+  pre_job:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
+        with:
+          concurrent_skipping: same_content_newer
+
+  build_and_test:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    name: ${{ matrix.config.preset }}
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        config:
+          # Windows MSVC
+          #- {
+          #    os: windows-latest,
+          #    preset: windows-msvc-debug
+          #  }
+
+          # Windows clang-cl
+          #- {
+          #    os: windows-latest,
+          #    preset: windows-clang-cl-release
+          #  }
+
+          # Linux clang
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-debug
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-release
+            }
+
+          # Linux sanitizers
+          - {
+              os: ubuntu-latest,
+              preset: linux-asan-ubsan
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-tsan
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-msan
+            }
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install required packages
+        if: matrix.config.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-19
+          clang++-19 --version
+
+      - name: Get CMake
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Enable Developer Command Prompt
+        if: matrix.config.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          --preset ${{ matrix.config.preset }}
+          -DTARGETS_TO_BUILD="engine"
+
+      - name: Build
+        run: >
+          cmake
+          --build ${{ steps.strings.outputs.build-output-dir }}
+          --target Euwe
+
+      - name: Get fastchess
+        run: |
+          wget https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-ubuntu-22.04.zip
+          unzip fastchess-ubuntu-22.04.zip fastchess-ubuntu-22.04
+
+      - name: Cache Syzygy
+        id: cache-syzygy
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              3-4-5-wdl/
+              3-4-5-dtz/
+           key: key-syzygy
+           
+      - name: Download Syzygy 3-4-5 if needed
+        if: steps.cache-syzygy.outputs.cache-hit != 'true'
+        run: |
+          wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
+          wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
+
+      - name: Run tournament
+        run: >
+          ./fastchess-ubuntu-22.04
+          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe1
+          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/src/chess-engine/Euwe name=Euwe2
+          -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath="./3-4-5-wdl:/3-4-5-dtz"
+          -rounds 50
+          -concurrency 4
