@@ -155,3 +155,9 @@ jobs:
           -openings file=UHO_4060_v2.epd format=epd order=sequential
           -rounds 50
           -concurrency 4
+          -log file=tournament.log engine=true
+
+      - name: The job has failed
+        if: ${{ failure() }}
+        run: |
+          cat tournament.log
