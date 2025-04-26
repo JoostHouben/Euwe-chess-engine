@@ -19,7 +19,7 @@ jobs:
   lint_check:
     needs: pre_job
     # Always run on main to ensure that the cache is populated and accessible to all other refs.
-    if: needs.pre_job.outputs.should_skip != 'true' || ${{ github.ref_name }} == 'main'
+    if: ${{ needs.pre_job.outputs.should_skip != 'true' || github.ref_name == 'main' }}
     name: Run
     runs-on: ubuntu-latest
     steps:
