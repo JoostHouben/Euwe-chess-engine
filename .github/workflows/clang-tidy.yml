@@ -38,7 +38,7 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
 
-      - name: Run CMake
+      - name: CMake configure
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
           configurePreset: linux-clang-debug

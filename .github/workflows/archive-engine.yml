@@ -52,7 +52,7 @@ jobs:
         run: |
           echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
 
-      - name: Run CMake
+      - name: CMake configure & build
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
           configurePreset: ${{ matrix.config.preset }}
