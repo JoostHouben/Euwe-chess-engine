@@ -1,8 +1,6 @@
 name: Create Caches
 
-on:
-  push:
-    branches: [main, manual-caching]
+on: [push]
 
 jobs:
   syzygy_cache:
@@ -60,7 +58,7 @@ jobs:
           bash build-msan-libcxx.sh
 
   vcpkg_cache:
-    name: Cache vcpkg binaries ${{ matrix.config.vcpkg_platform }}
+    name: Cache vcpkg binaries ${{ matrix.config.vcpkg_cache_triplet }}
     runs-on: ${{ matrix.config.os }}
 
     strategy:
@@ -71,18 +69,21 @@ jobs:
           - {
               os: windows-latest,
               preset: windows-msvc-debug,
-              vcpkg_platform: windows
+              vcpkg_cache_triplet: x64-windows
             }
           - {
               os: ubuntu-latest,
               preset: linux-clang-debug,
-              vcpkg_platform: linux
+              vcpkg_cache_triplet: x64-linux
             }
           - {
               os: ubuntu-latest,
               preset: linux-msan,
-              vcpkg_platform: linux-msan
+              vcpkg_cache_triplet: x64-linux-msan
             }
+
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,readwrite
 
     steps:
 
@@ -93,21 +94,15 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
-          if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
-            echo "binary-cache-path=%LOCALAPPDATA%/vcpkg/archives" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
-            echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
-          fi
+          echo "vcpkg-cache-key=vcpkg-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache VCPKG binaries
         id: cache-vcpkg-binaries
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
            path: |
-              ${{ steps.strings.outputs.binary-cache-path }}
-           key: ${{ steps.strings.outputs.cache-key }}
+              ${{ github.workspace }}/vcpkg-binary-cache
+           key: ${{ steps.strings.outputs.vcpkg-cache-key }}
 
       - name: Install required packages
         if: ${{ runner.os == 'Linux' && steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' }}

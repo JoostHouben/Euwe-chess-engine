@@ -35,32 +35,35 @@ jobs:
           - {
               os: windows-latest,
               preset: windows-msvc-debug,
-              vcpkg_platform: windows
+              vcpkg_cache_triplet: x64-windows
             }
           - {
               os: windows-latest,
               preset: windows-msvc-release,
-              vcpkg_platform: windows
+              vcpkg_cache_triplet: x64-windows
             }
 
           # Windows clang-cl
           - {
               os: windows-latest,
               preset: windows-clang-cl-release,
-              vcpkg_platform: windows
+              vcpkg_cache_triplet: x64-windows
             }
 
           # Linux clang
           - {
               os: ubuntu-latest,
               preset: linux-clang-debug,
-              vcpkg_platform: linux
+              vcpkg_cache_triplet: x64-linux
             }
           - {
               os: ubuntu-latest,
               preset: linux-clang-release,
-              vcpkg_platform: linux
+              vcpkg_cache_triplet: x64-linux
             }
+
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,read
 
     steps:
       - name: Checkout repository
@@ -84,21 +87,15 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
-          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
-          if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
-            echo "binary-cache-path=%LOCALAPPDATA%/vcpkg/archives" >> "$GITHUB_OUTPUT"
-          fi
-          if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
-            echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
-          fi
+          echo "vcpkg-cache-key=vcpkg-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
         with:
            path: |
-              ${{ steps.strings.outputs.binary-cache-path }}
-           key: ${{ steps.strings.outputs.cache-key }}
+              ${{ github.workspace }}/vcpkg-binary-cache
+           key: ${{ steps.strings.outputs.vcpkg-cache-key }}
 
       - name: CMake configure & build
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4

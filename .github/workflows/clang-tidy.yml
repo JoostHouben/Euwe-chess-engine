@@ -22,6 +22,9 @@ jobs:
     name: Run
     runs-on: ubuntu-latest
 
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,read
+
     steps:
 
       - name: Checkout repository
@@ -44,7 +47,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "cache-key=vcpkg-linux-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg-cache-key=vcpkg-linux-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
           echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
@@ -52,8 +55,8 @@ jobs:
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
         with:
            path: |
-              ${{ steps.strings.outputs.binary-cache-path }}
-           key: ${{ steps.strings.outputs.cache-key }}
+              ${{ github.workspace }}/vcpkg-binary-cache
+           key: ${{ steps.strings.outputs.vcpkg-cache-key }}
 
       - name: CMake configure
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
