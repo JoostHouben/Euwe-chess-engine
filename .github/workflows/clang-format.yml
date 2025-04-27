@@ -17,9 +17,10 @@ jobs:
           concurrent_skipping: same_content_newer
 
   formatting_check:
+    name: Run
+
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    name: Run
     runs-on: ubuntu-latest
     steps:
 
