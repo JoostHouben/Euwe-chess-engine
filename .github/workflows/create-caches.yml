@@ -1,0 +1,128 @@
+name: Create Caches
+
+on:
+  push:
+    branches: [main, manual-caching]
+
+jobs:
+  syzygy_cache:
+    name: Cache Syzygy
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Cache Syzygy
+        id: cache-syzygy
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              3-4-5-wdl/
+              3-4-5-dtz/
+           key: key-syzygy
+           enableCrossOsArchive: true
+           
+      - name: Download Syzygy 3-4-5 if needed (Linux)
+        if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-wdl/
+          wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
+
+  msan_libcxx_cache:
+    name: Cache MSan libc++
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Cache MSan libc++
+        if: matrix.config.preset == 'linux-msan'
+        id: cache-msan-libcxx
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              toolchains/llvm-project/build/msan/include/
+              toolchains/llvm-project/build/msan/lib/
+           key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
+
+      - name: Checkout repository
+        if: steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Get CMake
+        if: steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+
+      - name: Build MSan libc++
+        if: steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        working-directory: toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-19 libclang-19-dev llvm-19-dev
+          bash build-msan-libcxx.sh
+
+  vcpkg_cache:
+    name: Cache vcpkg binaries ${{ matrix.config.vcpkg_platform }}
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      matrix:
+        config:
+          - {
+              os: windows-latest,
+              preset: windows-msvc-debug,
+              vcpkg_platform: windows
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-debug,
+              vcpkg_platform: linux
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-msan,
+              vcpkg_platform: linux-msan
+            }
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/out/vcpkg-binary-cache
+
+    steps:
+
+      - name: Compute cache key
+        id: strings
+        shell: bash
+        run: |
+          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache VCPKG binaries
+        id: cache-vcpkg-binaries
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+           key: ${{ steps.strings.outputs.cache-key }}
+
+      - name: Checkout repository
+        if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install required packages
+        if: ${{ runner.os == 'Linux' && steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install clang-19
+          clang++-19 --version
+
+      - name: Get CMake
+        if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+      
+      - name: Setup vcpkg
+        if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
+        uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+
+      - name: CMake configure
+        if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
+        uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
+        with:
+          configurePreset: ${{ matrix.config.preset }}

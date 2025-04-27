@@ -21,8 +21,7 @@ jobs:
 
   build_and_test:
     needs: pre_job
-    # Always run on main to ensure that the cache is populated and accessible to all other refs.
-    if: ${{ needs.pre_job.outputs.should_skip != 'true' || github.ref_name == 'main' }}
+    if: needs.pre_job.outputs.should_skip != 'true'
     name: ${{ matrix.config.preset }}
     runs-on: ${{ matrix.config.os }}
 
@@ -111,6 +110,7 @@ jobs:
         if: matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true'
         working-directory: toolchains
         run: |
+          sudo apt-get install libclang-19-dev llvm-19-dev
           bash build-msan-libcxx.sh
 
       - name: CMake configure & build
@@ -160,6 +160,7 @@ jobs:
               3-4-5-wdl/
               3-4-5-dtz/
            key: key-syzygy
+           enableCrossOsArchive: true
            
       - name: Download Syzygy 3-4-5 if needed (Linux)
         if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'ubuntu-latest'
