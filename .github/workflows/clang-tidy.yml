@@ -21,7 +21,18 @@ jobs:
 
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        config:
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-debug,
+              vcpkg_cache_triplet: x64-linux
+            }
 
     env:
       VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg-binary-cache,read
@@ -48,8 +59,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "vcpkg-cache-key=vcpkg-linux-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
-          echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
+          echo "vcpkg-cache-key=vcpkg-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries
@@ -62,7 +72,7 @@ jobs:
       - name: CMake configure
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
-          configurePreset: linux-clang-debug
+          configurePreset: ${{ matrix.config.preset }}
           configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON']"
 
       - name: Run clang-tidy script
