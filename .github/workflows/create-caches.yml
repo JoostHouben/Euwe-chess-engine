@@ -16,7 +16,7 @@ jobs:
            path: |
               3-4-5-wdl/
               3-4-5-dtz/
-           key: key-syzygy
+           key: syzygy-3-4-5-wdl-dtz
            enableCrossOsArchive: true
            
       - name: Download Syzygy 3-4-5 if needed (Linux)
