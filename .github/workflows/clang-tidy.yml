@@ -47,7 +47,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "cache-key=vcpkg-linux-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "cache-key=vcpkg-linux-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries

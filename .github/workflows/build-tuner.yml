@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
-          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries

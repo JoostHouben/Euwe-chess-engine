@@ -89,11 +89,14 @@ jobs:
 
     steps:
 
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
       - name: Compute cache key
         id: strings
         shell: bash
         run: |
-          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache VCPKG binaries
         id: cache-vcpkg-binaries
@@ -102,10 +105,6 @@ jobs:
            path: |
               ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
            key: ${{ steps.strings.outputs.cache-key }}
-
-      - name: Checkout repository
-        if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install required packages
         if: ${{ runner.os == 'Linux' && steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' }}
