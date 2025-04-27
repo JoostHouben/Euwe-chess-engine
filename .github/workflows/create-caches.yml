@@ -84,26 +84,29 @@ jobs:
               vcpkg_platform: linux-msan
             }
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/out/vcpkg-binary-cache
-
     steps:
 
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Compute cache key
+      - name: Set reusable strings
         id: strings
         shell: bash
         run: |
           echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
+            echo "binary-cache-path=%LOCALAPPDATA%/vcpkg/archives" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
+            echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Cache VCPKG binaries
         id: cache-vcpkg-binaries
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
            path: |
-              ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+              ${{ steps.strings.outputs.binary-cache-path }}
            key: ${{ steps.strings.outputs.cache-key }}
 
       - name: Install required packages

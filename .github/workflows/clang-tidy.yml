@@ -22,9 +22,6 @@ jobs:
     name: Run
     runs-on: ubuntu-latest
 
-    env:
-      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/out/vcpkg-binary-cache
-
     steps:
 
       - name: Checkout repository
@@ -43,18 +40,19 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
 
-      - name: Compute vcpkg cache key
+      - name: Set reusable strings
         id: strings
         shell: bash
         run: |
           echo "cache-key=vcpkg-linux-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "binary-cache-path=~/.cache/vcpkg/archives" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
         with:
            path: |
-              ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+              ${{ steps.strings.outputs.binary-cache-path }}
            key: ${{ steps.strings.outputs.cache-key }}
 
       - name: CMake configure
