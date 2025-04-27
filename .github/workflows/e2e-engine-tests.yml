@@ -107,7 +107,7 @@ jobs:
            key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
 
       - name: Build MSan libc++
-        if: matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true'
+        if: ${{ matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
         working-directory: toolchains
         run: |
           sudo apt-get install libclang-19-dev llvm-19-dev

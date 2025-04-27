@@ -35,7 +35,6 @@ jobs:
     steps:
 
       - name: Cache MSan libc++
-        if: matrix.config.preset == 'linux-msan'
         id: cache-msan-libcxx
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
         with:
@@ -65,6 +64,8 @@ jobs:
     runs-on: ${{ matrix.config.os }}
 
     strategy:
+      fail-fast: false
+
       matrix:
         config:
           - {
@@ -92,7 +93,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "cache-key=vcpkg-${{ matrix.config.vcpkg_platform }}-${{ hashFiles('**/vcpkg.json', '**/vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache VCPKG binaries
         id: cache-vcpkg-binaries
@@ -120,6 +121,23 @@ jobs:
       - name: Setup vcpkg
         if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
         uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+
+      - name: Restore cached MSan libc++
+        if: ${{ steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' && matrix.config.preset == 'linux-msan' }}
+        id: cache-msan-libcxx
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+           path: |
+              toolchains/llvm-project/build/msan/include/
+              toolchains/llvm-project/build/msan/lib/
+           key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
+
+      - name: Build MSan libc++
+        if: ${{ steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' && matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
+        working-directory: toolchains
+        run: |
+          sudo apt-get install libclang-19-dev llvm-19-dev
+          bash build-msan-libcxx.sh
 
       - name: CMake configure
         if: steps.cache-vcpkg-binaries.outputs.cache-hit != 'true'
