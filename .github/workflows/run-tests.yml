@@ -111,7 +111,7 @@ jobs:
            path: |
               toolchains/llvm-project/build/msan/include/
               toolchains/llvm-project/build/msan/lib/
-           key: key-msan-libcxx-clang_19-llvm_git_sha_923a5c4f83d2b3675bb88e9fe441daeaa4d69488
+           key: msan-libcxx-${{ hashFiles('toolchains/build-msan-libcxx.sh') }}
 
       - name: Build MSan libc++
         if: ${{ matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
