@@ -5,10 +5,21 @@ if [ ! -f out/build/linux-clang-debug/compile_commands.json ]; then
     exit 1
 fi
 
-find src \
+file_list=$(find src \
   ! -path "src/chess-engine-lib/Pyrrhic/*" \
-  -type f \( -name "*.cpp" -o -name "*.h" \) \
-  | parallel --progress "clang-tidy-19 {} -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet 2>/dev/null"
+  -type f \( -name "*.cpp" -o -name "*.h" \))
+
+length=$(wc -w <<< "$file_list")
+echo Running clang-tidy on $length files
+
+echo "$file_list" |
+  parallel --bar "clang-tidy-19 {} -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet 2>/dev/null" \
+  2> >(
+    perl -pe 'BEGIN{$/="\r";$|=1};s/\r/\n/g' |
+    grep '%' |
+    perl -pe 'BEGIN{$|=1}s/\e\[[0-9;]*[a-zA-Z]//g' |
+    perl -pe "BEGIN{\$length=$length;$|=1} s|(\d+)% (\d+):\d+=[\ds]+ (\S+).*|\$1% (\$2/\$length) -- \$3|" |
+    perl -ne '$s{$_}++ or print')
 
 code=$?
 
