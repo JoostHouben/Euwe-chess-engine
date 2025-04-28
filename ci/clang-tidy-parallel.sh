@@ -18,8 +18,8 @@ echo "$file_list" |
     perl -pe 'BEGIN{$/="\r";$|=1};s/\r/\n/g' |
     grep '%' |
     perl -pe 'BEGIN{$|=1}s/\e\[[0-9;]*[a-zA-Z]//g' |
-    perl -pe "BEGIN{\$length=$length;$|=1} s|(\d+)% (\d+):\d+=[\ds]+ (\S+).*|\$1% (\$2/\$length) -- \$3|" |
-    perl -ne '$s{$_}++ or print')
+    perl -pe "BEGIN{\$length=$length;$|=1} s|(\d+)% (\d+):\d+=\S+ (\S+).*|\$1% (\$2/\$length) -- \$3|" |
+    perl -ne 'BEGIN{$|=1}$s{$_}++ or print')
 
 code=$?
 
