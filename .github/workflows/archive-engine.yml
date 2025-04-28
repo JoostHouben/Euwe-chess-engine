@@ -32,13 +32,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Install required packages
+        
+      - name: Install clang
         if: matrix.config.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install clang-19
-          clang++-19 --version
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: clang-19
+          version: 1
 
       - name: Get CMake
         uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6

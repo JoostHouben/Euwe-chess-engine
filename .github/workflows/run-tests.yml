@@ -83,13 +83,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Install required packages
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install clang-19
-          clang++-19 --version
+        
+      - name: Install clang
+        if: matrix.config.os == 'ubuntu-latest'
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: clang-19
+          version: 1
 
       - name: Get CMake
         uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
@@ -114,11 +114,17 @@ jobs:
               toolchains/llvm-project/build/msan/lib/
            key: msan-libcxx-${{ hashFiles('toolchains/build-msan-libcxx.sh') }}
 
+      - name: Install llvm-dev packages
+        if: ${{ matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: libclang-19-dev llvm-19-dev
+          version: 1
+
       - name: Build MSan libc++
         if: ${{ matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
         working-directory: toolchains
         run: |
-          sudo apt-get install libclang-19-dev llvm-19-dev
           bash build-msan-libcxx.sh
 
       - name: Restore cached VCPKG binaries
@@ -143,9 +149,10 @@ jobs:
 
       - name: Install Valgrind
         if: matrix.config.preset == 'linux-clang-debug'
-        run: |
-          sudo apt-get install valgrind
-          valgrind --version
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: valgrind
+          version: 1
 
       - name: Run tests under Valgrind
         if: matrix.config.preset == 'linux-clang-debug'

@@ -41,13 +41,12 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Install required packages
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install clang-tidy-19
-          clang-tidy-19 --version
+        
+      - name: Install clang-tidy
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: clang-tidy-19
+          version: 1
 
       - name: Get CMake
         uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
