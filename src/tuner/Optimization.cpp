@@ -275,6 +275,8 @@ void solve(ceres::Problem& problem, const bool useTrustRegionMethod) {
         options.minimizer_type = ceres::MinimizerType::LINE_SEARCH;
     }
 
+    options.max_num_iterations = 1000;
+
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
     std::println("\n{}\n", summary.FullReport());
@@ -299,7 +301,7 @@ void solveParams(
     setParameterBlocksConstantForSolvingEvalParams(paramsDouble, fixPhaseValues, problem);
     problem.SetParameterBlockConstant(&scaleParam);
 
-    solve(problem, /*useTrustRegionMethod*/ true);
+    solve(problem, /*useTrustRegionMethod*/ false);
 }
 
 }  // namespace

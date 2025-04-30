@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "fp-precise");
+            UciFrontEnd uciFrontEnd(engine, "tuned-9M-LBFGS");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
