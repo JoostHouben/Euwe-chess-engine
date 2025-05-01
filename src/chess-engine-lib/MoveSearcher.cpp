@@ -800,12 +800,16 @@ EvalT MoveSearcher::Impl::search(
 
         const auto unmakeInfo = gameState.makeNullMove();
 
+        static constexpr EvalT kNullMoveBoundOffset = -14;
+
+        const EvalT nullMoveBound = beta + kNullMoveBoundOffset;
+
         EvalT nullMoveScore =
                 -search(gameState,
                         nullMoveSearchDepth,
                         ply + 1,
-                        -beta,
-                        -beta + 1,
+                        -nullMoveBound,
+                        -nullMoveBound + 1,
                         /*lastMove =*/{},
                         /*lastNullMovePly =*/ply,
                         stack);
@@ -818,11 +822,11 @@ EvalT MoveSearcher::Impl::search(
             return -kInfiniteEval;
         }
 
-        if (nullMoveScore >= beta) {
+        if (nullMoveScore >= nullMoveBound) {
             storeNullMoveScoreInTTable(beta, depth, gameState.getBoardHash());
 
             // Null move failed high, don't bother searching other moves.
-            // Return a conservative lower bound (fail-hard).
+            // We don't have a good bound, so just return beta.
             return beta;
         }
     }
