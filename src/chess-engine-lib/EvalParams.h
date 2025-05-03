@@ -65,6 +65,8 @@ struct EvalParams {
 
     std::array<TaperedTerm, kNumPieceTypes> mobilityBonus;
 
+    std::array<std::array<TaperedTerm, 9>, kNumPieceTypes> safeMobilityAdjustment;
+
     static constexpr int kDoubledPawnTropismIdx        = kNumPieceTypes - 1;
     static constexpr int kIsolatedPawnTropismIdx       = kNumPieceTypes;
     static constexpr int kPassedPawnTropismIdx         = kNumPieceTypes + 1;

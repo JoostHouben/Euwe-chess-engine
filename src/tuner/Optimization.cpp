@@ -165,6 +165,12 @@ void setParameterBlocksConstantForSolvingEvalParams(
     setTaperedTermConstant(params.controlNearEnemyKing[0]);
     setTaperedTermConstant(params.numKingAttackersAdjustment[0]);
 
+    // Set one entry in the safe mobility adjustment constant for each piece, to avoid gauge freedoms
+    // with the piece values.
+    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
+        setTaperedTermConstant(params.safeMobilityAdjustment[pieceIdx][5]);
+    }
+
     // For opposite colored bishop endgames with a large pawn delta we don't have enough data.
     // And fixing it to a factor of 1 is ok: the large pawn delta will give a sufficiently high
     // score to indicate a win.
@@ -233,6 +239,8 @@ void addResiduals(
         const std::vector<ScoredPosition>& scoredPositions,
         const int subsampleRate,
         ceres::Problem& problem) {
+    std::println("Adding residuals...");
+
     problem.AddParameterBlock(&scaleParam, 1);
 
     for (std::size_t i = 0; i < firstTaperedTermIdx; ++i) {
@@ -286,6 +294,8 @@ void solveScale(
         ceres::Problem& problem,
         double& scaleParam,
         std::array<double, kNumEvalParams>& paramsDouble) {
+    std::println("Solving for scale...");
+
     setAllEvalParameterBlocksConstant(paramsDouble, problem);
     problem.SetParameterBlockVariable(&scaleParam);
 
@@ -296,12 +306,15 @@ void solveParams(
         ceres::Problem& problem,
         double& scaleParam,
         std::array<double, kNumEvalParams>& paramsDouble,
-        const bool fixPhaseValues) {
+        const bool fixPhaseValues,
+        const bool useTrustRegionMethod) {
+    std::println("Optimizing parameters...");
+
     setAllEvalParameterBlocksVariable(paramsDouble, problem);
     setParameterBlocksConstantForSolvingEvalParams(paramsDouble, fixPhaseValues, problem);
     problem.SetParameterBlockConstant(&scaleParam);
 
-    solve(problem, /*useTrustRegionMethod*/ false);
+    solve(problem, useTrustRegionMethod);
 }
 
 }  // namespace
@@ -324,5 +337,6 @@ void optimize(
 
     std::println("Scale param: {}", scaleParam);
 
-    solveParams(problem, scaleParam, paramsDouble, fixPhaseValues);
+    const bool useTrustRegionMethod = scoredPositions.size() < 1'000'000;
+    solveParams(problem, scaleParam, paramsDouble, fixPhaseValues, useTrustRegionMethod);
 }

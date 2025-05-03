@@ -181,6 +181,7 @@ FORCE_INLINE void updateMobilityEvaluation(
         int& pieceControlIdx,
         const BitBoard ownOccupancy,
         const BitBoard enemyKingArea,
+        const Side side,
         PiecePositionEvaluation<CalcJacobians>& result) {
     const BitBoard& control = boardControl.pieceControl[pieceControlIdx++];
     const bool isAttacker   = (control & enemyKingArea) != BitBoard::Empty;
@@ -188,8 +189,17 @@ FORCE_INLINE void updateMobilityEvaluation(
     result.numKingAttackers += isAttacker;
     updateTaperedTerm(params, params.kingAttackWeight[(int)piece], result.eval, isAttacker);
 
-    const int mobility = popCount(control & ~ownOccupancy);
+    const BitBoard mobilityBB = control & ~ownOccupancy;
+    const int mobility        = popCount(mobilityBB);
     updateTaperedTerm(params, params.mobilityBonus[(int)piece], result.eval, mobility);
+
+    const BitBoard& enemyControl  = boardControl.sideControl[(int)nextSide(side)];
+    const BitBoard safeMobilityBB = mobilityBB & ~enemyControl;
+    const int safeMobility        = popCount(safeMobilityBB);
+    const int safeMobilityIdx =
+            min(safeMobility, (int)params.safeMobilityAdjustment.front().size() - 1);
+    updateTaperedTerm(
+            params, params.safeMobilityAdjustment[(int)piece][safeMobilityIdx], result.eval, 1);
 }
 
 template <bool CalcJacobians>
@@ -397,6 +407,7 @@ void evaluatePiecePositionsForSide(
                     pieceControlIdx,
                     ownOccupancy,
                     enemyKingArea,
+                    side,
                     result);
         }
     }
@@ -454,6 +465,7 @@ void evaluatePiecePositionsForSide(
                     pieceControlIdx,
                     ownOccupancy,
                     enemyKingArea,
+                    side,
                     result);
         }
 
@@ -504,6 +516,7 @@ void evaluatePiecePositionsForSide(
                     pieceControlIdx,
                     ownOccupancy,
                     enemyKingArea,
+                    side,
                     result);
         }
     }
@@ -535,6 +548,7 @@ void evaluatePiecePositionsForSide(
                     pieceControlIdx,
                     ownOccupancy,
                     enemyKingArea,
+                    side,
                     result);
         }
     }
