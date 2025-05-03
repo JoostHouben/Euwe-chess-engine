@@ -157,6 +157,12 @@ SearchInfo Engine::Impl::findMove(
         maxDepth = max(maxDepth, depth);
     }
 
+    if (frontEnd_) {
+        // Preparations are done; we can now safely process an interrupt request.
+        // Report to the front end that the search has started.
+        frontEnd_->reportSearchHasStarted();
+    }
+
     for (; depth <= maxDepth; ++depth) {
         // Not const to enable std::move of the PV.
         auto searchResult =

@@ -15,6 +15,10 @@ class IFrontEnd {
     // Run in a loop, handling commands and sending them to the engine.
     virtual void run() = 0;
 
+    // Used by the engine to report to the front end that the search has started and that
+    // further commands can now be processed.
+    virtual void reportSearchHasStarted() = 0;
+
     // Can be used by the engine to report that a search to a certain depth has been fully
     // completed.
     virtual void reportFullSearch(const SearchInfo& searchInfo) const = 0;

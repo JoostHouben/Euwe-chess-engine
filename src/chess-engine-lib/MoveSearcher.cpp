@@ -1547,6 +1547,7 @@ void MoveSearcher::Impl::prepareForNewSearch(
         const std::vector<Move>* const movesToSearch,
         const bool tbHitAtRoot) {
     // Set state variables to prepare for search.
+    stopSearch_     = false;
     wasInterrupted_ = false;
 
     moveScorer_.prepareForNewSearch(gameState);

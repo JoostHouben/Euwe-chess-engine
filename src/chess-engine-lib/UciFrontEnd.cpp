@@ -8,6 +8,7 @@
 #include "RangePatches.h"
 
 #include <algorithm>
+#include <atomic>
 #include <future>
 #include <iostream>
 #include <map>
@@ -66,6 +67,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     Impl& operator=(Impl&&) = delete;
 
     void run() override;
+
+    void reportSearchHasStarted() override;
 
     void reportFullSearch(const SearchInfo& searchInfo) const override;
 
@@ -140,6 +143,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 
+    std::atomic<bool> searchHasStarted_{false};
     std::future<void> goFuture_;
 };
 
@@ -217,6 +221,11 @@ void UciFrontEnd::Impl::run() {
     }
 
     stopSearchIfNeeded();
+}
+
+void UciFrontEnd::Impl::reportSearchHasStarted() {
+    searchHasStarted_ = true;
+    searchHasStarted_.notify_all();
 }
 
 void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {
@@ -523,6 +532,8 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
 
     MY_ASSERT(!goFuture_.valid());
 
+    searchHasStarted_ = false;
+
     goFuture_ = std::async(std::launch::async, [searchMoves, this] {
         try {
             const auto searchInfo = engine_.findMove(gameState_, searchMoves);
@@ -538,6 +549,10 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
             reportError(e.what());
         }
     });
+
+    // Wait until the search has started before processing any further commands, to prevent race
+    // conditions.
+    searchHasStarted_.wait(/*old*/ false);
 }
 
 void UciFrontEnd::Impl::handleStop() {
@@ -812,6 +827,10 @@ UciFrontEnd::~UciFrontEnd() = default;
 
 void UciFrontEnd::run() {
     impl_->run();
+}
+
+void UciFrontEnd::reportSearchHasStarted() {
+    impl_->reportSearchHasStarted();
 }
 
 void UciFrontEnd::reportFullSearch(const SearchInfo& searchInfo) const {
