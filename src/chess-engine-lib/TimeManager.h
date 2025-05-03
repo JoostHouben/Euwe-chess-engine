@@ -15,7 +15,7 @@ class TimeManager {
 
     [[nodiscard]] bool shouldInterruptSearch(std::uint64_t nodesSearched) const;
 
-    [[nodiscard]] bool shouldStopAfterFullPly(int depth) const;
+    [[nodiscard]] bool shouldStopAfterFullPly(int depth, int numMovesToConsider) const;
 
     void forceNextCheck() const;
 

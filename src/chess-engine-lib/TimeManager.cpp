@@ -67,11 +67,14 @@ bool TimeManager::shouldInterruptSearch(const std::uint64_t nodesSearched) const
     }
 }
 
-bool TimeManager::shouldStopAfterFullPly(const int depth) const {
+bool TimeManager::shouldStopAfterFullPly(const int depth, const int numMovesToConsider) const {
     MY_ASSERT(mode_ != TimeManagementMode::None);
 
     switch (mode_) {
         case TimeManagementMode::TimeControl: {
+            if (numMovesToConsider == 1) {
+                return depth >= 2;
+            }
             return timeIsUp(softDeadLine_);
         }
 

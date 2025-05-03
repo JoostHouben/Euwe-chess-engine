@@ -77,14 +77,7 @@ void Engine::Impl::newGame() {
 
 SearchInfo Engine::Impl::findMove(
         const GameState& gameState, const std::vector<Move>& searchMoves) {
-    int maxDepth = MoveSearcher::kMaxDepth;
-
-    auto allLegalMoves = gameState.generateMoves(moveStack_);
-    if (allLegalMoves.size() == 1) {
-        // Only one legal move. We still search to get a score and a PV.
-        // Search to depth 2 to get a guess for the opponent's follow-up move.
-        maxDepth = 2;
-    }
+    const auto allLegalMoves = gameState.generateMoves(moveStack_);
 
     for (const auto& move : searchMoves) {
         bool isLegal = false;
@@ -131,13 +124,8 @@ SearchInfo Engine::Impl::findMove(
                                                  : !syzygyRootMoves.empty()   ? &syzygyRootMoves
                                                                               : nullptr;
 
-    if (movesToSearch && movesToSearch->size() == 1 && searchMoves.size() != 1) {
-        // Only one move to search. We still search to get a score and a PV.
-        // Search to depth 2 to get a guess for the opponent's follow-up move.
-        // Don't do this if searchMoves.size() == 1, because that means the user explicitly
-        // requested this move to be searched.
-        maxDepth = 2;
-    }
+    const int numMovesToConsider =
+            movesToSearch ? (int)movesToSearch->size() : (int)allLegalMoves.size();
 
     moveSearcher_.resetSearchStatistics();
     moveSearcher_.prepareForNewSearch(gameState, movesToSearch, tbHit);
@@ -153,8 +141,6 @@ SearchInfo Engine::Impl::findMove(
     if (rootNodeInfo) {
         depth     = max(depth, rootNodeInfo->depth);
         evalGuess = rootNodeInfo->eval;
-
-        maxDepth = max(maxDepth, depth);
     }
 
     if (frontEnd_) {
@@ -163,7 +149,7 @@ SearchInfo Engine::Impl::findMove(
         frontEnd_->reportSearchHasStarted();
     }
 
-    for (; depth <= maxDepth; ++depth) {
+    for (; depth <= MoveSearcher::kMaxDepth; ++depth) {
         // Not const to enable std::move of the PV.
         auto searchResult =
                 moveSearcher_.searchForBestMove(copyState, depth, moveStack_, evalGuess);
@@ -196,7 +182,7 @@ SearchInfo Engine::Impl::findMove(
             break;
         }
 
-        if (timeManager_.shouldStopAfterFullPly(depth)) {
+        if (timeManager_.shouldStopAfterFullPly(depth, numMovesToConsider)) {
             break;
         }
     }
