@@ -10,4 +10,5 @@
 void optimize(
         std::array<double, kNumEvalParams>& paramsDouble,
         const std::vector<ScoredPosition>& scoredPositions,
-        bool fixPhaseValues);
+        bool fixPhaseValues,
+        bool fixScale);

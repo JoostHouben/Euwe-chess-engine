@@ -135,8 +135,9 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** ar
 }  // namespace
 
 int main(int argc, char** argv) try {
-    constexpr bool kFixPhaseValues       = true;
-    constexpr int kAdditionalDropOutRate = kFixPhaseValues ? 1 : 2;
+    static constexpr bool kFixScale             = true;
+    static constexpr bool kFixPhaseValues       = true;
+    static constexpr int kAdditionalDropOutRate = kFixPhaseValues ? 1 : 2;
 
     std::srand(42);
 
@@ -152,7 +153,7 @@ int main(int argc, char** argv) try {
     quiescePositions(scoredPositions);
 
     std::println("Optimizing...");
-    optimize(paramsDouble, scoredPositions, kFixPhaseValues);
+    optimize(paramsDouble, scoredPositions, kFixPhaseValues, kFixScale);
 
     std::println("Post-processing...");
     postProcess(paramsDouble, scoredPositions);
