@@ -764,6 +764,8 @@ void evaluatePawnKingForSide(
     const BitBoard ownPawns   = gameState.getPieceBitBoard(side, Piece::Pawn);
     const BitBoard enemyPawns = gameState.getPieceBitBoard(enemySide, Piece::Pawn);
 
+    const BitBoard& ownPawnControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
+
     BitBoard pawnBitBoard = ownPawns;
 
     hasConditionallyUnstoppablePawn = false;
@@ -784,6 +786,7 @@ void evaluatePawnKingForSide(
         const bool isDoubledPawn = ownBlockers != BitBoard::Empty;
         const bool isPassedPawn  = !isDoubledPawn && opponentBlockers == BitBoard::Empty;
         const bool isIsolated    = ownNeighbors == BitBoard::Empty;
+        const bool isProtected   = ownPawnControl & position;
 
         int tropismIdx = (int)Piece::Pawn;
         int pstIdx     = (int)Piece::Pawn;
@@ -824,6 +827,10 @@ void evaluatePawnKingForSide(
             tropismIdx = EvalParams::kIsolatedPawnTropismIdx;
         }
 
+        if (isProtected) {
+            updateTaperedTerm(params, params.protectedPawnBonus, result.eval, 1);
+        }
+
         if (isIsolated) {
             updateTaperedTerm(params, params.isolatedPawnPenalty, result.eval, -1);
         }
@@ -834,8 +841,7 @@ void evaluatePawnKingForSide(
                 params, ownKingPosition, enemyKingPosition, tropismIdx, position, result.eval);
     }
 
-    const BitBoard& pawnControl  = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
-    const BitBoard kingAttack    = enemyKingArea & pawnControl;
+    const BitBoard kingAttack    = enemyKingArea & ownPawnControl;
     const int numAttackedSquares = popCount(kingAttack);
     result.numKingAttackers += numAttackedSquares;
 

@@ -340,6 +340,6 @@ void optimize(
 
     std::println("Scale param: {}", scaleParam);
 
-    const bool useTrustRegionMethod = scoredPositions.size() < 1'000'000;
+    const bool useTrustRegionMethod = scoredPositions.size() < 2'000'000;
     solveParams(problem, scaleParam, paramsDouble, fixPhaseValues, useTrustRegionMethod);
 }

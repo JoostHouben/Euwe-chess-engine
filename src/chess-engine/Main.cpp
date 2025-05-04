@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "safe-mobility-adjustment");
+            UciFrontEnd uciFrontEnd(engine, "protected-pawn");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
