@@ -4,4 +4,5 @@
 
 #include <vector>
 
-void quiescePositions(std::vector<ScoredPosition>& scoredPositions);
+std::vector<ScoredPosition> quiescePositions(
+        const std::vector<AnnotatedPosition>& annotatedPositions);

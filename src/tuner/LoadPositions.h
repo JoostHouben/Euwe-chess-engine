@@ -7,7 +7,7 @@
 #include <ostream>
 #include <vector>
 
-std::vector<ScoredPosition> loadScoredPositions(
+std::vector<AnnotatedPosition> loadPositions(
         std::vector<std::pair<std::filesystem::path, int>> pathsAndDropoutRates,
         int additionalDropoutRate = 1,
         std::ostream* logOutput   = nullptr);

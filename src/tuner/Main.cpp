@@ -138,7 +138,7 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(
 
 int main(int argc, char** argv) try {
     static constexpr bool kFixPhaseValues = true;
-    static constexpr bool kFixScale       = false;
+    static constexpr bool kFixScale       = true;
 
     static constexpr int kAdditionalDropOutRate = kFixPhaseValues ? 1 : 2;
 
@@ -149,11 +149,11 @@ int main(int argc, char** argv) try {
     std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
 
     std::println("Loading positions...");
-    std::vector<ScoredPosition> scoredPositions =
-            loadScoredPositions(pathsAndDropOutRates, kAdditionalDropOutRate, &std::cout);
+    const std::vector<AnnotatedPosition> annotatedPositions =
+            loadPositions(pathsAndDropOutRates, kAdditionalDropOutRate, &std::cout);
 
     std::println("Quiescing positions...");
-    quiescePositions(scoredPositions);
+    const std::vector<ScoredPosition> scoredPositions = quiescePositions(annotatedPositions);
 
     std::println("Optimizing...");
     optimize(paramsDouble, scoredPositions, kFixPhaseValues, kFixScale);

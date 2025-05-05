@@ -4,10 +4,16 @@
 
 #include <cstdint>
 
-struct ScoredPosition {
+struct AnnotatedPosition {
     GameState gameState;
     std::uint64_t gameId{};
     int plyCount{};
     double finalScore{};
     int searchEvalCp{};
+    bool moveIsCapture{};
+};
+
+struct ScoredPosition {
+    GameState gameState;
+    double score{};
 };

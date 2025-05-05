@@ -49,7 +49,19 @@ std::istream& safeGetline(std::istream& is, std::string& t) {
     }
 }
 
-std::optional<ScoredPosition> loadScoredPositionFromLine(std::string line) {
+std::optional<bool> parseBool(const std::string& str) {
+    std::string lowerStr = str;
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
+    if (lowerStr == "true") {
+        return true;
+    } else if (lowerStr == "false") {
+        return false;
+    } else {
+        return std::nullopt;
+    }
+}
+
+std::optional<AnnotatedPosition> loadPositionFromLine(std::string line) {
     std::stringstream lineSStream(std::move(line));
 
     std::string token;
@@ -98,24 +110,38 @@ std::optional<ScoredPosition> loadScoredPositionFromLine(std::string line) {
     }
     double searchEval{};
     lineSStream >> searchEval;
+    if (std::isnan(searchEval)) {
+        return std::nullopt;
+    }
     const int searchEvalCp = (int)std::round(searchEval * 100.0);
 
-    return ScoredPosition{
-            .gameState    = gameState,
-            .gameId       = gameId,
-            .plyCount     = plyCount,
-            .finalScore   = finalScore,
-            .searchEvalCp = searchEvalCp,
+    lineSStream >> token;
+    if (token != "move_is_capture") {
+        return std::nullopt;
+    }
+    lineSStream >> token;
+    const auto moveIsCapture = parseBool(token);
+    if (!moveIsCapture.has_value()) {
+        return std::nullopt;
+    }
+
+    return AnnotatedPosition{
+            .gameState     = gameState,
+            .gameId        = gameId,
+            .plyCount      = plyCount,
+            .finalScore    = finalScore,
+            .searchEvalCp  = searchEvalCp,
+            .moveIsCapture = *moveIsCapture,
     };
 }
 
-std::vector<ScoredPosition> loadScoredPositions(
+std::vector<AnnotatedPosition> loadPositions(
         const std::filesystem::path& annotatedFensPath,
         const int dropoutRate,
         std::ostream* logOutput) {
     std::ifstream in(annotatedFensPath);
 
-    std::vector<ScoredPosition> scoredPositions;
+    std::vector<AnnotatedPosition> positions;
 
     std::string inputLine;
     while (safeGetline(in, inputLine)) {
@@ -127,12 +153,12 @@ std::vector<ScoredPosition> loadScoredPositions(
             continue;
         }
 
-        auto maybeScoredPosition = loadScoredPositionFromLine(std::move(inputLine));
+        auto maybeScoredPosition = loadPositionFromLine(std::move(inputLine));
         if (!maybeScoredPosition) {
             continue;
         }
 
-        scoredPositions.push_back(std::move(*maybeScoredPosition));
+        positions.push_back(std::move(*maybeScoredPosition));
     }
 
     if (logOutput) {
@@ -140,33 +166,32 @@ std::vector<ScoredPosition> loadScoredPositions(
         std::println(
                 out,
                 "Read {} scored positions from {}",
-                scoredPositions.size(),
+                positions.size(),
                 annotatedFensPath.filename().string());
     }
 
-    return scoredPositions;
+    return positions;
 }
 
 }  // namespace
 
-std::vector<ScoredPosition> loadScoredPositions(
+std::vector<AnnotatedPosition> loadPositions(
         std::vector<std::pair<std::filesystem::path, int>> pathsAndDropoutRates,
         const int additionalDropOutRate,
         std::ostream* logOutput) {
-    std::vector<std::vector<ScoredPosition>> nestedScoredPositions(pathsAndDropoutRates.size());
+    std::vector<std::vector<AnnotatedPosition>> nestedPositions(pathsAndDropoutRates.size());
 
     std::transform(
             std::execution::par_unseq,
             pathsAndDropoutRates.begin(),
             pathsAndDropoutRates.end(),
-            nestedScoredPositions.begin(),
+            nestedPositions.begin(),
             [&](const auto& pathAndDropoutRate) {
-                return loadScoredPositions(
+                return loadPositions(
                         pathAndDropoutRate.first,
                         pathAndDropoutRate.second * additionalDropOutRate,
                         logOutput);
             });
 
-    return std::ranges::views::join(nestedScoredPositions)
-         | range_to<std::vector<ScoredPosition>>();
+    return std::ranges::views::join(nestedPositions) | range_to<std::vector<AnnotatedPosition>>();
 }

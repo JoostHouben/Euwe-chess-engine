@@ -19,9 +19,7 @@ const std::size_t firstTaperedTermIdx = EvalParams::getDefaultParams().getFirstT
 
 struct EvalCostFunctor : ceres::CostFunction {
     EvalCostFunctor(const ScoredPosition& scoredPosition, SparsityStructure sparsityStructure)
-        : gameState_(scoredPosition.gameState),
-          sigmoidScore_(scoredPosition.finalScore),
-          sparsityStructure_(std::move(sparsityStructure)) {
+        : scoredPosition_(scoredPosition), sparsityStructure_(std::move(sparsityStructure)) {
         auto& parameterBlockSizes = *mutable_parameter_block_sizes();
 
         parameterBlockSizes.reserve(sparsityStructure_.size() + 1);
@@ -53,14 +51,14 @@ struct EvalCostFunctor : ceres::CostFunction {
         EvalWithGradient evalWithGradient;
 
         if (needParamJacobians) {
-            evalWithGradient = evaluator.evaluateWithGradient(gameState_);
+            evalWithGradient = evaluator.evaluateWithGradient(scoredPosition_.gameState);
         } else {
-            evalWithGradient.eval = evaluator.evaluateRaw(gameState_);
+            evalWithGradient.eval = evaluator.evaluateRaw(scoredPosition_.gameState);
         }
 
         const double sigmoid = 1. / (1. + std::pow(10., -evalWithGradient.eval / *scaleParam));
 
-        residuals[0] = sigmoidScore_ - sigmoid;
+        residuals[0] = scoredPosition_.score - sigmoid;
 
         if (jacobians) {
             const double s = *scaleParam;
@@ -113,8 +111,7 @@ struct EvalCostFunctor : ceres::CostFunction {
     // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
   private:
-    GameState gameState_;
-    double sigmoidScore_;
+    ScoredPosition scoredPosition_;
     SparsityStructure sparsityStructure_;
 };
 
