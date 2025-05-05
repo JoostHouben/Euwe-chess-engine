@@ -3,17 +3,30 @@ import io
 import multiprocessing
 from pathlib import Path
 from typing import TextIO
+from dataclasses import dataclass, asdict
 
-from chess.pgn import Game, read_game
+import chess
+from chess.pgn import Game
 
-AnnotatedFen = tuple[float, str]
+@dataclass
+class AnnotatedFen:
+  fen: str
+  game_id: str
+  ply_count: int
+  final_score: float
+  search_eval: float
+
+  def to_output_string(self) -> str:
+    d = asdict(self)
+    l = sum([[k, str(v)] for k, v in d.items()], [])
+    return " ".join(l)
 
 def is_header(line: str) -> bool:
   return line.startswith("[")
 
 def read_game_from_string(s: str) -> Game:
   stream = io.StringIO(s)
-  result = read_game(stream)
+  result = chess.pgn.read_game(stream)
   assert result is not None
   return result
 
@@ -55,68 +68,73 @@ def get_scores(game: Game) -> tuple[float, float]:
   result = game.headers["Result"]
   white_result, black_result = result.split("-")
 
-  def result_to_score(result: str) -> float:
+  def result_to_score(result: str) -> dict[chess.Color, float]:
     if result == "1/2":
       return 0.5
     return int(result)
 
-  return result_to_score(white_result), result_to_score(black_result)
+  return {
+    chess.WHITE: result_to_score(white_result),
+    chess.BLACK: result_to_score(black_result)
+  }
 
-def get_fens(game: Game) -> tuple[list[str], int]:
-  fens: list[str] = []
+def get_annotated_fens_for_game(game: Game) -> tuple[list[AnnotatedFen], int]:
+  final_scores = get_scores(game)
+  game_id = hash(game)
+  ply_count = game.end().ply()
+
+  annotated_fens: list[AnnotatedFen] = []
   num_filtered = 0
-  node = game
+  node = game.next() # skip the starting position
   while node is not None:
     include_node = True
+    search_eval = float('nan')
+    
+    # The comment on a node contains the eval for the move that led to this position.
+    # To get the eval of this node, i.e., the eval of the move in this position, we need
+    # to look at the comment on the child node.
+    child = node.next()
+    if child is None:
+      break
+    child_comment = child.comment
 
-    if "book" in node.comment:
+    if "book" in child_comment:
       include_node = False
-    elif "/" in node.comment:
-      score_comment = node.comment.split('/')[0]
+    elif "/" in child_comment:
+      score_comment = child_comment.split('/')[0]
       if 'M' in score_comment:
         include_node = False
+        if '+' in score_comment:
+          search_eval = 1000.0
+        elif '-' in score_comment:
+          search_eval = -1000.0
+
       else:
         try:
-          score = float(score_comment)
-          if abs(score) > 20:
+          search_eval = float(score_comment)
+          if abs(search_eval) > 20:
             include_node = False
         except:
           pass
 
     if include_node:
-      fens.append(node.board().fen())
+      fen = node.board().fen()
+      final_score = final_scores[node.turn()]
+
+      annotated_fens.append(AnnotatedFen(fen=fen, game_id=game_id, ply_count=ply_count, final_score=final_score, search_eval=search_eval))
     else:
       num_filtered += 1
 
     node = node.next()
 
-  return fens, num_filtered
-
-def get_annotated_fens(
-    fens: list[str],
-    white_score: float,
-    black_score: float,
-) -> list[AnnotatedFen]:
-  result: list[AnnotatedFen] = []
-  curr_score, other_score = white_score, black_score
-
-  for fen in fens:
-    result.append((curr_score, fen))
-    curr_score, other_score = other_score, curr_score
-
-  return result
-
-def get_annotated_fens_for_game(game: Game) -> tuple[list[AnnotatedFen], int]:
-  white_score, black_score = get_scores(game)
-  fens, num_filtered = get_fens(game)
-  return get_annotated_fens(fens, white_score, black_score), num_filtered
+  return annotated_fens, num_filtered
 
 def write_annotated_fens(
     annotated_fens: list[AnnotatedFen],
     f: TextIO,
 ) -> None:
-  for score, fen in annotated_fens:
-    f.write(f"score {score} fen {fen}\n")
+  for position in annotated_fens:
+    f.write(position.to_output_string() + "\n")
 
 def export_annotated_pgns(pgn_paths: list[Path], out_path: Path) -> None:
   merged_games: list[Game] = []

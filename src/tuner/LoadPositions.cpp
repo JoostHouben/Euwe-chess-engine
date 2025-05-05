@@ -9,6 +9,7 @@
 #include <sstream>
 #include <syncstream>
 
+#include <cmath>
 #include <cstdlib>
 
 namespace {
@@ -48,6 +49,66 @@ std::istream& safeGetline(std::istream& is, std::string& t) {
     }
 }
 
+std::optional<ScoredPosition> loadScoredPositionFromLine(std::string line) {
+    std::stringstream lineSStream(std::move(line));
+
+    std::string token;
+    lineSStream >> token;
+
+    if (token != "fen") {
+        return std::nullopt;
+    }
+
+    std::string fen;
+    while (true) {
+        lineSStream >> token;
+        if (token == "game_id" || !lineSStream.good()) {
+            break;
+        }
+        if (!fen.empty()) {
+            fen += " ";
+        }
+        fen += token;
+    }
+    if (token != "game_id" || !lineSStream.good()) {
+        return std::nullopt;
+    }
+    const GameState gameState = GameState::fromFen(fen);
+
+    std::uint64_t gameId{};
+    lineSStream >> gameId;
+
+    lineSStream >> token;
+    if (token != "ply_count") {
+        return std::nullopt;
+    }
+    int plyCount{};
+    lineSStream >> plyCount;
+
+    lineSStream >> token;
+    if (token != "final_score") {
+        return std::nullopt;
+    }
+    double finalScore{};
+    lineSStream >> finalScore;
+
+    lineSStream >> token;
+    if (token != "search_eval") {
+        return std::nullopt;
+    }
+    double searchEval{};
+    lineSStream >> searchEval;
+    const int searchEvalCp = (int)std::round(searchEval * 100.0);
+
+    return ScoredPosition{
+            .gameState    = gameState,
+            .gameId       = gameId,
+            .plyCount     = plyCount,
+            .finalScore   = finalScore,
+            .searchEvalCp = searchEvalCp,
+    };
+}
+
 std::vector<ScoredPosition> loadScoredPositions(
         const std::filesystem::path& annotatedFensPath,
         const int dropoutRate,
@@ -66,31 +127,12 @@ std::vector<ScoredPosition> loadScoredPositions(
             continue;
         }
 
-        std::stringstream lineSStream(inputLine);
-
-        std::string token;
-        lineSStream >> token;
-
-        if (token != "score") {
+        auto maybeScoredPosition = loadScoredPositionFromLine(std::move(inputLine));
+        if (!maybeScoredPosition) {
             continue;
         }
 
-        double score{};
-        lineSStream >> score;
-
-        lineSStream >> token;
-        if (token != "fen") {
-            continue;
-        }
-
-        lineSStream >> std::ws;
-
-        std::string fen;
-        std::getline(lineSStream, fen);
-
-        const GameState gameState = GameState::fromFen(fen);
-
-        scoredPositions.push_back({gameState, score});
+        scoredPositions.push_back(std::move(*maybeScoredPosition));
     }
 
     if (logOutput) {

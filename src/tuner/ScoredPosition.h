@@ -2,7 +2,12 @@
 
 #include "chess-engine-lib/GameState.h"
 
+#include <cstdint>
+
 struct ScoredPosition {
     GameState gameState;
-    double score{};
+    std::uint64_t gameId{};
+    int plyCount{};
+    double finalScore{};
+    int searchEvalCp{};
 };

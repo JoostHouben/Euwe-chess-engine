@@ -155,7 +155,7 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
                     return std::nullopt;
                 }
 
-                double scoreToUse = scoredPosition.score;
+                double scoreToUse = scoredPosition.finalScore;
                 if (state.getSideToMove() != scoredPosition.gameState.getSideToMove()) {
                     scoreToUse = 1 - scoreToUse;
                 }
@@ -163,7 +163,13 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
                 // Run move generation so that the pin bit board is pre-calculated, speeding up evaluation.
                 (void)state.generateMoves(moveStack);
 
-                return ScoredPosition{state, scoreToUse};
+                return ScoredPosition{
+                        .gameState    = state,
+                        .gameId       = scoredPosition.gameId,
+                        .plyCount     = -1,
+                        .finalScore   = scoreToUse,
+                        .searchEvalCp = -1,
+                };
             });
 
     std::vector<ScoredPosition> quiescedPositions =
