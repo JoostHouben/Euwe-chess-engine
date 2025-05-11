@@ -859,8 +859,7 @@ void evaluatePawnKingForSide(
                     filePassedPawnWeight[passedPawnWeightIdx - 1]
                             + filePassedPawnWeight[passedPawnWeightIdx + 1]);
         } else if (isCandidate) {
-            updateTaperedTerm(params, params.candidatePassedPawnBonus, result.eval, 1);
-
+            pstIdx     = EvalParams::kCandidatePassedPawnPstIdx;
             tropismIdx = EvalParams::kCandidatePassedPawnTropismIdx;
         } else if (isIsolated) {
             tropismIdx = EvalParams::kIsolatedPawnTropismIdx;

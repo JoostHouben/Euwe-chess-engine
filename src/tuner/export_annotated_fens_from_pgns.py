@@ -40,7 +40,8 @@ def read_games_from_pgn(pgn_path: Path) -> list[Game]:
 
 def filter_games(games: list[Game]) -> list[Game]:
   included_termination_reasons = {
-    "adjudication"
+    "adjudication",
+    "normal",
   }
 
   def include(game: Game) -> bool:

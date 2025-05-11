@@ -20,8 +20,9 @@ struct EvalParams {
     [[nodiscard]] static EvalParams getEmptyParams();
     [[nodiscard]] static EvalParams getDefaultParams();
 
-    static constexpr std::size_t kPassedPawnPstIdx = kNumPieceTypes;
-    static constexpr std::size_t kNumPstPieceTypes = kNumPieceTypes + 1;
+    static constexpr std::size_t kCandidatePassedPawnPstIdx = kNumPieceTypes;
+    static constexpr std::size_t kPassedPawnPstIdx          = kNumPieceTypes + 1;
+    static constexpr std::size_t kNumPstPieceTypes          = kNumPieceTypes + 2;
 
     std::array<EvalCalcT, kNumPstPieceTypes> phaseMaterialValues;
 
@@ -47,7 +48,6 @@ struct EvalParams {
     TaperedTerm connectedPassedPawnBonus;
     TaperedTerm doubledPawnPenalty;
     TaperedTerm isolatedPawnPenalty;
-    TaperedTerm candidatePassedPawnBonus;
 
     std::array<TaperedTerm, 9> bishopPawnSameColorAdjustment;
     std::array<TaperedTerm, 9> bishopEnemyPawnSameColorAdjustment;
