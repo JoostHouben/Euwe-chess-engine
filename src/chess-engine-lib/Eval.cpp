@@ -747,6 +747,36 @@ getPromotionSquare(const BoardPosition pawnPosition, const Side pawnSide) {
     return (BoardPosition)((((int)pawnSide - 1) & 56) + ((int)pawnPosition & 7));
 }
 
+[[nodiscard]] FORCE_INLINE std::pair<BitBoard, BitBoard> getCandidateBlockers(
+        const GameState& gameState) {
+    const auto whitePawnMask = (std::uint64_t)gameState.getPieceBitBoard(Side::White, Piece::Pawn);
+    const auto blackPawnMask = (std::uint64_t)gameState.getPieceBitBoard(Side::Black, Piece::Pawn);
+
+    const std::uint64_t whiteAttacksLeftMask  = (whitePawnMask & kNotWestFileMask) << (kFiles - 1);
+    const std::uint64_t whiteAttacksRightMask = (whitePawnMask & kNotEastFileMask) << (kFiles + 1);
+
+    const std::uint64_t blackAttacksLeftMask  = (blackPawnMask & kNotWestFileMask) >> (kFiles + 1);
+    const std::uint64_t blackAttacksRightMask = (blackPawnMask & kNotEastFileMask) >> (kFiles - 1);
+
+    const std::uint64_t whiteAttacksMask       = whiteAttacksLeftMask | whiteAttacksRightMask;
+    const std::uint64_t whiteDoubleAttacksMask = whiteAttacksLeftMask & whiteAttacksRightMask;
+
+    const std::uint64_t blackAttacksMask       = blackAttacksLeftMask | blackAttacksRightMask;
+    const std::uint64_t blackDoubleAttacksMask = blackAttacksLeftMask & blackAttacksRightMask;
+
+    const std::uint64_t whiteMoreAttacksThanBlackMask =
+            (whiteAttacksMask & ~blackAttacksMask)
+            | (whiteDoubleAttacksMask & ~blackDoubleAttacksMask);
+    const std::uint64_t blackMoreAttacksThanWhiteMask =
+            (blackAttacksMask & ~whiteAttacksMask)
+            | (blackDoubleAttacksMask & ~whiteDoubleAttacksMask);
+
+    const BitBoard blockersForWhiteCandidates = (BitBoard)blackMoreAttacksThanWhiteMask;
+    const BitBoard blockersForBlackCandidates = (BitBoard)whiteMoreAttacksThanBlackMask;
+
+    return {blockersForWhiteCandidates, blockersForBlackCandidates};
+}
+
 template <bool CalcJacobians>
 void evaluatePawnKingForSide(
         const Evaluator::EvalCalcParams& params,
@@ -757,6 +787,7 @@ void evaluatePawnKingForSide(
         const BoardPosition enemyKingPosition,
         const BitBoard ownKingArea,
         const BitBoard enemyKingArea,
+        const BitBoard blockersForOwnCandidates,
         PiecePositionEvaluation<CalcJacobians>& result,
         bool& hasConditionallyUnstoppablePawn) {
     const Side enemySide = nextSide(side);
@@ -779,14 +810,18 @@ void evaluatePawnKingForSide(
         const BitBoard forwardMask            = getPawnForwardMask(position, side);
         const BitBoard neighborMask           = getPawnNeighborFileMask(position);
 
-        const BitBoard opponentBlockers = enemyPawns & passedPawnOpponentMask;
-        const BitBoard ownBlockers      = ownPawns & forwardMask;
-        const BitBoard ownNeighbors     = ownPawns & neighborMask;
+        const BitBoard opponentPassedPawnBlockers = enemyPawns & passedPawnOpponentMask;
+        const BitBoard candidateBlockers          = blockersForOwnCandidates & forwardMask;
+        const BitBoard opponentBlockers           = enemyPawns & forwardMask;
+        const BitBoard ownBlockers                = ownPawns & forwardMask;
+        const BitBoard ownNeighbors               = ownPawns & neighborMask;
 
         const bool isDoubledPawn = ownBlockers != BitBoard::Empty;
-        const bool isPassedPawn  = !isDoubledPawn && opponentBlockers == BitBoard::Empty;
+        const bool isPassedPawn  = !isDoubledPawn && opponentPassedPawnBlockers == BitBoard::Empty;
         const bool isIsolated    = ownNeighbors == BitBoard::Empty;
         const bool isProtected   = ownPawnControl & position;
+        const bool isOpen        = !isDoubledPawn && opponentBlockers == BitBoard::Empty;
+        const bool isCandidate   = isOpen && !isPassedPawn && candidateBlockers == BitBoard::Empty;
 
         int tropismIdx = (int)Piece::Pawn;
         int pstIdx     = (int)Piece::Pawn;
@@ -823,6 +858,10 @@ void evaluatePawnKingForSide(
                     result.eval,
                     filePassedPawnWeight[passedPawnWeightIdx - 1]
                             + filePassedPawnWeight[passedPawnWeightIdx + 1]);
+        } else if (isCandidate) {
+            updateTaperedTerm(params, params.candidatePassedPawnBonus, result.eval, 1);
+
+            tropismIdx = EvalParams::kCandidatePassedPawnTropismIdx;
         } else if (isIsolated) {
             tropismIdx = EvalParams::kIsolatedPawnTropismIdx;
         }
@@ -913,6 +952,9 @@ FORCE_INLINE void evaluatePawnKing(
     bool whiteHasConditionallyUnstoppablePawn{};
     bool blackHasConditionallyUnstoppablePawn{};
 
+    const auto [blockersForWhiteCandidates, blockersForBlackCandidates] =
+            getCandidateBlockers(gameState);
+
     evaluatePawnKingForSide(
             params,
             gameState,
@@ -922,6 +964,7 @@ FORCE_INLINE void evaluatePawnKing(
             blackKingPosition,
             whiteKingArea,
             blackKingArea,
+            blockersForWhiteCandidates,
             whiteResult,
             whiteHasConditionallyUnstoppablePawn);
 
@@ -934,6 +977,7 @@ FORCE_INLINE void evaluatePawnKing(
             whiteKingPosition,
             blackKingArea,
             whiteKingArea,
+            blockersForBlackCandidates,
             blackResult,
             blackHasConditionallyUnstoppablePawn);
 

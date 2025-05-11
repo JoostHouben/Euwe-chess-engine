@@ -17,8 +17,8 @@ CMakeUserPresets.json
 *.tmp
 
 ## Python
-*/venv
-*/__pycache__
+**/venv
+**/__pycache__
 
 ## vcpkg
 vcpkg_installed

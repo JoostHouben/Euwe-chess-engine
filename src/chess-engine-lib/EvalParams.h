@@ -47,6 +47,7 @@ struct EvalParams {
     TaperedTerm connectedPassedPawnBonus;
     TaperedTerm doubledPawnPenalty;
     TaperedTerm isolatedPawnPenalty;
+    TaperedTerm candidatePassedPawnBonus;
 
     std::array<TaperedTerm, 9> bishopPawnSameColorAdjustment;
     std::array<TaperedTerm, 9> bishopEnemyPawnSameColorAdjustment;
@@ -68,10 +69,11 @@ struct EvalParams {
 
     std::array<std::array<TaperedTerm, 9>, kNumPieceTypes> safeMobilityAdjustment;
 
-    static constexpr int kDoubledPawnTropismIdx        = kNumPieceTypes - 1;
-    static constexpr int kIsolatedPawnTropismIdx       = kNumPieceTypes;
-    static constexpr int kPassedPawnTropismIdx         = kNumPieceTypes + 1;
-    static constexpr std::size_t kNumTropismPieceTypes = kNumPieceTypes + 2;
+    static constexpr int kDoubledPawnTropismIdx         = kNumPieceTypes - 1;
+    static constexpr int kIsolatedPawnTropismIdx        = kNumPieceTypes;
+    static constexpr int kPassedPawnTropismIdx          = kNumPieceTypes + 1;
+    static constexpr int kCandidatePassedPawnTropismIdx = kNumPieceTypes + 2;
+    static constexpr std::size_t kNumTropismPieceTypes  = kNumPieceTypes + 3;
 
     std::array<TaperedTerm, kNumTropismPieceTypes> ownKingTropism;
     std::array<TaperedTerm, kNumTropismPieceTypes> enemyKingTropism;
