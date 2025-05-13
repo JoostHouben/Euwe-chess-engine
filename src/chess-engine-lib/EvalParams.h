@@ -80,7 +80,9 @@ struct EvalParams {
 
     TaperedTerm tempoBonus;
 
-    std::array<std::array<TaperedTerm, 3>, kNumPieceTypes - 1> attackDefendAdjustment;
+    static constexpr int kPassedPawnAttackDefendIdx = kNumPieceTypes - 1;
+    static constexpr int kNumAttackDefendPieceTypes = kNumPieceTypes;
+    std::array<std::array<TaperedTerm, 3>, kNumAttackDefendPieceTypes> attackDefendAdjustment;
 
     std::array<TaperedTerm, 10> controlNearEnemyKing;
     std::array<TaperedTerm, kNumPieceTypes> kingAttackWeight;

@@ -17,6 +17,8 @@ struct EvalWithGradient {
 using PstMapping = std::array<std::int8_t, kSquares>;
 
 struct PawnKingEvalInfo {
+    BitBoard passedPawns{};
+
     EvalCalcT earlyEval = 0.;
     EvalCalcT lateEval  = 0.;
 
