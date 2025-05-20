@@ -45,6 +45,7 @@ struct EvalParams {
     PieceSquareTables pieceSquareTables;
 
     TaperedTerm protectedPawnBonus;
+    TaperedTerm protectedPassedPawnBonus;
     TaperedTerm connectedPassedPawnBonus;
     TaperedTerm doubledPawnPenalty;
     TaperedTerm isolatedPawnPenalty;

@@ -878,6 +878,8 @@ void evaluatePawnKingForSide(
                     filePassedPawnWeight[passedPawnWeightIdx - 1]
                             + filePassedPawnWeight[passedPawnWeightIdx + 1]);
 
+            updateTaperedTerm(params, params.protectedPassedPawnBonus, result.eval, isProtected);
+
             passedPawns |= position;
         } else if (isCandidate) {
             pstIdx     = EvalParams::kCandidatePassedPawnPstIdx;
