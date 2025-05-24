@@ -49,6 +49,10 @@ struct EvalParams {
     TaperedTerm doubledPawnPenalty;
     TaperedTerm isolatedPawnPenalty;
 
+    TaperedTerm passerMechanicalObstructionFactor;
+    TaperedTerm passerDynamicObstructionFactor;
+    TaperedTerm passerSacrificialOstructionFactor;
+
     std::array<TaperedTerm, 9> bishopPawnSameColorAdjustment;
     std::array<TaperedTerm, 9> bishopEnemyPawnSameColorAdjustment;
 
@@ -80,9 +84,7 @@ struct EvalParams {
 
     TaperedTerm tempoBonus;
 
-    static constexpr int kPassedPawnAttackDefendIdx = kNumPieceTypes - 1;
-    static constexpr int kNumAttackDefendPieceTypes = kNumPieceTypes;
-    std::array<std::array<TaperedTerm, 3>, kNumAttackDefendPieceTypes> attackDefendAdjustment;
+    std::array<std::array<TaperedTerm, 3>, kNumPieceTypes - 1> attackDefendAdjustment;
 
     std::array<TaperedTerm, 10> controlNearEnemyKing;
     std::array<TaperedTerm, kNumPieceTypes> kingAttackWeight;
