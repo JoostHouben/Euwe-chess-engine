@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "tarrasch-rule");
+            UciFrontEnd uciFrontEnd(engine, "checks-adjustment");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

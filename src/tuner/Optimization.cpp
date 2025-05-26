@@ -164,6 +164,8 @@ void setParameterBlocksConstantForSolvingEvalParams(
 
     setTaperedTermConstant(params.controlNearEnemyKing[0]);
     setTaperedTermConstant(params.numKingAttackersAdjustment[0]);
+    setTaperedTermConstant(params.defendedChecksAdjustment[0]);
+    setTaperedTermConstant(params.undefendedChecksAdjustment[0]);
 
     // Set one entry in the safe mobility adjustment constant for each piece, to avoid gauge freedoms
     // with the piece values.
