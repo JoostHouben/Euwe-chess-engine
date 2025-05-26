@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "checks-adjustment");
+            UciFrontEnd uciFrontEnd(engine, "no-virtual-king-mobility");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

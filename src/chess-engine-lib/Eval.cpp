@@ -266,32 +266,6 @@ FORCE_INLINE void updateForChecks(
     updateTaperedTerm(params, params.undefendedChecksAdjustment[undefendedChecksIdx], eval, 1);
 }
 
-template <bool CalcJacobians>
-FORCE_INLINE void updateForVirtualKingMobility(
-        const Evaluator::EvalCalcParams& params,
-        const GameState& gameState,
-        const Side side,
-        const BoardPosition kingPosition,
-        TaperedEvaluation<CalcJacobians>& eval) {
-
-    const BitBoard ownOccupancy = gameState.getSideOccupancy(side);
-
-    // Consider all of our own pieces as blockers, but for the enemy pieces we only consider pawns.
-    // This is to account for the fact that the other enemy pieces are likely mobile and so should
-    // not be relied upon to protect the king from sliding attacks.
-    const BitBoard blockers =
-            ownOccupancy | gameState.getPieceBitBoard(nextSide(side), Piece::Pawn);
-
-    // We're only interested in squares from which an enemy slider could attack the king, so we
-    // exclude the occupied squares themselves.
-    const BitBoard virtualKingControl =
-            getPieceControlledSquares(Piece::Queen, kingPosition, blockers) & ~blockers;
-
-    const int virtualKingMobility = popCount(virtualKingControl);
-
-    updateTaperedTerm(params, params.kingVirtualMobilityPenalty, eval, -virtualKingMobility);
-}
-
 static constexpr auto kTropisms = []() {
     std::array<std::array<std::uint8_t, kSquares>, kSquares> tropisms{};
     for (int from = 0; from < kSquares; ++from) {
@@ -620,9 +594,6 @@ void evaluatePiecePositionsForSide(
     // King
     {
         // no mobility bonus for king
-
-        updateForVirtualKingMobility<CalcJacobians>(
-                params, gameState, side, ownKingPosition, result.eval);
 
         // Note king attack data between kings was calculated during initialization.
 
