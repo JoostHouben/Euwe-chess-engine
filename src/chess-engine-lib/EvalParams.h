@@ -63,6 +63,11 @@ struct EvalParams {
     TaperedTerm rookSemiOpenFileBonus;
     TaperedTerm rookOpenFileBonus;
 
+    TaperedTerm ownRookBehindPassedPawn;
+    TaperedTerm ownRookInFrontOfPassedPawn;
+    TaperedTerm enemyRookBehindPassedPawn;
+    TaperedTerm enemyRookInFrontOfPassedPawn;
+
     std::array<TaperedTerm, 9> knightPawnAdjustment;
     std::array<TaperedTerm, 9> rookPawnAdjustment;
     std::array<TaperedTerm, 9> queenPawnAdjustment;

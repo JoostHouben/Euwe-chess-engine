@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "passed-pawn-obstruction");
+            UciFrontEnd uciFrontEnd(engine, "tarrasch-rule");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

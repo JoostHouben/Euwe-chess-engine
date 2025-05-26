@@ -995,7 +995,7 @@ EvalT MoveSearcher::Impl::search(
 }
 
 // Quiescence search. When in check search all moves, when not in check only search captures.
-// Continue until no more capture are available or we get a beta cutoff.
+// Continue until no more captures are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 EvalT MoveSearcher::Impl::quiesce(
         GameState& gameState, EvalT alpha, EvalT beta, const int ply, StackOfVectors<Move>& stack) {

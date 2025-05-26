@@ -679,6 +679,67 @@ FORCE_INLINE void evaluatePasserObstructions(
 }
 
 template <bool CalcJacobians>
+FORCE_INLINE void evaluateTarraschRule(
+        const Evaluator::EvalCalcParams& params,
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        const BitBoard passedPawns,
+        const Side side,
+        TaperedEvaluation<CalcJacobians>& eval) {
+    const BitBoard& ownRooks   = gameState.getPieceBitBoard(side, Piece::Rook);
+    const BitBoard& enemyRooks = gameState.getPieceBitBoard(nextSide(side), Piece::Rook);
+
+    if (ownRooks == BitBoard::Empty && enemyRooks == BitBoard::Empty) {
+        return;
+    }
+
+    BitBoard ownPassedPawns = gameState.getPieceBitBoard(side, Piece::Pawn) & passedPawns;
+
+    const BitBoard& ownRookControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Rook];
+    const BitBoard& enemyRookControl =
+            boardControl.pieceTypeControl[(int)nextSide(side)][(int)Piece::Rook];
+
+    if ((ownPassedPawns & ownRookControl) == BitBoard::Empty
+        && (ownPassedPawns & enemyRookControl) == BitBoard::Empty) {
+        return;
+    }
+
+    while (ownPassedPawns != BitBoard::Empty) {
+        const BoardPosition passedPawnPosition = popFirstSetPosition(ownPassedPawns);
+
+        if (!(ownRookControl & passedPawnPosition) && !(enemyRookControl & passedPawnPosition)) {
+            continue;
+        }
+
+        const BitBoard forwardMask  = getPawnForwardMask(passedPawnPosition, side);
+        const BitBoard backwardMask = getPawnForwardMask(passedPawnPosition, nextSide(side));
+
+        const BitBoard rookControlFromPawn = getPieceControlledSquares(
+                Piece::Rook, passedPawnPosition, gameState.getAnyOccupancy());
+
+        const BitBoard forwardControllingOwnRooks = ownRooks & rookControlFromPawn & forwardMask;
+        const BitBoard forwardControllingEnemyRooks =
+                enemyRooks & rookControlFromPawn & forwardMask;
+        const BitBoard backwardControllingOwnRooks = ownRooks & rookControlFromPawn & backwardMask;
+        const BitBoard backwardControllingEnemyRooks =
+                enemyRooks & rookControlFromPawn & backwardMask;
+
+        if (forwardControllingOwnRooks != BitBoard::Empty) {
+            updateTaperedTerm(params, params.ownRookInFrontOfPassedPawn, eval, 1);
+        }
+        if (forwardControllingEnemyRooks != BitBoard::Empty) {
+            updateTaperedTerm(params, params.enemyRookInFrontOfPassedPawn, eval, 1);
+        }
+        if (backwardControllingOwnRooks != BitBoard::Empty) {
+            updateTaperedTerm(params, params.ownRookBehindPassedPawn, eval, 1);
+        }
+        if (backwardControllingEnemyRooks != BitBoard::Empty) {
+            updateTaperedTerm(params, params.enemyRookBehindPassedPawn, eval, 1);
+        }
+    }
+}
+
+template <bool CalcJacobians>
 FORCE_INLINE void modifyForFactor(
         const Evaluator::EvalCalcParams& params,
         const EvalCalcT& factor,
@@ -1398,6 +1459,11 @@ template <bool CalcJacobians>
             params, gameState, boardControl, passedPawns, Side::White, whitePiecePositionEval);
     evaluatePasserObstructions(
             params, gameState, boardControl, passedPawns, Side::Black, blackPiecePositionEval);
+
+    evaluateTarraschRule(
+            params, gameState, boardControl, passedPawns, Side::White, whitePiecePositionEval.eval);
+    evaluateTarraschRule(
+            params, gameState, boardControl, passedPawns, Side::Black, blackPiecePositionEval.eval);
 
     const EvalCalcT tempoFactor = gameState.getSideToMove() == Side::White ? 1.f : -1.f;
     updateTaperedTerm(params, params.tempoBonus, whitePiecePositionEval.eval, tempoFactor);
