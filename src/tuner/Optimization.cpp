@@ -169,8 +169,8 @@ void setParameterBlocksConstantForSolvingEvalParams(
 
     // Set one entry in the safe mobility adjustment constant for each piece, to avoid gauge freedoms
     // with the piece values.
-    for (int pieceIdx = 0; pieceIdx < kNumPieceTypes; ++pieceIdx) {
-        setTaperedTermConstant(params.safeMobilityAdjustment[pieceIdx][5]);
+    for (auto& safeMobilityAdjustment : params.safeMobilityAdjustment) {
+        setTaperedTermConstant(safeMobilityAdjustment[4]);
     }
 
     // For opposite colored bishop endgames with a large pawn delta we don't have enough data.

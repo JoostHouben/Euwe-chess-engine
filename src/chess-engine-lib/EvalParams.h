@@ -26,7 +26,7 @@ struct EvalParams {
 
     std::array<EvalCalcT, kNumPstPieceTypes> phaseMaterialValues;
 
-    std::array<EvalCalcT, 5> oppositeColoredBishopFactor;
+    std::array<EvalCalcT, 4> oppositeColoredBishopFactor;
     EvalCalcT singleMinorFactor;
     EvalCalcT twoKnightsFactor;
     EvalCalcT rookVsMinorFactor;
@@ -72,9 +72,9 @@ struct EvalParams {
     std::array<TaperedTerm, 9> rookPawnAdjustment;
     std::array<TaperedTerm, 9> queenPawnAdjustment;
 
-    std::array<TaperedTerm, kNumPieceTypes> mobilityBonus;
+    std::array<TaperedTerm, kNumPieceTypes - 2> mobilityBonus;
 
-    std::array<std::array<TaperedTerm, 9>, kNumPieceTypes> safeMobilityAdjustment;
+    std::array<std::array<TaperedTerm, 9>, kNumPieceTypes - 2> safeMobilityAdjustment;
 
     static constexpr int kDoubledPawnTropismIdx         = kNumPieceTypes - 1;
     static constexpr int kIsolatedPawnTropismIdx        = kNumPieceTypes;
@@ -89,8 +89,8 @@ struct EvalParams {
 
     std::array<std::array<TaperedTerm, 3>, kNumPieceTypes - 1> attackDefendAdjustment;
 
-    std::array<TaperedTerm, 10> controlNearEnemyKing;
-    std::array<TaperedTerm, kNumPieceTypes> kingAttackWeight;
+    std::array<TaperedTerm, 9> controlNearEnemyKing;
+    std::array<TaperedTerm, kNumPieceTypes - 1> kingAttackWeight;
     std::array<TaperedTerm, 6> numKingAttackersAdjustment;
 
     std::array<TaperedTerm, kNumPieceTypes - 1> piecePinnedAdjustment;

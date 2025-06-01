@@ -201,6 +201,8 @@ FORCE_INLINE void updateMobilityEvaluation(
         const BitBoard enemyKingArea,
         const Side side,
         PiecePositionEvaluation<CalcJacobians>& result) {
+    MY_ASSERT(piece != Piece::Pawn && piece != Piece::King);
+
     const BitBoard& control = boardControl.pieceControl[pieceControlIdx++];
     const bool isAttacker   = (control & enemyKingArea) != BitBoard::Empty;
 
@@ -209,7 +211,7 @@ FORCE_INLINE void updateMobilityEvaluation(
 
     const BitBoard mobilityBB = control & ~ownOccupancy;
     const int mobility        = popCount(mobilityBB);
-    updateTaperedTerm(params, params.mobilityBonus[(int)piece], result.eval, mobility);
+    updateTaperedTerm(params, params.mobilityBonus[(int)piece - 1], result.eval, mobility);
 
     const BitBoard& enemyControl  = boardControl.sideControl[(int)nextSide(side)];
     const BitBoard safeMobilityBB = mobilityBB & ~enemyControl;
@@ -217,7 +219,7 @@ FORCE_INLINE void updateMobilityEvaluation(
     const int safeMobilityIdx =
             min(safeMobility, (int)params.safeMobilityAdjustment.front().size() - 1);
     updateTaperedTerm(
-            params, params.safeMobilityAdjustment[(int)piece][safeMobilityIdx], result.eval, 1);
+            params, params.safeMobilityAdjustment[(int)piece - 1][safeMobilityIdx], result.eval, 1);
 }
 
 template <bool CalcJacobians>
