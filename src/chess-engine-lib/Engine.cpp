@@ -4,6 +4,7 @@
 #include "Syzygy.h"
 
 #include <algorithm>
+#include <atomic>
 
 class Engine::Impl {
   public:
