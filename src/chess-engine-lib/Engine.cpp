@@ -42,6 +42,8 @@ class Engine::Impl {
     MoveSearcher moveSearcher_;
     IFrontEnd* frontEnd_ = nullptr;
 
+    std::atomic<bool> stopSearch_ = false;
+
     bool hasSyzygy_ = false;
 };
 
@@ -73,11 +75,18 @@ void Engine::Impl::setFrontEnd(IFrontEnd* frontEnd) {
 
 void Engine::Impl::newGame() {
     moveSearcher_.newGame();
+    stopSearch_ = false;
 }
 
 SearchInfo Engine::Impl::findMove(
         const GameState& gameState, const std::vector<Move>& searchMoves) {
+    stopSearch_ = false;
+
     const auto allLegalMoves = gameState.generateMoves(moveStack_);
+
+    if (allLegalMoves.empty()) {
+        throw std::invalid_argument("No legal moves available in the current position.");
+    }
 
     for (const auto& move : searchMoves) {
         bool isLegal = false;
@@ -178,7 +187,9 @@ SearchInfo Engine::Impl::findMove(
             frontEnd_->reportFullSearch(searchInfo);
         }
 
-        if (isMate(searchResult.eval) && getMateDistanceInPly(searchResult.eval) <= depth) {
+        if (isMate(searchResult.eval)
+            && timeManager_.shouldStopAfterMateFound(
+                    depth, getMateDistanceInPly(searchResult.eval))) {
             break;
         }
 
@@ -191,11 +202,38 @@ SearchInfo Engine::Impl::findMove(
         frontEnd_->reportSearchStatistics(searchInfo.statistics);
     }
 
+    if (searchInfo.principalVariation.empty()) {
+        if (frontEnd_) {
+            frontEnd_->reportError(
+                    "Search reported no principal variation! Falling back to any legal move.");
+        }
+        // Fill in the principal variation with any move we can come up with...
+
+        if (movesToSearch) {
+            // If we were searching among a specific set of moves, just grab the first one of those.
+            MY_ASSERT(!movesToSearch->empty());
+            searchInfo.principalVariation.push_back(movesToSearch->front());
+        } else {
+            // Otherwise, just grab the first legal move.
+            MY_ASSERT(!allLegalMoves.empty());
+            searchInfo.principalVariation.push_back(allLegalMoves.front());
+        }
+    }
+
+    if (timeManager_.isInfiniteSearch() && !stopSearch_) {
+        // We're done already but the user hasn't requested the search to stop yet.
+        // So we wait until a stop request is issued.
+        stopSearch_.wait(/*old*/ false);
+    }
+    stopSearch_ = false;
+
     return searchInfo;
 }
 
 void Engine::Impl::interruptSearch() {
     moveSearcher_.interruptSearch();
+    stopSearch_ = true;
+    stopSearch_.notify_one();
 }
 
 int Engine::Impl::getDefaultTTableSizeInMb() const {

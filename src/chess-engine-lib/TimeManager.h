@@ -17,6 +17,10 @@ class TimeManager {
 
     [[nodiscard]] bool shouldStopAfterFullPly(int depth, int numMovesToConsider) const;
 
+    [[nodiscard]] bool shouldStopAfterMateFound(int depth, int mateDistanceInPly) const;
+
+    [[nodiscard]] bool isInfiniteSearch() const;
+
     void forceNextCheck() const;
 
     void configureForTimeControl(

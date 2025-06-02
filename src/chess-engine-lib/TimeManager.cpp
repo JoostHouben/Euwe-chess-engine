@@ -100,6 +100,20 @@ bool TimeManager::shouldStopAfterFullPly(const int depth, const int numMovesToCo
     }
 }
 
+bool TimeManager::shouldStopAfterMateFound(int depth, int mateDistanceInPly) const {
+    MY_ASSERT(mode_ != TimeManagementMode::None);
+
+    if (mode_ == TimeManagementMode::TimeControl) {
+        return mateDistanceInPly <= depth;
+    }
+
+    return false;
+}
+
+bool TimeManager::isInfiniteSearch() const {
+    return mode_ == TimeManagementMode::Infinite;
+}
+
 void TimeManager::forceNextCheck() const {
     interruptCheckCounter_ = 0;
 }
@@ -145,8 +159,9 @@ void TimeManager::configureForInfiniteSearch() {
 void TimeManager::configureForFixedTimeSearch(const std::chrono::milliseconds time) {
     startNewSession();
 
+    // In fixed time mode we ignore moveOverhead_.
     mode_         = TimeManagementMode::FixedTime;
-    softDeadLine_ = startTime_ + time - moveOverhead_;
+    softDeadLine_ = startTime_ + time;
     hardDeadLine_ = softDeadLine_;
 }
 
