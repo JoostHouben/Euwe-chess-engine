@@ -163,9 +163,13 @@ void setParameterBlocksConstantForSolvingEvalParams(
     setTaperedTermConstant(params.queenPawnAdjustment[4]);
 
     setTaperedTermConstant(params.controlNearEnemyKing[0]);
-    setTaperedTermConstant(params.numKingAttackersAdjustment[0]);
     setTaperedTermConstant(params.defendedChecksAdjustment[0]);
     setTaperedTermConstant(params.undefendedChecksAdjustment[0]);
+
+    {
+        const int idxBias = (int)params.attackersMinusDefendersFactor.size() / 2;
+        setTaperedTermConstant(params.attackersMinusDefendersFactor[idxBias]);
+    }
 
     // Set one entry in the safe mobility adjustment constant for each piece, to avoid gauge freedoms
     // with the piece values.
@@ -276,7 +280,7 @@ void solve(ceres::Problem& problem, const bool useTrustRegionMethod) {
     options.num_threads                  = std::thread::hardware_concurrency();
 
     if (useTrustRegionMethod) {
-        options.parameter_tolerance           = 1e-3;
+        options.parameter_tolerance           = 1e-5;
         options.initial_trust_region_radius   = 1e4;
         options.max_trust_region_radius       = 1e6;
         options.max_num_refinement_iterations = 3;

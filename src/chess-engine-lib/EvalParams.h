@@ -51,7 +51,7 @@ struct EvalParams {
 
     TaperedTerm passerMechanicalObstructionFactor;
     TaperedTerm passerDynamicObstructionFactor;
-    TaperedTerm passerSacrificialOstructionFactor;
+    TaperedTerm passerSacrificialObstructionFactor;
 
     std::array<TaperedTerm, 9> bishopPawnSameColorAdjustment;
     std::array<TaperedTerm, 9> bishopEnemyPawnSameColorAdjustment;
@@ -91,7 +91,7 @@ struct EvalParams {
 
     std::array<TaperedTerm, 9> controlNearEnemyKing;
     std::array<TaperedTerm, kNumPieceTypes - 1> kingAttackWeight;
-    std::array<TaperedTerm, 6> numKingAttackersAdjustment;
+    std::array<TaperedTerm, 7> attackersMinusDefendersFactor;
 
     std::array<TaperedTerm, kNumPieceTypes - 1> piecePinnedAdjustment;
 

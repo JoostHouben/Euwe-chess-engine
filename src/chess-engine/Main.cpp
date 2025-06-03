@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "uci-compliance-testing");
+            UciFrontEnd uciFrontEnd(engine, "attackers-minus-defenders-factor");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

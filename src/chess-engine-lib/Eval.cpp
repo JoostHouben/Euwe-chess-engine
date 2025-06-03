@@ -122,7 +122,7 @@ struct PiecePositionEvaluation {
 
     TermWithGradient<CalcJacobians> phaseMaterial{};
 
-    int numKingAttackers = 0;
+    int attackersMinusDefendersIdx = 0;
 
     const PstMapping* pstIndex{};
     const PstMapping* pstIndexKing{};
@@ -206,8 +206,13 @@ FORCE_INLINE void updateMobilityEvaluation(
     const BitBoard& control = boardControl.pieceControl[pieceControlIdx++];
     const bool isAttacker   = (control & enemyKingArea) != BitBoard::Empty;
 
-    result.numKingAttackers += isAttacker;
-    updateTaperedTerm(params, params.kingAttackWeight[(int)piece], result.eval, isAttacker);
+    if (isAttacker) {
+        updateTaperedProductTerm(
+                params,
+                params.kingAttackWeight[(int)piece],
+                params.attackersMinusDefendersFactor[result.attackersMinusDefendersIdx],
+                result.eval);
+    }
 
     const BitBoard mobilityBB = control & ~ownOccupancy;
     const int mobility        = popCount(mobilityBB);
@@ -606,11 +611,6 @@ void evaluatePiecePositionsForSide(
         updateTaperedTerm(
                 params, params.controlNearEnemyKing[controlNearEnemyKing], result.eval, 1);
 
-        const int numKingAttackersIdx =
-                min(result.numKingAttackers, (int)params.numKingAttackersAdjustment.size() - 1);
-        updateTaperedTerm(
-                params, params.numKingAttackersAdjustment[numKingAttackersIdx], result.eval, 1);
-
         updateForPins(params, gameState, side, ownKingPosition, result.eval);
 
         updateForChecks<CalcJacobians>(
@@ -649,6 +649,67 @@ FORCE_INLINE void evaluateAttackDefend(
                     eval,
                     numRelevantPieces);
         }
+    }
+}
+
+[[nodiscard]] FORCE_INLINE int countKingControllers(
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        const Side controllingSide,
+        const BitBoard kingArea) {
+    const BitBoard& sideControl = boardControl.sideControl[(int)controllingSide];
+    if ((sideControl & kingArea) == BitBoard::Empty) {
+        return 0;  // No controllers in the king area
+    }
+
+    int kingControllers = 0;
+
+    const BitBoard& pawnControl =
+            boardControl.pieceTypeControl[(int)controllingSide][(int)Piece::Pawn];
+    // Count any (non-zero) number of controlling pawns as one controller.
+    kingControllers += (pawnControl & kingArea) != BitBoard::Empty;
+
+    const int numNonPawnPieces = popCount(
+            gameState.getSideOccupancy(controllingSide)
+            & ~gameState.getPieceBitBoard(controllingSide, Piece::Pawn));
+
+    const int controlStartIdx = boardControl.getPieceControlStartIdx(controllingSide);
+    for (int pieceIdx = 0; pieceIdx < numNonPawnPieces; ++pieceIdx) {
+        const BitBoard& pieceControl = boardControl.pieceControl[controlStartIdx + pieceIdx];
+        if ((pieceControl & kingArea) != BitBoard::Empty) {
+            ++kingControllers;
+        }
+    }
+
+    return kingControllers;
+}
+
+template <bool CalcJacobians>
+FORCE_INLINE void setKingAttackersMinusDefenders(
+        const Evaluator::EvalCalcParams& params,
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        const Side side,
+        const BitBoard enemyKingArea,
+        PiecePositionEvaluation<CalcJacobians>& result) {
+    const int attackersMinusDefenders =
+            countKingControllers(gameState, boardControl, side, enemyKingArea)
+            - countKingControllers(gameState, boardControl, nextSide(side), enemyKingArea);
+
+    const int idxBias = (int)params.attackersMinusDefendersFactor.size() / 2;
+    result.attackersMinusDefendersIdx =
+            clamp(attackersMinusDefenders + idxBias,
+                  0,
+                  (int)params.attackersMinusDefendersFactor.size() - 1);
+
+    // Apply pawn attack bonus here, because it isn't part of the cached pawn-king control.
+    const BitBoard& ownPawnControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
+    if ((ownPawnControl & enemyKingArea) != BitBoard::Empty) {
+        updateTaperedProductTerm(
+                params,
+                params.kingAttackWeight[(int)Piece::Pawn],
+                params.attackersMinusDefendersFactor[result.attackersMinusDefendersIdx],
+                result.eval);
     }
 }
 
@@ -694,7 +755,7 @@ FORCE_INLINE void evaluatePasserObstructions(
             updateTaperedProductTerm(
                     params,
                     passedPawnPstTerm,
-                    params.passerSacrificialOstructionFactor,
+                    params.passerSacrificialObstructionFactor,
                     result.eval);
         }
     }
@@ -935,7 +996,6 @@ void evaluatePawnKingForSide(
         const BoardPosition ownKingPosition,
         const BoardPosition enemyKingPosition,
         const BitBoard ownKingArea,
-        const BitBoard enemyKingArea,
         const BitBoard blockersForOwnCandidates,
         PiecePositionEvaluation<CalcJacobians>& result,
         bool& hasConditionallyUnstoppablePawn,
@@ -1031,13 +1091,6 @@ void evaluatePawnKingForSide(
                 params, ownKingPosition, enemyKingPosition, tropismIdx, position, result.eval);
     }
 
-    const BitBoard kingAttack    = enemyKingArea & ownPawnControl;
-    const int numAttackedSquares = popCount(kingAttack);
-    result.numKingAttackers += numAttackedSquares;
-
-    updateTaperedTerm(
-            params, params.kingAttackWeight[(int)Piece::Pawn], result.eval, numAttackedSquares);
-
     updatePiecePositionEvaluation<CalcJacobians, /*IsKing*/ true>(
             params, (int)Piece::King, ownKingPosition, result);
 
@@ -1077,18 +1130,6 @@ FORCE_INLINE void evaluateUnstoppablePawn(
 }
 
 template <bool CalcJacobians>
-FORCE_INLINE void updateControlForKing(
-        const BitBoard whiteKingArea,
-        const BitBoard blackKingArea,
-        PiecePositionEvaluation<CalcJacobians>& whiteResult,
-        PiecePositionEvaluation<CalcJacobians>& blackResult) {
-    const BitBoard kingOverlap      = whiteKingArea & blackKingArea;
-    const bool kingsAttackEachOther = kingOverlap != BitBoard::Empty;
-    whiteResult.numKingAttackers += kingsAttackEachOther;
-    blackResult.numKingAttackers += kingsAttackEachOther;
-}
-
-template <bool CalcJacobians>
 FORCE_INLINE void evaluatePawnKing(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
@@ -1116,7 +1157,6 @@ FORCE_INLINE void evaluatePawnKing(
             whiteKingPosition,
             blackKingPosition,
             whiteKingArea,
-            blackKingArea,
             blockersForWhiteCandidates,
             whiteResult,
             whiteHasConditionallyUnstoppablePawn,
@@ -1130,7 +1170,6 @@ FORCE_INLINE void evaluatePawnKing(
             blackKingPosition,
             whiteKingPosition,
             blackKingArea,
-            whiteKingArea,
             blockersForBlackCandidates,
             blackResult,
             blackHasConditionallyUnstoppablePawn,
@@ -1151,8 +1190,6 @@ FORCE_INLINE void evaluatePawnKing(
         pawnKingEvalHashTable.store(gameState.getPawnKingHash(), pawnKingEvalInfo);
     }
 
-    updateControlForKing(whiteKingArea, blackKingArea, whiteResult, blackResult);
-
     evaluateUnstoppablePawn(
             params, gameState, Side::White, whiteHasConditionallyUnstoppablePawn, whiteResult);
 
@@ -1163,9 +1200,6 @@ FORCE_INLINE void evaluatePawnKing(
 FORCE_INLINE void useStoredPawnKingEval(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
-        const BoardControl& boardControl,
-        const BitBoard whiteKingArea,
-        const BitBoard blackKingArea,
         const PawnKingEvalInfo& pawnKingEvalInfo,
         PiecePositionEvaluation<false>& whiteResult,
         PiecePositionEvaluation<false>& blackResult) {
@@ -1175,31 +1209,6 @@ FORCE_INLINE void useStoredPawnKingEval(
     whiteResult.eval.late.value += pawnKingEvalInfo.lateEval;
 
     whiteResult.phaseMaterial.value += pawnKingEvalInfo.phaseMaterial;
-
-    /*
-    const BitBoard& pawnControl  = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
-    const BitBoard kingAttack    = enemyKingArea & pawnControl;
-    const int numAttackedSquares = popCount(kingAttack);
-    result.numKingAttackers += numAttackedSquares;
-    */
-    const auto updateFromControlForSide = [](const BitBoard pawnControl,
-                                             const BitBoard enemyKingArea,
-                                             PiecePositionEvaluation<false>& result) {
-        const BitBoard kingAttack    = enemyKingArea & pawnControl;
-        const int numAttackedSquares = popCount(kingAttack);
-        result.numKingAttackers += numAttackedSquares;
-    };
-
-    updateFromControlForSide(
-            boardControl.pieceTypeControl[(int)Side::White][(int)Piece::Pawn],
-            blackKingArea,
-            whiteResult);
-    updateFromControlForSide(
-            boardControl.pieceTypeControl[(int)Side::Black][(int)Piece::Pawn],
-            whiteKingArea,
-            blackResult);
-
-    updateControlForKing(whiteKingArea, blackKingArea, whiteResult, blackResult);
 
     evaluateUnstoppablePawn(
             params,
@@ -1234,15 +1243,7 @@ FORCE_INLINE void evaluatePawnKingOrRetrieve(
             const auto retrievedInfo = pawnKingEvalHashTable.probe(gameState.getPawnKingHash());
 
             if (retrievedInfo) {
-                useStoredPawnKingEval(
-                        params,
-                        gameState,
-                        boardControl,
-                        whiteKingArea,
-                        blackKingArea,
-                        *retrievedInfo,
-                        whiteResult,
-                        blackResult);
+                useStoredPawnKingEval(params, gameState, *retrievedInfo, whiteResult, blackResult);
 
                 passedPawns = retrievedInfo->passedPawns;
 
@@ -1454,6 +1455,11 @@ template <bool CalcJacobians>
             whitePiecePositionEval,
             blackPiecePositionEval,
             passedPawns);
+
+    setKingAttackersMinusDefenders(
+            params, gameState, boardControl, Side::White, blackKingArea, whitePiecePositionEval);
+    setKingAttackersMinusDefenders(
+            params, gameState, boardControl, Side::Black, whiteKingArea, blackPiecePositionEval);
 
     evaluatePiecePositionsForSide(
             params,
