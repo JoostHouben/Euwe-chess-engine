@@ -1036,7 +1036,7 @@ constexpr std::array<BitBoard, 2> kHoleAreas = {
 };
 
 template <bool CalcJacobians>
-void evaluatePotentialHoles(
+void evaluateHoles(
         const Evaluator::EvalCalcParams& params,
         const BoardControl& boardControl,
         TaperedEvaluation<CalcJacobians>& eval) {
@@ -1048,15 +1048,24 @@ void evaluatePotentialHoles(
     const BitBoard whiteFrontAttackSpan = getFrontSpan(whitePawnControl, Side::White);
     const BitBoard blackFrontAttackSpan = getFrontSpan(blackPawnControl, Side::Black);
 
-    const BitBoard whitePotentialHoles =
-            ~whiteFrontAttackSpan & blackFrontAttackSpan & kHoleAreas[(int)Side::White];
-    const BitBoard blackPotentialHoles =
-            ~blackFrontAttackSpan & whiteFrontAttackSpan & kHoleAreas[(int)Side::Black];
+    const BitBoard whitePotentialHoles = ~whiteFrontAttackSpan & kHoleAreas[(int)Side::White];
+    const BitBoard blackPotentialHoles = ~blackFrontAttackSpan & kHoleAreas[(int)Side::Black];
 
-    const int netWhitePotentialHoles =
-            popCount(whitePotentialHoles) - popCount(blackPotentialHoles);
+    const BitBoard whitePotentiallyExploitableHoles = whitePotentialHoles & blackFrontAttackSpan;
+    const BitBoard blackPotentiallyExploitableHoles = blackPotentialHoles & whiteFrontAttackSpan;
 
-    updateTaperedTerm(params, params.potentialHoleAdjustment, eval, netWhitePotentialHoles);
+    const int netWhitePotentiallyExploitableHoles =
+            popCount(whitePotentiallyExploitableHoles) - popCount(blackPotentiallyExploitableHoles);
+
+    updateTaperedTerm(
+            params, params.potentialHoleAdjustment, eval, netWhitePotentiallyExploitableHoles);
+
+    const BitBoard whiteHoles = whitePotentialHoles & blackPawnControl;
+    const BitBoard blackHoles = blackPotentialHoles & whitePawnControl;
+
+    const int netWhiteHoles = popCount(whiteHoles) - popCount(blackHoles);
+
+    updateTaperedTerm(params, params.holeAdjustment, eval, netWhiteHoles);
 }
 
 template <bool CalcJacobians>
@@ -1247,7 +1256,7 @@ FORCE_INLINE void evaluatePawnKing(
             blackHasConditionallyUnstoppablePawn,
             passedPawns);
 
-    evaluatePotentialHoles(params, boardControl, whiteResult.eval);
+    evaluateHoles(params, boardControl, whiteResult.eval);
 
     if (!pawnKingEvalHashTable.empty()) {
         const PawnKingEvalInfo pawnKingEvalInfo{
