@@ -397,6 +397,66 @@ FORCE_INLINE void updateForKingOpenFiles(
     updateTaperedTerm(params, params.kingFlankOpenFileAdjustment, eval, flankWeight);
 }
 
+[[nodiscard]] FORCE_INLINE BitBoard northFill(const BitBoard bb) {
+    std::uint64_t mask = (std::uint64_t)bb;
+    mask |= (mask << 8);
+    mask |= (mask << 16);
+    mask |= (mask << 32);
+    return (BitBoard)mask;
+}
+
+[[nodiscard]] FORCE_INLINE BitBoard southFill(const BitBoard bb) {
+    std::uint64_t mask = (std::uint64_t)bb;
+    mask |= (mask >> 8);
+    mask |= (mask >> 16);
+    mask |= (mask >> 32);
+    return (BitBoard)mask;
+}
+
+[[nodiscard]] FORCE_INLINE BitBoard getFrontSpan(const BitBoard bb, const Side side) {
+    if (side == Side::White) {
+        return northFill(bb);
+    } else {
+        return southFill(bb);
+    }
+}
+
+constexpr BitBoard kFileCToF = (BitBoard)((kWestFileMask << 2)    // c
+                                          | (kWestFileMask << 3)  // d
+                                          | (kWestFileMask << 4)  // e
+                                          | (kWestFileMask << 5)  // f
+);
+
+constexpr BitBoard k4thTo7thRankForWhite = (BitBoard)((kSouthRankMask << (3 * kFiles))    // rank 4
+                                                      | (kSouthRankMask << (4 * kFiles))  // rank 5
+                                                      | (kSouthRankMask << (5 * kFiles))  // rank 6
+                                                      | (kSouthRankMask << (6 * kFiles))  // rank 7
+);
+
+constexpr BitBoard k4thTo7thRankForBlack =
+        (BitBoard)((kNorthRankMask >> (3 * kFiles))    // 4th rank (rank 5)
+                   | (kNorthRankMask >> (4 * kFiles))  // 5th rank (rank 4)
+                   | (kNorthRankMask >> (5 * kFiles))  // 6th rank (rank 3)
+                   | (kNorthRankMask >> (6 * kFiles))  // 7th rank (rank 2)
+        );
+
+constexpr std::array<BitBoard, 2> kHoleAreas = {
+        kFileCToF & k4thTo7thRankForBlack,  // White hole area
+        kFileCToF& k4thTo7thRankForWhite,   // Black hole area
+};
+
+[[nodiscard]] FORCE_INLINE BitBoard
+getOutpostBitBoard(const BoardControl& boardControl, const Side side) {
+    const BitBoard& ownPawnControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
+    const BitBoard& enemyPawnControl =
+            boardControl.pieceTypeControl[(int)nextSide(side)][(int)Piece::Pawn];
+    const BitBoard enemyPawnFrontAttackSpan = getFrontSpan(enemyPawnControl, nextSide(side));
+
+    const BitBoard outposts =
+            ownPawnControl & ~enemyPawnFrontAttackSpan & kHoleAreas[(int)nextSide(side)];
+    return outposts;
+}
+
 template <bool CalcJacobians>
 void evaluatePiecePositionsForSide(
         const Evaluator::EvalCalcParams& params,
@@ -429,6 +489,8 @@ void evaluatePiecePositionsForSide(
             updateTaperedTerm(params, params.knightPairBonus, result.eval, 1);
         }
 
+        const BitBoard outpostBitBoard = getOutpostBitBoard(boardControl, side);
+
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
 
@@ -454,6 +516,10 @@ void evaluatePiecePositionsForSide(
                     enemyKingArea,
                     side,
                     result);
+
+            if (outpostBitBoard & position) {
+                updateTaperedTerm(params, params.knightOnOutpostAdjustment, result.eval, 1);
+            }
         }
     }
 
@@ -986,54 +1052,6 @@ getPromotionSquare(const BoardPosition pawnPosition, const Side pawnSide) {
 
     return {blockersForWhiteCandidates, blockersForBlackCandidates};
 }
-
-[[nodiscard]] FORCE_INLINE BitBoard northFill(const BitBoard bb) {
-    std::uint64_t mask = (std::uint64_t)bb;
-    mask |= (mask << 8);
-    mask |= (mask << 16);
-    mask |= (mask << 32);
-    return (BitBoard)mask;
-}
-
-[[nodiscard]] FORCE_INLINE BitBoard southFill(const BitBoard bb) {
-    std::uint64_t mask = (std::uint64_t)bb;
-    mask |= (mask >> 8);
-    mask |= (mask >> 16);
-    mask |= (mask >> 32);
-    return (BitBoard)mask;
-}
-
-[[nodiscard]] FORCE_INLINE BitBoard getFrontSpan(const BitBoard bb, const Side side) {
-    if (side == Side::White) {
-        return northFill(bb);
-    } else {
-        return southFill(bb);
-    }
-}
-
-constexpr BitBoard kFileCToF = (BitBoard)((kWestFileMask << 2)    // c
-                                          | (kWestFileMask << 3)  // d
-                                          | (kWestFileMask << 4)  // e
-                                          | (kWestFileMask << 5)  // f
-);
-
-constexpr BitBoard k4thTo7thRankForWhite = (BitBoard)((kSouthRankMask << (3 * kFiles))    // rank 4
-                                                      | (kSouthRankMask << (4 * kFiles))  // rank 5
-                                                      | (kSouthRankMask << (5 * kFiles))  // rank 6
-                                                      | (kSouthRankMask << (6 * kFiles))  // rank 7
-);
-
-constexpr BitBoard k4thTo7thRankForBlack =
-        (BitBoard)((kNorthRankMask >> (3 * kFiles))    // 4th rank (rank 5)
-                   | (kNorthRankMask >> (4 * kFiles))  // 5th rank (rank 4)
-                   | (kNorthRankMask >> (5 * kFiles))  // 6th rank (rank 3)
-                   | (kNorthRankMask >> (6 * kFiles))  // 7th rank (rank 2)
-        );
-
-constexpr std::array<BitBoard, 2> kHoleAreas = {
-        kFileCToF & k4thTo7thRankForWhite,  // White hole area
-        kFileCToF& k4thTo7thRankForBlack,   // Black hole area
-};
 
 template <bool CalcJacobians>
 void evaluateHoles(

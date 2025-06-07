@@ -105,6 +105,7 @@ struct EvalParams {
 
     TaperedTerm potentialHoleAdjustment;
     TaperedTerm holeAdjustment;
+    TaperedTerm knightOnOutpostAdjustment;
 
     [[nodiscard]] FORCE_INLINE std::size_t getParamIndex(const EvalCalcT& param) const {
         const std::byte* thisByte   = reinterpret_cast<const std::byte*>(this);

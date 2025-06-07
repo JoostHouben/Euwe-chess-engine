@@ -246,8 +246,8 @@ constexpr EvalParamArray kDefaultParams = {
         -11.574593f,  -27.959955f,  -7.290893f,   -37.707916f,  -6.388620f,   -69.596153f,
         25.594025f,   -109.467720f, 69.989487f,   0.000000f,    0.000000f,    -21.080307f,
         -5.584234f,   -53.949329f,  -6.934841f,   -97.744637f,  5.607420f,    -150.435196f,
-        57.405838f,   -216.009644f, 143.434097f,  -274.612152f, 167.651993f,  -6.970660f,
-        0.812784f,    -4.786119f,   -1.633611f};
+        57.405838f,   -216.009644f, 143.434097f,  -274.612152f, 167.651993f,  -3.695484f,
+        0.784766f,    -3.394332f,   -3.832556f,   23.322418f,   8.730496f};
 
 std::string evalCalcTToString(const EvalCalcT term) {
     return std::format("{:>6.1f}", term);
@@ -536,6 +536,9 @@ std::string evalParamsToString(const EvalParams& params) {
             "\npotentialHoleAdjustment:\n\t{}",
             taperedTermToString(params.potentialHoleAdjustment));
     oss << std::format("\nholeAdjustment:\n\t{}", taperedTermToString(params.holeAdjustment));
+    oss << std::format(
+            "\nknightOnOutpostAdjustment:\n\t{}",
+            taperedTermToString(params.knightOnOutpostAdjustment));
 
     return oss.str();
 }
