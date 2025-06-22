@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "attackers-minus-defenders-factor");
+            UciFrontEnd uciFrontEnd(engine, "attackers-minus-defenders-factor-retune2");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
