@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "hole-rank3-6");
+            UciFrontEnd uciFrontEnd(engine, "wing-holes");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

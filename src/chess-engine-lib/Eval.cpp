@@ -427,6 +427,9 @@ constexpr BitBoard kFileCToF = (BitBoard)((kWestFileMask << 2)    // c
                                           | (kWestFileMask << 5)  // f
 );
 
+constexpr BitBoard kFilesABGH =
+        (BitBoard)(kWestFileMask | (kWestFileMask << 1) | (kEastFileMask >> 1) | kEastFileMask);
+
 [[nodiscard]] FORCE_INLINE BitBoard
 getOutpostBitBoard(const BoardControl& boardControl, const Side side) {
     static constexpr BitBoard k4thTo7thRankForWhite =
@@ -1073,24 +1076,58 @@ void evaluateHoles(
                                                      | (kSouthRankMask << (5 * kFiles))  // rank 6
     );
 
-    const BitBoard whitePotentialHoles = ~whiteFrontAttackSpan & kFileCToF & kRank3To6;
-    const BitBoard blackPotentialHoles = ~blackFrontAttackSpan & kFileCToF & kRank3To6;
+    const BitBoard whitePotentialHoles = ~whiteFrontAttackSpan & kRank3To6;
+    const BitBoard blackPotentialHoles = ~blackFrontAttackSpan & kRank3To6;
 
     const BitBoard whitePotentiallyExploitableHoles = whitePotentialHoles & blackFrontAttackSpan;
     const BitBoard blackPotentiallyExploitableHoles = blackPotentialHoles & whiteFrontAttackSpan;
 
-    const int netWhitePotentiallyExploitableHoles =
-            popCount(whitePotentiallyExploitableHoles) - popCount(blackPotentiallyExploitableHoles);
+    const BitBoard whiteCentralPotentiallyExploitableHoles =
+            whitePotentiallyExploitableHoles & kFileCToF;
+    const BitBoard blackCentralPotentiallyExploitableHoles =
+            blackPotentiallyExploitableHoles & kFileCToF;
+
+    const BitBoard whiteWingPotentiallyExploitableHoles =
+            whitePotentiallyExploitableHoles & kFilesABGH;
+    const BitBoard blackWingPotentiallyExploitableHoles =
+            blackPotentiallyExploitableHoles & kFilesABGH;
+
+    const int netCentralWhitePotentiallyExploitableHoles =
+            popCount(whiteCentralPotentiallyExploitableHoles)
+            - popCount(blackCentralPotentiallyExploitableHoles);
+
+    const int netWingWhitePotentiallyExploitableHoles =
+            popCount(whiteWingPotentiallyExploitableHoles)
+            - popCount(blackWingPotentiallyExploitableHoles);
 
     updateTaperedTerm(
-            params, params.potentialHoleAdjustment, eval, netWhitePotentiallyExploitableHoles);
+            params,
+            params.centralPotentialHoleAdjustment,
+            eval,
+            netCentralWhitePotentiallyExploitableHoles);
+
+    updateTaperedTerm(
+            params,
+            params.wingPotentialHoleAdjustment,
+            eval,
+            netWingWhitePotentiallyExploitableHoles);
 
     const BitBoard whiteHoles = whitePotentialHoles & blackPawnControl;
     const BitBoard blackHoles = blackPotentialHoles & whitePawnControl;
 
-    const int netWhiteHoles = popCount(whiteHoles) - popCount(blackHoles);
+    const BitBoard whiteCentralHoles = whiteHoles & kFileCToF;
+    const BitBoard blackCentralHoles = blackHoles & kFileCToF;
 
-    updateTaperedTerm(params, params.holeAdjustment, eval, netWhiteHoles);
+    const BitBoard whiteWingHoles = whiteHoles & kFilesABGH;
+    const BitBoard blackWingHoles = blackHoles & kFilesABGH;
+
+    const int netCentralWhiteHoles = popCount(whiteCentralHoles) - popCount(blackCentralHoles);
+
+    const int netWingWhiteHoles = popCount(whiteWingHoles) - popCount(blackWingHoles);
+
+    updateTaperedTerm(params, params.centralHoleAdjustment, eval, netCentralWhiteHoles);
+
+    updateTaperedTerm(params, params.wingHoleAdjustment, eval, netWingWhiteHoles);
 }
 
 template <bool CalcJacobians>
