@@ -427,26 +427,27 @@ constexpr BitBoard kFileCToF = (BitBoard)((kWestFileMask << 2)    // c
                                           | (kWestFileMask << 5)  // f
 );
 
-constexpr BitBoard k4thTo7thRankForWhite = (BitBoard)((kSouthRankMask << (3 * kFiles))    // rank 4
-                                                      | (kSouthRankMask << (4 * kFiles))  // rank 5
-                                                      | (kSouthRankMask << (5 * kFiles))  // rank 6
-                                                      | (kSouthRankMask << (6 * kFiles))  // rank 7
-);
-
-constexpr BitBoard k4thTo7thRankForBlack =
-        (BitBoard)((kNorthRankMask >> (3 * kFiles))    // 4th rank (rank 5)
-                   | (kNorthRankMask >> (4 * kFiles))  // 5th rank (rank 4)
-                   | (kNorthRankMask >> (5 * kFiles))  // 6th rank (rank 3)
-                   | (kNorthRankMask >> (6 * kFiles))  // 7th rank (rank 2)
-        );
-
-constexpr std::array<BitBoard, 2> kHoleAreas = {
-        kFileCToF & k4thTo7thRankForBlack,  // White hole area
-        kFileCToF& k4thTo7thRankForWhite,   // Black hole area
-};
-
 [[nodiscard]] FORCE_INLINE BitBoard
 getOutpostBitBoard(const BoardControl& boardControl, const Side side) {
+    static constexpr BitBoard k4thTo7thRankForWhite =
+            (BitBoard)((kSouthRankMask << (3 * kFiles))    // rank 4
+                       | (kSouthRankMask << (4 * kFiles))  // rank 5
+                       | (kSouthRankMask << (5 * kFiles))  // rank 6
+                       | (kSouthRankMask << (6 * kFiles))  // rank 7
+            );
+
+    static constexpr BitBoard k4thTo7thRankForBlack =
+            (BitBoard)((kNorthRankMask >> (3 * kFiles))    // 4th rank (rank 5)
+                       | (kNorthRankMask >> (4 * kFiles))  // 5th rank (rank 4)
+                       | (kNorthRankMask >> (5 * kFiles))  // 6th rank (rank 3)
+                       | (kNorthRankMask >> (6 * kFiles))  // 7th rank (rank 2)
+            );
+
+    static constexpr std::array<BitBoard, 2> kHoleAreas = {
+            kFileCToF & k4thTo7thRankForBlack,  // White hole area
+            kFileCToF & k4thTo7thRankForWhite,  // Black hole area
+    };
+
     const BitBoard& ownPawnControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
     const BitBoard& enemyPawnControl =
             boardControl.pieceTypeControl[(int)nextSide(side)][(int)Piece::Pawn];
@@ -1066,8 +1067,14 @@ void evaluateHoles(
     const BitBoard whiteFrontAttackSpan = getFrontSpan(whitePawnControl, Side::White);
     const BitBoard blackFrontAttackSpan = getFrontSpan(blackPawnControl, Side::Black);
 
-    const BitBoard whitePotentialHoles = ~whiteFrontAttackSpan & kHoleAreas[(int)Side::White];
-    const BitBoard blackPotentialHoles = ~blackFrontAttackSpan & kHoleAreas[(int)Side::Black];
+    static constexpr BitBoard kRank3To6 = (BitBoard)((kSouthRankMask << (2 * kFiles))    // rank 3
+                                                     | (kSouthRankMask << (3 * kFiles))  // rank 4
+                                                     | (kSouthRankMask << (4 * kFiles))  // rank 5
+                                                     | (kSouthRankMask << (5 * kFiles))  // rank 6
+    );
+
+    const BitBoard whitePotentialHoles = ~whiteFrontAttackSpan & kFileCToF & kRank3To6;
+    const BitBoard blackPotentialHoles = ~blackFrontAttackSpan & kFileCToF & kRank3To6;
 
     const BitBoard whitePotentiallyExploitableHoles = whitePotentialHoles & blackFrontAttackSpan;
     const BitBoard blackPotentiallyExploitableHoles = blackPotentialHoles & whiteFrontAttackSpan;
