@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "knight-on-outpost");
+            UciFrontEnd uciFrontEnd(engine, "knight-on-outpost2");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
