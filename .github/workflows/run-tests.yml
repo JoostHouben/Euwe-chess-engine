@@ -31,19 +31,19 @@ jobs:
         config:
           # Windows MSVC
           - {
-              os: windows-latest,
+              os: windows-2025,
               preset: windows-msvc-debug,
               vcpkg_cache_triplet: x64-windows
             }
           - {
-              os: windows-latest,
+              os: windows-2025,
               preset: windows-msvc-release,
               vcpkg_cache_triplet: x64-windows
             }
 
           # Windows clang-cl
           - {
-              os: windows-latest,
+              os: windows-2025,
               preset: windows-clang-cl-release,
               vcpkg_cache_triplet: x64-windows
             }

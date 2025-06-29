@@ -78,7 +78,7 @@ jobs:
       matrix:
         config:
           - {
-              os: windows-latest,
+              os: windows-2025,
               preset: windows-msvc-debug,
               vcpkg_cache_triplet: x64-windows
             }

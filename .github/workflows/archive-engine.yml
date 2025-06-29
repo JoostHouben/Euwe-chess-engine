@@ -19,7 +19,7 @@ jobs:
       matrix:
         config:
           - {
-              os: windows-latest,
+              os: windows-2025,
               preset: windows-clang-cl-release,
               os-name: windows
             }
@@ -91,7 +91,7 @@ jobs:
           zip Euwe-${{ github.ref_name }}.${{ matrix.config.os-name }}.zip artifacts/* -j
 
       - name: Zip up artifacts (Windows)
-        if: steps.check-tag.outputs.match == 'true' && matrix.config.os == 'windows-latest'
+        if: steps.check-tag.outputs.match == 'true' && matrix.config.os == 'windows-2025'
         run: |
           Compress-Archive artifacts/* Euwe-${{ github.ref_name }}.${{ matrix.config.os-name }}.zip
 
