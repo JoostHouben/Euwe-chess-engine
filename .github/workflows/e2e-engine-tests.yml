@@ -33,13 +33,13 @@ jobs:
         config:
           # Windows MSVC
           - {
-             os: windows-latest,
+             os: windows-2025,
              preset: windows-msvc-debug
            }
 
           # Windows clang-cl
           - {
-             os: windows-latest,
+             os: windows-2025,
              preset: windows-clang-cl-release
            }
 
@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
-          if [[ ${{ matrix.config.os }} = "windows-latest" ]]; then
+          if [[ ${{ matrix.config.os }} = "windows-2025" ]]; then
             echo "syzygy-paths=\"./3-4-5-wdl;./3-4-5-dtz\"" >> "$GITHUB_OUTPUT"
           fi
           if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
@@ -137,7 +137,7 @@ jobs:
           mv fastchess-ubuntu-22.04 fastchess
 
       - name: Get fastchess (Windows)
-        if: matrix.config.os == 'windows-latest'
+        if: matrix.config.os == 'windows-2025'
         shell: powershell
         run: |
           wget https://github.com/Disservin/fastchess/releases/download/v1.4.0-alpha/fastchess-windows-latest.zip -OutFile fastchess-windows-latest.zip
@@ -152,7 +152,7 @@ jobs:
           unzip UHO_4060_v2.epd.zip
 
       - name: Get opening book (Windows)
-        if: matrix.config.os == 'windows-latest'
+        if: matrix.config.os == 'windows-2025'
         shell: powershell
         run: |
            wget https://github.com/official-stockfish/books/raw/master/UHO_4060_v2.epd.zip -OutFile UHO_4060_v2.epd.zip
@@ -177,7 +177,7 @@ jobs:
           wget --no-verbose -r -nH --cut-dirs=2 --no-parent --reject="index.html*" -e robots=off https://tablebase.lichess.ovh/tables/standard/3-4-5-dtz/
 
       - name: Download Syzygy 3-4-5 if needed (Windows)
-        if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'windows-latest'
+        if: steps.cache-syzygy.outputs.cache-hit != 'true' && matrix.config.os == 'windows-2025'
         shell: powershell
         run: |
           wget https://eternallybored.org/misc/wget/1.21.4/64/wget.exe -OutFile wget.exe
