@@ -93,6 +93,11 @@ inline constexpr std::uint64_t kWestFileMask  = 0x0101010101010101ULL;
 inline constexpr std::uint64_t kSouthRankMask = 0xffULL;
 inline constexpr std::uint64_t kEastFileMask  = 0x8080808080808080ULL;
 
+inline constexpr BitBoard kNorthRankBb = (BitBoard)kNorthRankMask;
+inline constexpr BitBoard kWestFileBb  = (BitBoard)kWestFileMask;
+inline constexpr BitBoard kSouthRankBb = (BitBoard)kSouthRankMask;
+inline constexpr BitBoard kEastFileBb  = (BitBoard)kEastFileMask;
+
 inline constexpr std::uint64_t kNotNorthRankMask = ~kNorthRankMask;
 inline constexpr std::uint64_t kNotWestFileMask  = ~kWestFileMask;
 inline constexpr std::uint64_t kNotSouthRankMask = ~kSouthRankMask;
