@@ -167,8 +167,8 @@ void setParameterBlocksConstantForSolvingEvalParams(
     setTaperedTermConstant(params.undefendedChecksAdjustment[0]);
 
     {
-        const int idxBias = (int)params.attackersMinusDefendersFactor.size() / 2;
-        setTaperedTermConstant(params.attackersMinusDefendersFactor[idxBias]);
+        const std::size_t size = params.attackersMinusDefendersFactor.size();
+        setTaperedTermConstant(params.attackersMinusDefendersFactor[size - 2]);
     }
 
     // Set one entry in the safe mobility adjustment constant for each piece, to avoid gauge freedoms

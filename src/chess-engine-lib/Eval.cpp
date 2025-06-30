@@ -397,6 +397,56 @@ FORCE_INLINE void updateForKingOpenFiles(
     updateTaperedTerm(params, params.kingFlankOpenFileAdjustment, eval, flankWeight);
 }
 
+[[nodiscard]] FORCE_INLINE BitBoard northFill(const BitBoard bb) {
+    std::uint64_t mask = (std::uint64_t)bb;
+    mask |= (mask << 8);
+    mask |= (mask << 16);
+    mask |= (mask << 32);
+    return (BitBoard)mask;
+}
+
+[[nodiscard]] FORCE_INLINE BitBoard southFill(const BitBoard bb) {
+    std::uint64_t mask = (std::uint64_t)bb;
+    mask |= (mask >> 8);
+    mask |= (mask >> 16);
+    mask |= (mask >> 32);
+    return (BitBoard)mask;
+}
+
+[[nodiscard]] FORCE_INLINE BitBoard getFrontSpan(const BitBoard bb, const Side side) {
+    if (side == Side::White) {
+        return northFill(bb);
+    } else {
+        return southFill(bb);
+    }
+}
+
+constexpr BitBoard kFileCToF = (BitBoard)((kWestFileMask << 2)    // c
+                                          | (kWestFileMask << 3)  // d
+                                          | (kWestFileMask << 4)  // e
+                                          | (kWestFileMask << 5)  // f
+);
+
+constexpr BitBoard kFilesABGH =
+        (BitBoard)(kWestFileMask | (kWestFileMask << 1) | (kEastFileMask >> 1) | kEastFileMask);
+
+constexpr BitBoard kRank3To6 = (BitBoard)((kSouthRankMask << (2 * kFiles))    // rank 3
+                                          | (kSouthRankMask << (3 * kFiles))  // rank 4
+                                          | (kSouthRankMask << (4 * kFiles))  // rank 5
+                                          | (kSouthRankMask << (5 * kFiles))  // rank 6
+);
+
+[[nodiscard]] FORCE_INLINE BitBoard
+getOutpostBitBoard(const BoardControl& boardControl, const Side side) {
+    const BitBoard& ownPawnControl = boardControl.pieceTypeControl[(int)side][(int)Piece::Pawn];
+    const BitBoard& enemyPawnControl =
+            boardControl.pieceTypeControl[(int)nextSide(side)][(int)Piece::Pawn];
+    const BitBoard enemyPawnFrontAttackSpan = getFrontSpan(enemyPawnControl, nextSide(side));
+
+    const BitBoard outposts = ownPawnControl & ~enemyPawnFrontAttackSpan & kFileCToF & kRank3To6;
+    return outposts;
+}
+
 template <bool CalcJacobians>
 void evaluatePiecePositionsForSide(
         const Evaluator::EvalCalcParams& params,
@@ -429,6 +479,8 @@ void evaluatePiecePositionsForSide(
             updateTaperedTerm(params, params.knightPairBonus, result.eval, 1);
         }
 
+        const BitBoard outpostBitBoard = getOutpostBitBoard(boardControl, side);
+
         while (pieceBitBoard != BitBoard::Empty) {
             const BoardPosition position = popFirstSetPosition(pieceBitBoard);
 
@@ -454,6 +506,10 @@ void evaluatePiecePositionsForSide(
                     enemyKingArea,
                     side,
                     result);
+
+            if (outpostBitBoard & position) {
+                updateTaperedTerm(params, params.knightOnOutpostAdjustment, result.eval, 1);
+            }
         }
     }
 
@@ -988,6 +1044,79 @@ getPromotionSquare(const BoardPosition pawnPosition, const Side pawnSide) {
 }
 
 template <bool CalcJacobians>
+void evaluateHoles(
+        const Evaluator::EvalCalcParams& params,
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        TaperedEvaluation<CalcJacobians>& eval) {
+    const BitBoard& whitePawnControl =
+            boardControl.pieceTypeControl[(int)Side::White][(int)Piece::Pawn];
+    const BitBoard& blackPawnControl =
+            boardControl.pieceTypeControl[(int)Side::Black][(int)Piece::Pawn];
+
+    const BitBoard whiteFrontSpan =
+            getFrontSpan(gameState.getPieceBitBoard(Side::White, Piece::Pawn), Side::White);
+    const BitBoard blackFrontSpan =
+            getFrontSpan(gameState.getPieceBitBoard(Side::Black, Piece::Pawn), Side::Black);
+
+    const BitBoard whiteFrontAttackSpan = getFrontSpan(whitePawnControl, Side::White);
+    const BitBoard blackFrontAttackSpan = getFrontSpan(blackPawnControl, Side::Black);
+
+    const BitBoard whitePotentialHoles = whiteFrontSpan & ~whiteFrontAttackSpan & kRank3To6;
+    const BitBoard blackPotentialHoles = blackFrontSpan & ~blackFrontAttackSpan & kRank3To6;
+
+    const BitBoard whitePotentiallyExploitableHoles = whitePotentialHoles & blackFrontAttackSpan;
+    const BitBoard blackPotentiallyExploitableHoles = blackPotentialHoles & whiteFrontAttackSpan;
+
+    const BitBoard whiteCentralPotentiallyExploitableHoles =
+            whitePotentiallyExploitableHoles & kFileCToF;
+    const BitBoard blackCentralPotentiallyExploitableHoles =
+            blackPotentiallyExploitableHoles & kFileCToF;
+
+    const BitBoard whiteWingPotentiallyExploitableHoles =
+            whitePotentiallyExploitableHoles & kFilesABGH;
+    const BitBoard blackWingPotentiallyExploitableHoles =
+            blackPotentiallyExploitableHoles & kFilesABGH;
+
+    const int netCentralWhitePotentiallyExploitableHoles =
+            popCount(whiteCentralPotentiallyExploitableHoles)
+            - popCount(blackCentralPotentiallyExploitableHoles);
+
+    const int netWingWhitePotentiallyExploitableHoles =
+            popCount(whiteWingPotentiallyExploitableHoles)
+            - popCount(blackWingPotentiallyExploitableHoles);
+
+    updateTaperedTerm(
+            params,
+            params.centralPotentialHoleAdjustment,
+            eval,
+            netCentralWhitePotentiallyExploitableHoles);
+
+    updateTaperedTerm(
+            params,
+            params.wingPotentialHoleAdjustment,
+            eval,
+            netWingWhitePotentiallyExploitableHoles);
+
+    const BitBoard whiteHoles = whitePotentialHoles & blackPawnControl;
+    const BitBoard blackHoles = blackPotentialHoles & whitePawnControl;
+
+    const BitBoard whiteCentralHoles = whiteHoles & kFileCToF;
+    const BitBoard blackCentralHoles = blackHoles & kFileCToF;
+
+    const BitBoard whiteWingHoles = whiteHoles & kFilesABGH;
+    const BitBoard blackWingHoles = blackHoles & kFilesABGH;
+
+    const int netCentralWhiteHoles = popCount(whiteCentralHoles) - popCount(blackCentralHoles);
+
+    const int netWingWhiteHoles = popCount(whiteWingHoles) - popCount(blackWingHoles);
+
+    updateTaperedTerm(params, params.centralHoleAdjustment, eval, netCentralWhiteHoles);
+
+    updateTaperedTerm(params, params.wingHoleAdjustment, eval, netWingWhiteHoles);
+}
+
+template <bool CalcJacobians>
 void evaluatePawnKingForSide(
         const Evaluator::EvalCalcParams& params,
         const GameState& gameState,
@@ -1174,6 +1303,8 @@ FORCE_INLINE void evaluatePawnKing(
             blackResult,
             blackHasConditionallyUnstoppablePawn,
             passedPawns);
+
+    evaluateHoles(params, gameState, boardControl, whiteResult.eval);
 
     if (!pawnKingEvalHashTable.empty()) {
         const PawnKingEvalInfo pawnKingEvalInfo{

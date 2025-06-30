@@ -103,6 +103,13 @@ struct EvalParams {
     std::array<TaperedTerm, 7> defendedChecksAdjustment;
     std::array<TaperedTerm, 7> undefendedChecksAdjustment;
 
+    TaperedTerm centralPotentialHoleAdjustment;
+    TaperedTerm wingPotentialHoleAdjustment;
+    TaperedTerm centralHoleAdjustment;
+    TaperedTerm wingHoleAdjustment;
+
+    TaperedTerm knightOnOutpostAdjustment;
+
     [[nodiscard]] FORCE_INLINE std::size_t getParamIndex(const EvalCalcT& param) const {
         const std::byte* thisByte   = reinterpret_cast<const std::byte*>(this);
         const std::byte* paramByte  = reinterpret_cast<const std::byte*>(&param);
