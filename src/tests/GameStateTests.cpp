@@ -11,41 +11,50 @@ TEST(GameStateTests, ThreeFoldRepetition) {
     GameState gameState = GameState::fromFen(fischerPetrosianFen);
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_FALSE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Qe5", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_FALSE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Qh5", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_FALSE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Qf6", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_FALSE(gameState.hasRepeated());
 
     // First repetition
     gameState.makeMove(Move::fromAlgebraic("Qe2", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     // Repetition occurred 4 plies ago
     EXPECT_TRUE(gameState.isRepetition(2));
+    EXPECT_TRUE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Re5", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_TRUE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Qd3", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_TRUE(gameState.hasRepeated());
 
     gameState.makeMove(Move::fromAlgebraic("Rd5", gameState));
     EXPECT_FALSE(gameState.isRepetition());
     EXPECT_FALSE(gameState.isRepetition(2));
+    EXPECT_TRUE(gameState.hasRepeated());
 
     // Second repetition
     gameState.makeMove(Move::fromAlgebraic("Qe2", gameState));
     EXPECT_TRUE(gameState.isRepetition());
     EXPECT_TRUE(gameState.isRepetition(2));
+    EXPECT_TRUE(gameState.hasRepeated());
 }
 
 }  // namespace GameStateTests

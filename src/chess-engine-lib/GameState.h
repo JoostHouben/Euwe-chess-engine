@@ -80,6 +80,11 @@ class GameState {
     [[nodiscard]] bool isRepetition(int repetitionThreshold = 3) const;
     [[nodiscard]] bool isFiftyMoves() const;
 
+    // Returns true if any repetition has occurred since the last irreversible move (not necessarily
+    // the current position).
+    // Note: not very fast, should not be called from hot path.
+    [[nodiscard]] bool hasRepeated() const;
+
     [[nodiscard]] bool givesCheck(
             const Move& move,
             const std::array<BitBoard, kNumPieceTypes - 1>& directCheckBitBoards,
