@@ -92,7 +92,7 @@ std::vector<Move> getSyzygyRootMoves(const GameState& gameState) {
             gameState.getPlySinceCaptureOrPawn(),
             getSyzygyEnPassantTarget(gameState),
             getSyzygySide(gameState),
-            gameState.isRepetition(2),
+            gameState.hasRepeated(),
             &tbRootMoves);
 
     if (probeResult == 0 || tbRootMoves.size == 0) {

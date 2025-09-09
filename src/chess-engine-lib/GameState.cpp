@@ -1105,6 +1105,20 @@ bool GameState::isRepetition(const int repetitionThreshold) const {
     return false;
 }
 
+bool GameState::hasRepeated() const {
+    // Ok to use a quadratic search here, because we only call it at the root for EGTB probing.
+    for (int hashIdx1 = lastReversiblePositionHashIdx_; hashIdx1 < (int)previousHashes_.size() - 1;
+         ++hashIdx1) {
+        // Increment by 2 to only compare positions with the same side to move.
+        for (int hashIdx2 = hashIdx1 + 2; hashIdx2 < (int)previousHashes_.size(); hashIdx2 += 2) {
+            if (previousHashes_[hashIdx1] == previousHashes_[hashIdx2]) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool GameState::isFiftyMoves() const {
     // 50 move rule
     if (plySinceCaptureOrPawn_ >= 100) {
