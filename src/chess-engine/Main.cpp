@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "aspiration-dont-shrink-other-bound");
+            UciFrontEnd uciFrontEnd(engine, "extra-time-if-fail-low");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

@@ -37,6 +37,8 @@ class TimeManager {
 
     void configureForFixedNodesSearch(std::uint64_t nodes);
 
+    bool requestAdditionalTime();
+
     [[nodiscard]] std::chrono::milliseconds getTimeElapsed() const;
 
   private:
@@ -55,8 +57,9 @@ class TimeManager {
 
     std::chrono::high_resolution_clock::time_point startTime_{};
 
-    std::chrono::high_resolution_clock::time_point softDeadLine_{};
-    std::chrono::high_resolution_clock::time_point hardDeadLine_{};
+    std::chrono::high_resolution_clock::time_point plyDeadLine_{};
+    std::chrono::high_resolution_clock::time_point interruptDeadLine_{};
+    std::chrono::high_resolution_clock::time_point extendedDeadLine_{};
     int depthTarget_{};
     std::uint64_t nodesTarget_{};
 
