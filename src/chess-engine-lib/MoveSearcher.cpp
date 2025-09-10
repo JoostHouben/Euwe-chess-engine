@@ -1372,7 +1372,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
         const int depth,
         StackOfVectors<Move>& stack,
         const EvalT initialGuess) {
-    static constexpr EvalT kInitialTolerance      = 25;
+    static constexpr EvalT kInitialTolerance      = 10;
     static constexpr int kToleranceIncreaseFactor = 4;
 
     int lowerTolerance = kInitialTolerance;

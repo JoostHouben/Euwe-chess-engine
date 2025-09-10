@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "extra-time-if-fail-low");
+            UciFrontEnd uciFrontEnd(engine, "tight-aspiration-window");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
