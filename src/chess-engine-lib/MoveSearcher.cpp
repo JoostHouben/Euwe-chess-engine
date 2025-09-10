@@ -1385,8 +1385,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     EvalT lowerBound = toEval(initialGuess - lowerTolerance);
     EvalT upperBound = toEval(initialGuess + upperTolerance);
 
-    bool everFailedLow  = false;
-    bool everFailedHigh = false;
+    bool everFailedLow = false;
 
     EvalT lastCompletedEval = -kInfiniteEval;
 
@@ -1406,7 +1405,6 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             lastCompletedEval = searchEval;
 
             everFailedLow |= searchEval <= lowerBound;
-            everFailedHigh |= searchEval >= upperBound;
         }
 
         if (wasInterrupted_) {
@@ -1456,10 +1454,6 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 // whichever is lower.
                 lowerBound = toEval(min(searchEval - oldTolerance, initialGuess - lowerTolerance));
             }
-
-            if (!everFailedHigh) {
-                upperBound = toEval(searchEval + 1);
-            }
         } else {
             // Failed high
             if (isMate(searchEval) && searchEval > 0) {
@@ -1473,10 +1467,6 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 // Expand the upper bound based on the increased tolerance or the search result,
                 // whichever is higher.
                 upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
-            }
-
-            if (!everFailedLow) {
-                lowerBound = toEval(searchEval - 1);
             }
         }
 

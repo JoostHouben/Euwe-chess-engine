@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "syzygy-has-repeated");
+            UciFrontEnd uciFrontEnd(engine, "aspiration-dont-shrink-other-bound");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
