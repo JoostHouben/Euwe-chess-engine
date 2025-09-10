@@ -19,7 +19,7 @@
 
 class MoveSearcher::Impl {
   public:
-    Impl(const TimeManager& timeManager, const Evaluator& evaluator);
+    Impl(TimeManager& timeManager, const Evaluator& evaluator);
 
     void setFrontEnd(IFrontEnd* frontEnd);
 
@@ -167,7 +167,7 @@ class MoveSearcher::Impl {
 
     IFrontEnd* frontEnd_ = nullptr;
 
-    const TimeManager& timeManager_;
+    TimeManager& timeManager_;
 
     const Evaluator& evaluator_;
 };
@@ -379,7 +379,7 @@ calculateFutilityMargin(const int reducedDepth, const int movesSearched, const b
 
 }  // namespace
 
-MoveSearcher::Impl::Impl(const TimeManager& timeManager, const Evaluator& evaluator)
+MoveSearcher::Impl::Impl(TimeManager& timeManager, const Evaluator& evaluator)
     : moveScorer_(evaluator), timeManager_(timeManager), evaluator_(evaluator) {
     setTTableSize(getDefaultTTableSizeInMb());
 }
@@ -563,8 +563,8 @@ std::vector<Move> MoveSearcher::Impl::extractPv(
 FORCE_INLINE bool MoveSearcher::Impl::shouldStopSearch() const {
     const std::uint64_t numNodes =
             searchStatistics_.normalNodesSearched + searchStatistics_.qNodesSearched;
-    wasInterrupted_ = wasInterrupted_ || stopSearch_.exchange(false)
-                   || timeManager_.shouldInterruptSearch(numNodes);
+    wasInterrupted_ =
+            wasInterrupted_ || stopSearch_ || timeManager_.shouldInterruptSearch(numNodes);
     return wasInterrupted_;
 }
 
@@ -1372,7 +1372,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
         const int depth,
         StackOfVectors<Move>& stack,
         const EvalT initialGuess) {
-    static constexpr EvalT kInitialTolerance      = 25;
+    static constexpr EvalT kInitialTolerance      = 10;
     static constexpr int kToleranceIncreaseFactor = 4;
 
     int lowerTolerance = kInitialTolerance;
@@ -1385,8 +1385,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     EvalT lowerBound = toEval(initialGuess - lowerTolerance);
     EvalT upperBound = toEval(initialGuess + upperTolerance);
 
-    bool everFailedLow  = false;
-    bool everFailedHigh = false;
+    bool everFailedLow = false;
 
     EvalT lastCompletedEval = -kInfiniteEval;
 
@@ -1406,14 +1405,26 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             lastCompletedEval = searchEval;
 
             everFailedLow |= searchEval <= lowerBound;
-            everFailedHigh |= searchEval >= upperBound;
         }
 
         if (wasInterrupted_) {
             if (everFailedLow) {
-                // Don't trust the best move if we ever failed low and didn't complete the search.
-                // TODO: we should probably ask for more search time here.
+                // We ran out of time after failing low. This may indicate that our so-far best move
+                // is significantly worse than expected, while at the same time we don't have a
+                // viable move from the deeper search. We should ask for additional time to try to
+                // complete the deeper search.
+                if (!stopSearch_ && timeManager_.requestAdditionalTime()) {
+                    wasInterrupted_ = false;
 
+                    if (frontEnd_) {
+                        frontEnd_->reportDebugString(
+                                "continuing search with additional time after failing low");
+                    }
+
+                    continue;
+                }
+
+                // Don't trust the best move if we ever failed low and didn't complete the search.
                 if (frontEnd_) {
                     frontEnd_->reportDiscardedPv("partial aspiration search with failed low");
                 }
@@ -1456,10 +1467,6 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 // whichever is lower.
                 lowerBound = toEval(min(searchEval - oldTolerance, initialGuess - lowerTolerance));
             }
-
-            if (!everFailedHigh) {
-                upperBound = toEval(searchEval + 1);
-            }
         } else {
             // Failed high
             if (isMate(searchEval) && searchEval > 0) {
@@ -1473,10 +1480,6 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 // Expand the upper bound based on the increased tolerance or the search result,
                 // whichever is higher.
                 upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
-            }
-
-            if (!everFailedLow) {
-                lowerBound = toEval(searchEval - 1);
             }
         }
 
@@ -1651,7 +1654,7 @@ std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState&
 
 // Implementation of interface: forward to implementation
 
-MoveSearcher::MoveSearcher(const TimeManager& timeManager, const Evaluator& evaluator)
+MoveSearcher::MoveSearcher(TimeManager& timeManager, const Evaluator& evaluator)
     : impl_(std::make_unique<MoveSearcher::Impl>(timeManager, evaluator)) {}
 
 MoveSearcher::~MoveSearcher() = default;
