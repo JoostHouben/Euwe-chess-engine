@@ -50,6 +50,14 @@ class MoveOrderer {
             int ply,
             bool isQuiesce);
 
+    MoveOrderer(const MoveOrderer&)            = delete;
+    MoveOrderer& operator=(const MoveOrderer&) = delete;
+
+    MoveOrderer(MoveOrderer&&)            = delete;
+    MoveOrderer& operator=(MoveOrderer&&) = delete;
+
+    ~MoveOrderer() = default;
+
     [[nodiscard]] std::optional<Move> getNextBestMove(
             const GameState& gameState,
             const BoardControl& boardControl,
