@@ -1173,7 +1173,8 @@ EvalT MoveSearcher::Impl::quiesce(
         }
     }
 
-    auto moves = gameState.generateMoves(stack, boardControl, /*capturesOnly =*/!isInCheck);
+    auto moves = gameState.generateMoves(
+            stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
     if (moves.size() == 0) {
         if (isInCheck) {
             // We ran full move generation, so no legal moves exist, and we're in check, so it's a
