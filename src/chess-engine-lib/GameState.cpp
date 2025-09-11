@@ -272,22 +272,38 @@ bool GameState::isInCheck() const {
     return isInCheck(getBoardControl());
 }
 
-StackVector<Move> GameState::generateMoves(
+FORCE_INLINE StackVector<Move> GameState::generateMoves(
         StackOfVectors<Move>& stack, const MoveCategories moveCategories) const {
-    const BoardControl boardControl = getBoardControl();
-    return generateMoves(stack, boardControl, moveCategories);
+    StackVector<Move> moves = stack.makeStackVector();
+    generateMoves(moves, moveCategories);
+    moves.lock();
+    return moves;
 }
 
-StackVector<Move> GameState::generateMoves(
+FORCE_INLINE void GameState::generateMoves(
+        StackVector<Move>& moves, const MoveCategories moveCategories) const {
+    const BoardControl boardControl = getBoardControl();
+    generateMoves(moves, boardControl, moveCategories);
+}
+
+FORCE_INLINE StackVector<Move> GameState::generateMoves(
         StackOfVectors<Move>& stack,
         const BoardControl& boardControl,
         const MoveCategories moveCategories) const {
-
-    if (isInCheck(boardControl)) {
-        return generateMovesInCheck(stack, boardControl, moveCategories);
-    }
-
     StackVector<Move> moves = stack.makeStackVector();
+    generateMoves(moves, boardControl, moveCategories);
+    moves.lock();
+    return moves;
+}
+
+void GameState::generateMoves(
+        StackVector<Move>& moves,
+        const BoardControl& boardControl,
+        const MoveCategories moveCategories) const {
+    if (isInCheck(boardControl)) {
+        generateMovesInCheck(moves, boardControl, moveCategories);
+        return;
+    }
 
     const BoardPosition ownKingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
@@ -375,17 +391,12 @@ StackVector<Move> GameState::generateMoves(
                 enemyControl,
                 moves);
     }
-
-    moves.lock();
-    return moves;
 }
 
-StackVector<Move> GameState::generateMovesInCheck(
-        StackOfVectors<Move>& stack,
+void GameState::generateMovesInCheck(
+        StackVector<Move>& moves,
         const BoardControl& boardControl,
         const MoveCategories moveCategories) const {
-    StackVector<Move> moves = stack.makeStackVector();
-
     const BoardPosition kingPosition =
             getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
 
@@ -427,8 +438,7 @@ StackVector<Move> GameState::generateMovesInCheck(
 
     if (doubleCheck) {
         // Double check: only the king can move
-        moves.lock();
-        return moves;
+        return;
     }
 
     BitBoard blockOrCaptureBitBoard = BitBoard::Empty;
@@ -522,9 +532,6 @@ StackVector<Move> GameState::generateMovesInCheck(
                     moveCategories);
         }
     }
-
-    moves.lock();
-    return moves;
 }
 
 GameState::UnmakeMoveInfo GameState::makeMove(const Move& move) {

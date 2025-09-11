@@ -876,19 +876,20 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
-    auto moves = ply == 0 && rootMovesToSearch_ ? stack.makeStackVector(*rootMovesToSearch_)
-                                                : gameState.generateMoves(stack, boardControl);
-    if (moves.size() == 0) {
-        // Exact value
-        return evaluateNoLegalMoves(gameState);
-    }
-
     auto moveOrderer = moveScorer_.getMoveOrderer(
-            std::move(moves), hashMove, gameState, boardControl, lastMove, ply);
+            /*preGeneratedMoves*/ ply == 0 && rootMovesToSearch_
+                    ? stack.makeStackVector(*rootMovesToSearch_)
+                    : stack.makeStackVector(),
+            hashMove,
+            gameState,
+            boardControl,
+            lastMove,
+            ply);
 
     int votesToSkipQuiets = 0;
 
-    while (const auto maybeMove = moveOrderer.getNextBestMove(gameState)) {
+    while (const auto maybeMove =
+                   moveOrderer.getNextBestMove(gameState, boardControl, lastMove, ply)) {
         const Move move = *maybeMove;
 
         const int reduction = getDepthReduction(
@@ -949,6 +950,11 @@ EvalT MoveSearcher::Impl::search(
         if (outcome != SearchMoveOutcome::Continue) {
             break;
         }
+    }
+
+    if (!wasInterrupted_ && !moveOrderer.hasFoundAnyLegalMoves()) {
+        // Exact value
+        return evaluateNoLegalMoves(gameState);
     }
 
     if (movesSearched > 0) {
@@ -1184,9 +1190,11 @@ EvalT MoveSearcher::Impl::quiesce(
 
         // No captures are available.
 
-        // Check if we're in an end state by generating all moves.
+        // Check if we're in an end state by generating non-captures (we already know there's no
+        // captures).
         // Note that this ignores repetitions and 50 move rule.
-        const auto allMoves = gameState.generateMoves(stack, boardControl);
+        const auto allMoves =
+                gameState.generateMoves(stack, boardControl, MoveCategories::NonCaptures);
         if (allMoves.size() == 0) {
             // No legal moves, not in check, so stalemate.
             return 0;
@@ -1197,7 +1205,8 @@ EvalT MoveSearcher::Impl::quiesce(
     }
 
     // Ignore the hash move even if we didn't try it, since that would mean we pruned it.
-    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(std::move(moves), hashMove, gameState);
+    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(
+            std::move(moves), hashMove, gameState, boardControl);
 
     while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
         const Move move = *maybeMove;

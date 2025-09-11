@@ -112,8 +112,15 @@ class GameState {
 
     [[nodiscard]] StackVector<Move> generateMoves(
             StackOfVectors<Move>& stack, MoveCategories moveCategories = MoveCategories::All) const;
+    void generateMoves(
+            StackVector<Move>& moves, MoveCategories moveCategories = MoveCategories::All) const;
+
     [[nodiscard]] StackVector<Move> generateMoves(
             StackOfVectors<Move>& stack,
+            const BoardControl& boardControl,
+            MoveCategories moveCategories = MoveCategories::All) const;
+    void generateMoves(
+            StackVector<Move>& moves,
             const BoardControl& boardControl,
             MoveCategories moveCategories = MoveCategories::All) const;
 
@@ -226,8 +233,8 @@ class GameState {
         return getSideOccupancyMut(nextSide(sideToMove_));
     }
 
-    [[nodiscard]] StackVector<Move> generateMovesInCheck(
-            StackOfVectors<Move>& stack,
+    void generateMovesInCheck(
+            StackVector<Move>& moves,
             const BoardControl& boardControl,
             MoveCategories moveCategories) const;
 

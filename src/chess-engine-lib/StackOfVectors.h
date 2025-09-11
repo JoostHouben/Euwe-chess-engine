@@ -391,6 +391,15 @@ class StackVector {
 #endif
     }
 
+    void unlock() {
+        MY_ASSERT(parent_->size() == (size_t)endIdx_);
+#ifndef NDEBUG
+        MY_ASSERT(!parent_->isLocked_);
+        isLocked_          = false;
+        parent_->isLocked_ = true;
+#endif
+    }
+
     void reserve(size_t size) {
 #ifndef NDEBUG
         MY_ASSERT(!isLocked_);
