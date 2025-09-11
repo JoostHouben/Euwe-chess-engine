@@ -116,9 +116,9 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
       foundAnyLegalMoves_(!moves_.empty()) {
     if (usingPregeneratedMoves_) {
         // Use pre-generated moves.
-        // This should only happen in the root move.
+        // This should only happen in the root move and in quiescence search.
         // If we add specialized root move ordering in the future, this code path can be
-        // removed, including partitionTacticalMoves.
+        // simplified, and partitionTacticalMoves can be removed.
 
         if (moveToIgnore_
             && ignoreMove(
@@ -129,7 +129,12 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
             moveScores_.push_back(0);  // Placeholder for ignored move
         }
 
-        if (!isQuiesce) {
+        if (isQuiesce) {
+            moveScorer_.scoreMovesQuiesce(moveScores_, moves_, currentMoveIdx_, gameState);
+        } else {
+            moveScorer_.scoreMoves(
+                    moveScores_, moves_, currentMoveIdx_, gameState, boardControl, lastMove, ply);
+
             // Sets firstLosingCaptureIdx_ and firstQuietIdx_
             partitionTacticalMoves();
         }
@@ -155,13 +160,8 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
                     /*ignoredMoveShouldExist*/ false)) {
             moveScores_.push_back(0);  // Placeholder for ignored move
         }
-    }
 
-    if (isQuiesce) {
         moveScorer_.scoreMovesQuiesce(moveScores_, moves_, currentMoveIdx_, gameState);
-    } else {
-        moveScorer_.scoreMoves(
-                moveScores_, moves_, currentMoveIdx_, gameState, boardControl, lastMove, ply);
     }
 
     moveScores_.lock();
@@ -378,6 +378,8 @@ FORCE_INLINE int MoveOrderer::findHighestScoringMove(const int startIdx, const i
 }
 
 FORCE_INLINE void MoveOrderer::partitionTacticalMoves() {
+    MY_ASSERT(moves_.size() == moveScores_.size());
+
     const auto isTactical = [](const Move& move) {
         return isCaptureOrQueenPromo(move);
     };
