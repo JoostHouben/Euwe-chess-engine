@@ -22,6 +22,15 @@ struct MoveStatistics {
     int ply = 0;  // only used in ttable tests
 };
 
+void compareStatistics(const MoveStatistics& actual, const MoveStatistics& expected) {
+    EXPECT_EQ(actual.numMoves, expected.numMoves);
+    EXPECT_EQ(actual.numCaptures, expected.numCaptures);
+    EXPECT_EQ(actual.numEnPassant, expected.numEnPassant);
+    EXPECT_EQ(actual.numCastle, expected.numCastle);
+    EXPECT_EQ(actual.numPromotions, expected.numPromotions);
+    EXPECT_EQ(actual.numChecks, expected.numChecks);
+}
+
 struct ExpectedMoveStatistics {
     std::optional<std::size_t> numMoves      = std::nullopt;
     std::optional<std::size_t> numCaptures   = std::nullopt;
@@ -150,7 +159,31 @@ MoveStatistics countMoveStatisticsAtPlyWithTTable(
     MoveStatistics statistics{};
     statistics.ply = ply;
 
-    const StackVector<Move> moves = gameState.generateMoves(stack);
+    const BoardControl boardControl = gameState.getBoardControl();
+
+    const StackVector<Move> moves = gameState.generateMoves(stack, boardControl);
+
+    {
+        const StackVector<Move> captures =
+                gameState.generateMoves(stack, boardControl, MoveCategories::Captures);
+        const StackVector<Move> queenPromos =
+                gameState.generateMoves(stack, boardControl, MoveCategories::QueenPromotions);
+        const StackVector<Move> underPromos =
+                gameState.generateMoves(stack, boardControl, MoveCategories::UnderPromotions);
+        const StackVector<Move> quiets =
+                gameState.generateMoves(stack, boardControl, MoveCategories::Quiets);
+
+        MoveStatistics unitaryStats{};
+        updateStatistics(moves, gameState, unitaryStats);
+
+        MoveStatistics stagedStats{};
+        updateStatistics(captures, gameState, stagedStats);
+        updateStatistics(queenPromos, gameState, stagedStats);
+        updateStatistics(underPromos, gameState, stagedStats);
+        updateStatistics(quiets, gameState, stagedStats);
+
+        compareStatistics(unitaryStats, stagedStats);
+    }
 
     if (ply == 0) {
         return statistics;

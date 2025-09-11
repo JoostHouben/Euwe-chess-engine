@@ -70,32 +70,115 @@ scoreQueenPromotion(const Move& /*move*/, const GameState& /*gameState*/) {
     return moveScore;
 }
 
+FORCE_INLINE bool ignoreMove(
+        const Move& moveToIgnore,
+        StackVector<Move>& moves,
+        int& moveIdx,
+        const bool ignoredMoveShouldExist) {
+    const auto startIt = moves.begin() + moveIdx;
+
+    const auto hashMoveIt = std::find(startIt, moves.end(), moveToIgnore);
+
+    MY_ASSERT_DEBUG(IMPLIES(ignoredMoveShouldExist, hashMoveIt != moves.end()));
+    (void)ignoredMoveShouldExist;
+
+    if (hashMoveIt != moves.end()) {
+        std::swap(*hashMoveIt, *startIt);
+        ++moveIdx;
+
+        return true;
+    } else {
+        return false;
+    }
+}
 }  // namespace
 
 FORCE_INLINE MoveOrderer::MoveOrderer(
-        StackVector<Move>&& moves, StackVector<MoveEvalT>&& moveScores, const int firstMoveIdx)
-    : state_(State::Init),
-      moves_(std::move(moves)),
-      moveScores_(std::move(moveScores)),
-      currentMoveIdx_(firstMoveIdx),
+        StackVector<Move>&& preGeneratedMoves,
+        StackVector<MoveEvalT>&& emptyMoveScores,
+        const std::optional<Move>& moveToIgnore,
+        const MoveScorer& moveScorer,
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        const Move& lastMove,
+        const int ply,
+        const bool isQuiesce)
+    : moves_(std::move(preGeneratedMoves)),
+      moveScores_(std::move(emptyMoveScores)),
+      moveScorer_(moveScorer),
+      state_(State::GoodTactical),
+      currentMoveIdx_(0),
       firstLosingCaptureIdx_(moves_.size()),
       firstQuietIdx_(moves_.size()),
-      lastMoveType_(MoveType::None) {}
+      lastMoveType_(MoveType::None),
+      moveToIgnore_(moveToIgnore),
+      usingPregeneratedMoves_(!moves_.empty()),
+      foundAnyLegalMoves_(!moves_.empty()) {
+    if (usingPregeneratedMoves_) {
+        // Use pre-generated moves.
+        // This should only happen in the root move and in quiescence search.
+        // If we add specialized root move ordering in the future, this code path can be
+        // simplified, and partitionTacticalMoves can be removed.
 
-FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(const GameState& gameState) {
+        if (moveToIgnore_
+            && ignoreMove(
+                    *moveToIgnore_,
+                    moves_,
+                    currentMoveIdx_,
+                    /*ignoredMoveShouldExist*/ !isQuiesce)) {
+            moveScores_.push_back(0);  // Placeholder for ignored move
+        }
+
+        if (isQuiesce) {
+            moveScorer_.scoreMovesQuiesce(moveScores_, moves_, currentMoveIdx_, gameState);
+        } else {
+            moveScorer_.scoreMoves(
+                    moveScores_, moves_, currentMoveIdx_, gameState, boardControl, lastMove, ply);
+
+            // Sets firstLosingCaptureIdx_ and firstQuietIdx_
+            partitionTacticalMoves();
+        }
+    } else {
+        MY_ASSERT(!isQuiesce);
+
+        // Generate tactical moves.
+
+        gameState.generateMoves(
+                moves_, boardControl, MoveCategories::Captures | MoveCategories::QueenPromotions);
+        moves_.lock();
+
+        foundAnyLegalMoves_ |= !moves_.empty();
+
+        firstQuietIdx_         = moves_.size();
+        firstLosingCaptureIdx_ = firstQuietIdx_;
+
+        if (moveToIgnore_
+            && ignoreMove(
+                    *moveToIgnore_,
+                    moves_,
+                    currentMoveIdx_,
+                    /*ignoredMoveShouldExist*/ false)) {
+            moveScores_.push_back(0);  // Placeholder for ignored move
+        }
+
+        moveScorer_.scoreMovesQuiesce(moveScores_, moves_, currentMoveIdx_, gameState);
+    }
+
+    moveScores_.lock();
+    MY_ASSERT(moves_.size() == moveScores_.size());
+}
+
+FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
+        const GameState& gameState,
+        const BoardControl& boardControl,
+        const Move& lastMove,
+        const int ply) {
     MY_ASSERT(
             0 <= firstLosingCaptureIdx_ && firstLosingCaptureIdx_ <= firstQuietIdx_
             && firstQuietIdx_ <= moves_.size());
     MY_ASSERT(0 <= currentMoveIdx_ && currentMoveIdx_ <= moves_.size());
 
     switch (state_) {
-        case State::Init: {
-            partitionTacticalMoves();
-
-            state_ = State::GoodTactical;
-            [[fallthrough]];
-        }
-
         case State::GoodTactical: {
             MY_ASSERT(currentMoveIdx_ <= firstLosingCaptureIdx_);
 
@@ -129,8 +212,48 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(const GameState& g
                 return bestMove;
             }
 
-            state_          = State::Quiets;
+            state_          = State::InitQuiets;
             currentMoveIdx_ = firstQuietIdx_;
+            [[fallthrough]];
+        }
+
+        case State::InitQuiets: {
+            if (!usingPregeneratedMoves_) {
+                MY_ASSERT(currentMoveIdx_ == firstQuietIdx_ && firstQuietIdx_ == moves_.size());
+
+                moves_.unlock();
+                gameState.generateMoves(
+                        moves_,
+                        boardControl,
+                        MoveCategories::Quiets | MoveCategories::UnderPromotions);
+                moves_.lock();
+
+                foundAnyLegalMoves_ |= !moves_.empty();
+
+                moveScores_.unlock();
+
+                if (moveToIgnore_
+                    && ignoreMove(
+                            *moveToIgnore_,
+                            moves_,
+                            currentMoveIdx_,
+                            /*ignoredMoveShouldExist*/ false)) {
+                    moveScores_.push_back(0);  // Placeholder for ignored move
+                }
+
+                moveScorer_.scoreMoves(
+                        moveScores_,
+                        moves_,
+                        currentMoveIdx_,
+                        gameState,
+                        boardControl,
+                        lastMove,
+                        ply);
+                moveScores_.lock();
+                MY_ASSERT(moves_.size() == moveScores_.size());
+            }
+
+            state_ = State::Quiets;
             [[fallthrough]];
         }
 
@@ -255,7 +378,7 @@ FORCE_INLINE int MoveOrderer::findHighestScoringMove(const int startIdx, const i
 }
 
 FORCE_INLINE void MoveOrderer::partitionTacticalMoves() {
-    MY_ASSERT(state_ == State::Init);
+    MY_ASSERT(moves_.size() == moveScores_.size());
 
     const auto isTactical = [](const Move& move) {
         return isCaptureOrQueenPromo(move);
@@ -345,29 +468,34 @@ FORCE_INLINE MoveOrderer MoveScorer::getMoveOrderer(
         const GameState& gameState,
         const BoardControl& boardControl,
         const Move& lastMove,
-        const int ply) const {
-    int moveIdx = 0;
-    if (moveToIgnore) {
-        ignoreMove(*moveToIgnore, moves, moveIdx, /*ignoredMoveShouldExist*/ true);
-    }
-
-    auto moveScores = scoreMoves(moves, moveIdx, gameState, boardControl, lastMove, ply);
-
-    return MoveOrderer(std::move(moves), std::move(moveScores), moveIdx);
+        int ply) const {
+    return MoveOrderer(
+            std::move(moves),
+            moveScoreStack_.makeStackVector(),
+            moveToIgnore,
+            *this,
+            gameState,
+            boardControl,
+            lastMove,
+            ply,
+            /*isQuiesce*/ false);
 }
 
 FORCE_INLINE MoveOrderer MoveScorer::getMoveOrdererQuiescence(
         StackVector<Move>&& moves,
         const std::optional<Move>& moveToIgnore,
-        const GameState& gameState) const {
-    int moveIdx = 0;
-    if (moveToIgnore) {
-        ignoreMove(*moveToIgnore, moves, moveIdx, /*ignoredMoveShouldExist*/ false);
-    }
-
-    auto moveScores = scoreMovesQuiesce(moves, moveIdx, gameState);
-
-    return MoveOrderer(std::move(moves), std::move(moveScores), moveIdx);
+        const GameState& gameState,
+        const BoardControl& boardControl) const {
+    return MoveOrderer(
+            std::move(moves),
+            moveScoreStack_.makeStackVector(),
+            moveToIgnore,
+            *this,
+            gameState,
+            boardControl,
+            /*lastMove*/ {},
+            /*ply*/ 0,
+            /*isQuiesce*/ true);
 }
 
 void MoveScorer::newGame() {
@@ -624,31 +752,14 @@ void MoveScorer::initializeCaptureHistory() {
     }
 }
 
-FORCE_INLINE void MoveScorer::ignoreMove(
-        const Move& moveToIgnore,
-        StackVector<Move>& moves,
-        int& moveIdx,
-        const bool ignoredMoveShouldExist) const {
-    const auto hashMoveIt = std::find(moves.begin(), moves.end(), moveToIgnore);
-
-    MY_ASSERT_DEBUG(IMPLIES(ignoredMoveShouldExist, hashMoveIt != moves.end()));
-    (void)ignoredMoveShouldExist;
-
-    if (hashMoveIt != moves.end()) {
-        std::swap(*hashMoveIt, moves.front());
-        ++moveIdx;
-    }
-}
-
-StackVector<MoveEvalT> MoveScorer::scoreMoves(
+void MoveScorer::scoreMoves(
+        StackVector<MoveEvalT>& scores,
         const StackVector<Move>& moves,
         const int firstMoveIdx,
         const GameState& gameState,
         const BoardControl& boardControl,
         const Move& lastMove,
         const int ply) const {
-    StackVector<MoveEvalT> scores = moveScoreStack_.makeStackVector();
-
     const auto& historyForSide = history_[(int)gameState.getSideToMove()];
     const auto& killerMoves    = getKillerMoves(ply);
     const Move counterMove     = getCounterMove(lastMove, gameState.getSideToMove());
@@ -669,9 +780,7 @@ StackVector<MoveEvalT> MoveScorer::scoreMoves(
             controlToAvoid[(int)Piece::Rook]
             | boardControl.pieceTypeControl[enemySideIdx][(int)Piece::Rook];
 
-    for (int i = 0; i < firstMoveIdx; ++i) {
-        scores.push_back(0);
-    }
+    MY_ASSERT(scores.size() == firstMoveIdx);
 
     for (int moveIdx = firstMoveIdx; moveIdx < moves.size(); ++moveIdx) {
         const Move& move = moves[moveIdx];
@@ -715,18 +824,14 @@ StackVector<MoveEvalT> MoveScorer::scoreMoves(
 
         scores.push_back(moveScore);
     }
-
-    scores.lock();
-    return scores;
 }
 
-StackVector<MoveEvalT> MoveScorer::scoreMovesQuiesce(
-        const StackVector<Move>& moves, const int firstMoveIdx, const GameState& gameState) const {
-    StackVector<MoveEvalT> scores = moveScoreStack_.makeStackVector();
-
-    for (int i = 0; i < firstMoveIdx; ++i) {
-        scores.push_back(0);
-    }
+void MoveScorer::scoreMovesQuiesce(
+        StackVector<MoveEvalT>& scores,
+        const StackVector<Move>& moves,
+        const int firstMoveIdx,
+        const GameState& gameState) const {
+    MY_ASSERT(scores.size() == firstMoveIdx);
 
     for (int moveIdx = firstMoveIdx; moveIdx < moves.size(); ++moveIdx) {
         const Move& move = moves[moveIdx];
@@ -745,9 +850,6 @@ StackVector<MoveEvalT> MoveScorer::scoreMovesQuiesce(
 
         scores.push_back(moveScore);
     }
-
-    scores.lock();
-    return scores;
 }
 
 FORCE_INLINE MoveEvalT

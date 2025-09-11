@@ -80,11 +80,16 @@ TEST(StackOfVectors, nestedRangeBasedForLoop) {
             EXPECT_EQ(stackVector3[1], j * 2);
             EXPECT_EQ(stackOfVectors.size(), 6);
         }
+
+        stackVector2.unlock();
+        stackVector2.push_back(i * 3);
+
         EXPECT_EQ(stackVector1[0], 1);
         EXPECT_EQ(stackVector1[1], 2);
         EXPECT_EQ(stackVector2[0], i);
         EXPECT_EQ(stackVector2[1], i * 2);
-        EXPECT_EQ(stackOfVectors.size(), 4);
+        EXPECT_EQ(stackVector2[2], i * 3);
+        EXPECT_EQ(stackOfVectors.size(), 5);
     }
     EXPECT_EQ(stackVector1[0], 1);
     EXPECT_EQ(stackVector1[1], 2);

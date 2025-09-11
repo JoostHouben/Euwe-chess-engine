@@ -44,6 +44,26 @@ struct BoardControl {
     }
 };
 
+enum class MoveCategories {
+    Quiets          = 1 << 0,
+    UnderPromotions = 1 << 1,
+    QueenPromotions = 1 << 2,
+    Captures        = 1 << 3,
+
+    Promotions  = UnderPromotions | QueenPromotions,
+    NonCaptures = Quiets | UnderPromotions | QueenPromotions,
+    All         = Quiets | UnderPromotions | QueenPromotions | Captures,
+};
+
+[[nodiscard]] constexpr MoveCategories operator|(
+        const MoveCategories lhs, const MoveCategories rhs) {
+    return static_cast<MoveCategories>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+[[nodiscard]] constexpr bool operator&(const MoveCategories lhs, const MoveCategories rhs) {
+    return (static_cast<int>(lhs) & static_cast<int>(rhs)) != 0;
+}
+
 class GameState {
   public:
     enum class CastlingRights : uint8_t {
@@ -91,15 +111,18 @@ class GameState {
             const std::optional<BitBoard>& enemyPinBitBoard) const;
 
     [[nodiscard]] StackVector<Move> generateMoves(
-            StackOfVectors<Move>& stack, bool capturesOnly = false) const;
+            StackOfVectors<Move>& stack, MoveCategories moveCategories = MoveCategories::All) const;
+    void generateMoves(
+            StackVector<Move>& moves, MoveCategories moveCategories = MoveCategories::All) const;
+
     [[nodiscard]] StackVector<Move> generateMoves(
             StackOfVectors<Move>& stack,
             const BoardControl& boardControl,
-            bool capturesOnly = false) const;
-    [[nodiscard]] StackVector<Move> generateMovesInCheck(
-            StackOfVectors<Move>& stack,
+            MoveCategories moveCategories = MoveCategories::All) const;
+    void generateMoves(
+            StackVector<Move>& moves,
             const BoardControl& boardControl,
-            bool capturesOnly = false) const;
+            MoveCategories moveCategories = MoveCategories::All) const;
 
     UnmakeMoveInfo makeMove(const Move& move);
     UnmakeMoveInfo makeNullMove();
@@ -209,6 +232,11 @@ class GameState {
     [[nodiscard]] BitBoard& getEnemyOccupancyMut() {
         return getSideOccupancyMut(nextSide(sideToMove_));
     }
+
+    void generateMovesInCheck(
+            StackVector<Move>& moves,
+            const BoardControl& boardControl,
+            MoveCategories moveCategories) const;
 
     [[nodiscard]] bool enPassantWillPutUsInCheck() const;
 

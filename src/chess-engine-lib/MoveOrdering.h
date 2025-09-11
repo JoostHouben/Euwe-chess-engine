@@ -35,15 +35,40 @@ enum class MoveType {
 
 static constexpr std::size_t kNumMoveTypes = (std::size_t)MoveType::NumMoveTypes;
 
+class MoveScorer;
+
 class MoveOrderer {
   public:
-    MoveOrderer(StackVector<Move>&& moves, StackVector<MoveEvalT>&& moveScores, int firstMoveIdx);
+    MoveOrderer(
+            StackVector<Move>&& preGeneratedMoves,
+            StackVector<MoveEvalT>&& emptyMoveScores,
+            const std::optional<Move>& moveToIgnore,
+            const MoveScorer& moveScorer,
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply,
+            bool isQuiesce);
 
-    [[nodiscard]] std::optional<Move> getNextBestMove(const GameState& gameState);
+    MoveOrderer(const MoveOrderer&)            = delete;
+    MoveOrderer& operator=(const MoveOrderer&) = delete;
+
+    MoveOrderer(MoveOrderer&&)            = delete;
+    MoveOrderer& operator=(MoveOrderer&&) = delete;
+
+    ~MoveOrderer() = default;
+
+    [[nodiscard]] std::optional<Move> getNextBestMove(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
     [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence();
 
     [[nodiscard]] bool lastMoveWasLosing() const;
     [[nodiscard]] MoveType getLastMoveType() const;
+
+    [[nodiscard]] bool hasFoundAnyLegalMoves() const { return foundAnyLegalMoves_; }
 
     void skipRemainingQuiets();
 
@@ -51,8 +76,8 @@ class MoveOrderer {
 
   private:
     enum class State {
-        Init,
         GoodTactical,
+        InitQuiets,
         Quiets,
         LosingCaptures,
         Done,
@@ -61,16 +86,25 @@ class MoveOrderer {
     void partitionTacticalMoves();
     [[nodiscard]] int findHighestScoringMove(int startIdx, int endIdx) const;
 
-    State state_;
+    // Data members ordered for alignment
 
     StackVector<Move> moves_;
     StackVector<MoveEvalT> moveScores_;
+
+    const MoveScorer& moveScorer_;
+
+    State state_;
 
     int currentMoveIdx_;
     int firstLosingCaptureIdx_;
     int firstQuietIdx_;
 
     MoveType lastMoveType_;
+
+    std::optional<Move> moveToIgnore_;
+
+    bool usingPregeneratedMoves_;
+    bool foundAnyLegalMoves_;
 };
 
 class MoveScorer {
@@ -88,7 +122,7 @@ class MoveScorer {
             int depth);
 
     [[nodiscard]] MoveOrderer getMoveOrderer(
-            StackVector<Move>&& moves,
+            StackVector<Move>&& preGeneratedMoves,
             const std::optional<Move>& moveToIgnore,
             const GameState& gameState,
             const BoardControl& boardControl,
@@ -96,9 +130,10 @@ class MoveScorer {
             int ply) const;
 
     [[nodiscard]] MoveOrderer getMoveOrdererQuiescence(
-            StackVector<Move>&& moves,
+            StackVector<Move>&& preGeneratedMoves,
             const std::optional<Move>& moveToIgnore,
-            const GameState& gameState) const;
+            const GameState& gameState,
+            const BoardControl& boardControl) const;
 
     void newGame();
     void prepareForNewSearch(const GameState& gameState);
@@ -106,6 +141,21 @@ class MoveScorer {
     void resetCutoffStatistics();
 
     void printCutoffStatistics(std::ostream& out) const;
+
+    void scoreMoves(
+            StackVector<MoveEvalT>& scores,
+            const StackVector<Move>& moves,
+            const int firstMoveIdx,
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply) const;
+
+    void scoreMovesQuiesce(
+            StackVector<MoveEvalT>& scores,
+            const StackVector<Move>& moves,
+            const int firstMoveIdx,
+            const GameState& gameState) const;
 
   private:
     static constexpr std::size_t kNumKillerMoves = 2;
@@ -149,25 +199,6 @@ class MoveScorer {
     void shiftKillerMoves(int halfMoveClock);
     void initializeHistoryFromPieceSquare();
     void initializeCaptureHistory();
-
-    void ignoreMove(
-            const Move& moveToIgnore,
-            StackVector<Move>& moves,
-            int& moveIdx,
-            bool ignoredMoveShouldExist) const;
-
-    [[nodiscard]] StackVector<MoveEvalT> scoreMoves(
-            const StackVector<Move>& moves,
-            const int firstMoveIdx,
-            const GameState& gameState,
-            const BoardControl& boardControl,
-            const Move& lastMove,
-            int ply) const;
-
-    [[nodiscard]] StackVector<MoveEvalT> scoreMovesQuiesce(
-            const StackVector<Move>& moves,
-            const int firstMoveIdx,
-            const GameState& gameState) const;
 
     [[nodiscard]] MoveEvalT scoreCapture(const Move& move, const GameState& gameState) const;
 

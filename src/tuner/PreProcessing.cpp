@@ -67,7 +67,8 @@ std::pair<EvalT, GameState> quiesce(
     EvalT bestScore     = standPat;
     GameState bestState = gameState;
 
-    auto moves = gameState.generateMoves(stack, boardControl, /*capturesOnly =*/!isInCheck);
+    auto moves = gameState.generateMoves(
+            stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
     if (moves.size() == 0) {
         if (isInCheck) {
             return {-kMateEval, gameState};
@@ -82,8 +83,8 @@ std::pair<EvalT, GameState> quiesce(
         return {bestScore, bestState};
     }
 
-    auto moveOrderer =
-            moveScorer.getMoveOrdererQuiescence(std::move(moves), std::nullopt, gameState);
+    auto moveOrderer = moveScorer.getMoveOrdererQuiescence(
+            std::move(moves), std::nullopt, gameState, boardControl);
 
     while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
         const Move move = *maybeMove;
