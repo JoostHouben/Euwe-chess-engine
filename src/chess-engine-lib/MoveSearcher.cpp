@@ -1725,8 +1725,9 @@ std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState&
     if (ttInfo.scoreType != ScoreType::Exact) {
         return std::nullopt;
     }
-
-    MY_ASSERT_DEBUG(getTTableMove(ttInfo, gameState).has_value());
+    if (!getTTableMove(ttInfo, gameState).has_value()) {
+        return std::nullopt;
+    }
 
     return RootNodeInfo{
             .eval  = ttInfo.score,
