@@ -896,6 +896,12 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
+    static constexpr int kMinDepthForIIR = 5;
+    if (!hashMove && depth >= kMinDepthForIIR && nodeType != NodeType::AllNode) {
+        // Internal iterative reductions (IIR)
+        depth -= 1;
+    }
+
     auto moveOrderer = moveScorer_.getMoveOrderer(
             /*preGeneratedMoves*/ ply == 0 && rootMovesToSearch_
                     ? stack.makeStackVector(*rootMovesToSearch_)
