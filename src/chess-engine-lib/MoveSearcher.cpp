@@ -472,6 +472,17 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
         scoreType = ScoreType::Exact;
     }
 
+    Move moveToStore = bestMove;
+    if (moveToStore.from == moveToStore.to) {
+        // No best move found; retain the existing hash move, if it exists.
+        const auto ttHit = tTable_.probe(hash);
+        if (ttHit) {
+            moveToStore.from  = ttHit->payload.moveFrom;
+            moveToStore.to    = ttHit->payload.moveTo;
+            moveToStore.flags = ttHit->payload.moveFlags;
+        }
+    }
+
     const SearchTTable::EntryT entry = {
             .hash    = hash,
             .payload = {
@@ -479,9 +490,9 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = scoreType,
-                    .moveFrom  = bestMove.from,
-                    .moveTo    = bestMove.to,
-                    .moveFlags = bestMove.flags,
+                    .moveFrom  = moveToStore.from,
+                    .moveTo    = moveToStore.to,
+                    .moveFlags = moveToStore.flags,
             }};
 
     if (isPvNode) {
@@ -937,7 +948,6 @@ EvalT MoveSearcher::Impl::search(
             if (futilityValue <= alpha) {
                 if (futilityValue > bestScore) {
                     bestScore = futilityValue;
-                    bestMove  = move;
                 }
 
                 if (voteToSkip) {
@@ -986,7 +996,6 @@ EvalT MoveSearcher::Impl::search(
 
     if (movesSearched > 0) {
         // If we fully evaluated any positions, update the ttable.
-        MY_ASSERT(bestMove.pieceToMove != Piece::Invalid);
         updateTTable(
                 bestScore,
                 alphaOrig,
@@ -1191,23 +1200,25 @@ EvalT MoveSearcher::Impl::quiesce(
 
             completedAnySearch = true;
             bestScore          = max(bestScore, score);
-            bestMove           = *hashMove;
 
-            if (score >= beta) {
-                updateTTable(
-                        bestScore,
-                        alphaOrig,
-                        beta,
-                        false,
-                        bestMove,
-                        /*depth =*/0,
-                        gameState.getBoardHash(),
-                        isPvNode);
+            if (score > alpha) {
+                alpha    = score;
+                bestMove = *hashMove;
 
-                return score;
+                if (score >= beta) {
+                    updateTTable(
+                            bestScore,
+                            alphaOrig,
+                            beta,
+                            false,
+                            bestMove,
+                            /*depth =*/0,
+                            gameState.getBoardHash(),
+                            isPvNode);
+
+                    return score;
+                }
             }
-
-            alpha = max(alpha, score);
         }
     }
 
@@ -1293,20 +1304,17 @@ EvalT MoveSearcher::Impl::quiesce(
 
         updateMateDistance(score);
 
-        if (!completedAnySearch) {
-            completedAnySearch = true;
-            bestMove           = move;
-            // bestScore might be > score due to stand pat
-        }
+        completedAnySearch = true;
 
-        alpha = max(alpha, score);
-        if (score > bestScore) {
-            bestScore = score;
-            bestMove  = move;
-        }
+        bestScore = max(bestScore, score);
 
-        if (alpha >= beta) {
-            break;
+        if (score > alpha) {
+            alpha    = score;
+            bestMove = move;
+
+            if (alpha >= beta) {
+                break;
+            }
         }
     }
 
@@ -1418,18 +1426,20 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
     if (score > bestScore) {
         bestScore = score;
-        bestMove  = move;
 
-        if (bestScore >= beta) {
-            moveScorer_.reportCutoff(move, gameState, moveType, lastMove, ply, depth);
+        if (score > alpha) {
+            // If score is above alpha, it is either exact or a lower bound, so it is safe to raise
+            // the lower bound of our feasibility window.
+            alpha    = score;
+            bestMove = move;
 
-            // Fail high; score is a lower bound.
-            return SearchMoveOutcome::Cutoff;
+            if (score >= beta) {
+                moveScorer_.reportCutoff(move, gameState, moveType, lastMove, ply, depth);
+
+                // Fail high; score is a lower bound.
+                return SearchMoveOutcome::Cutoff;
+            }
         }
-
-        // If score is above alpha, it is either exact or a lower bound, so it is safe to raise
-        // the lower bound of our feasibility window.
-        alpha = max(alpha, bestScore);
     }
     moveScorer_.reportNonCutoff(move, gameState, moveType, depth);
 
