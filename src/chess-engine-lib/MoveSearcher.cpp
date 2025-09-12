@@ -17,6 +17,16 @@
 #include <cstdint>
 #include <cstring>
 
+namespace {
+
+enum NodeType {
+    PvNode  = 0,
+    CutNode = 1,
+    AllNode = -1,
+};
+
+}
+
 class MoveSearcher::Impl {
   public:
     Impl(TimeManager& timeManager, const Evaluator& evaluator);
@@ -112,13 +122,19 @@ class MoveSearcher::Impl {
             EvalT beta,
             Move lastMove,
             int lastNullMovePly,
+            NodeType nodeType,
             StackOfVectors<Move>& stack);
 
     // Quiescence search. When in check search all moves, when not in check only search captures.
     // Continue until no more capture are available or we get a beta cutoff.
     // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
     [[nodiscard]] EvalT quiesce(
-            GameState& gameState, EvalT alpha, EvalT beta, int ply, StackOfVectors<Move>& stack);
+            GameState& gameState,
+            EvalT alpha,
+            EvalT beta,
+            int ply,
+            NodeType nodeType,
+            StackOfVectors<Move>& stack);
 
     // Subroutine for search.
     // Search a single move, updating alpha, bestScore and bestMove as necessary.
@@ -136,6 +152,7 @@ class MoveSearcher::Impl {
             Move& bestMove,
             const Move& lastMove,
             int lastNullMovePly,
+            NodeType currentNodeType,
             bool useScoutSearch);
 
     // Perform an aspiration window search.
@@ -660,11 +677,12 @@ EvalT MoveSearcher::Impl::search(
         EvalT beta,
         Move lastMove,
         const int lastNullMovePly,
+        const NodeType nodeType,
         StackOfVectors<Move>& stack) {
     if (depth == 0) {
-        return quiesce(gameState, alpha, beta, ply, stack);
+        return quiesce(gameState, alpha, beta, ply, nodeType, stack);
     }
-    const bool isPvNode = beta - alpha > 1;
+    const bool isPvNode = nodeType == NodeType::PvNode;
 
     ++searchStatistics_.normalNodesSearched;
 
@@ -808,6 +826,7 @@ EvalT MoveSearcher::Impl::search(
                         -beta + 1,
                         /*lastMove =*/{},
                         /*lastNullMovePly =*/ply,
+                        NodeType::AllNode,
                         stack);
 
         gameState.unmakeNullMove(unmakeInfo);
@@ -848,6 +867,7 @@ EvalT MoveSearcher::Impl::search(
                 bestMove,
                 lastMove,
                 lastNullMovePly,
+                nodeType,
                 /*useScoutSearch =*/false);
 
         if (outcome == SearchMoveOutcome::Interrupted) {
@@ -941,6 +961,7 @@ EvalT MoveSearcher::Impl::search(
                 bestMove,
                 lastMove,
                 lastNullMovePly,
+                nodeType,
                 /*useScoutSearch =*/isPvNode && (movesSearched > 0));
 
         if (outcome != SearchMoveOutcome::Interrupted) {
@@ -1004,7 +1025,12 @@ EvalT MoveSearcher::Impl::search(
 // Continue until no more captures are available or we get a beta cutoff.
 // When not in check use a stand pat evaluation to set alpha and possibly get a beta cutoff.
 EvalT MoveSearcher::Impl::quiesce(
-        GameState& gameState, EvalT alpha, EvalT beta, const int ply, StackOfVectors<Move>& stack) {
+        GameState& gameState,
+        EvalT alpha,
+        EvalT beta,
+        const int ply,
+        const NodeType nodeType,
+        StackOfVectors<Move>& stack) {
     constexpr EvalT kDeltaPruningThreshold = 200;
 
     EvalT bestScore = -kInfiniteEval;
@@ -1016,7 +1042,7 @@ EvalT MoveSearcher::Impl::quiesce(
 
     ++searchStatistics_.qNodesSearched;
 
-    const bool isPvNode = beta - alpha > 1;
+    const bool isPvNode = nodeType == NodeType::PvNode;
 
     if (isPvNode) {
         searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
@@ -1147,7 +1173,7 @@ EvalT MoveSearcher::Impl::quiesce(
             tTable_.prefetch(gameState.getBoardHash());
             evaluator_.prefetch(gameState);
 
-            EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
+            EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, (NodeType)-nodeType, stack);
 
             gameState.unmakeMove(*hashMove, unmakeInfo);
 
@@ -1251,7 +1277,7 @@ EvalT MoveSearcher::Impl::quiesce(
         tTable_.prefetch(gameState.getBoardHash());
         evaluator_.prefetch(gameState);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, stack);
+        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, (NodeType)-nodeType, stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
@@ -1307,6 +1333,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
         Move& bestMove,
         const Move& lastMove,
         const int lastNullMovePly,
+        const NodeType currentNodeType,
         const bool useScoutSearch) {
 
     auto unmakeInfo = gameState.makeMove(move);
@@ -1319,9 +1346,19 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
     EvalT score{};
     if (useScoutSearch) {
+        MY_ASSERT_DEBUG(currentNodeType == NodeType::PvNode);
+
         // Zero window (scout) search
-        score = -search(
-                gameState, reducedDepth, ply + 1, -alpha - 1, -alpha, move, lastNullMovePly, stack);
+        score =
+                -search(gameState,
+                        reducedDepth,
+                        ply + 1,
+                        -alpha - 1,
+                        -alpha,
+                        move,
+                        lastNullMovePly,
+                        NodeType::CutNode,
+                        stack);
 
         if (reduction > 0 && score > alpha && !wasInterrupted_) {
             // Search again without reduction
@@ -1333,19 +1370,36 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                             -alpha,
                             move,
                             lastNullMovePly,
+                            NodeType::CutNode,
                             stack);
         }
 
         if (score > alpha && score < beta && !wasInterrupted_) {
             // If the score is within the window, do a full window search.
-            score = -search(
-                    gameState, fullDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
+            score =
+                    -search(gameState,
+                            fullDepth,
+                            ply + 1,
+                            -beta,
+                            -alpha,
+                            move,
+                            lastNullMovePly,
+                            NodeType::PvNode,
+                            stack);
         }
     } else {
-        MY_ASSERT(beta == alpha + 1 || reduction == 0);
+        MY_ASSERT_DEBUG(currentNodeType != NodeType::PvNode || reduction == 0);
 
-        score = -search(
-                gameState, reducedDepth, ply + 1, -beta, -alpha, move, lastNullMovePly, stack);
+        score =
+                -search(gameState,
+                        reducedDepth,
+                        ply + 1,
+                        -beta,
+                        -alpha,
+                        move,
+                        lastNullMovePly,
+                        (NodeType)-currentNodeType,
+                        stack);
     }
 
     gameState.unmakeMove(move, unmakeInfo);
@@ -1408,6 +1462,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                        upperBound,
                        /*lastMove =*/{},
                        /*lastNullMovePly =*/INT_MIN,
+                       NodeType::PvNode,
                        stack);
 
         const bool noEval = searchEval < -kMateEval;
@@ -1545,6 +1600,7 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
                        kInfiniteEval,
                        /*lastMove =*/{},
                        /*lastNullMovePly =*/INT_MIN,
+                       NodeType::PvNode,
                        stack);
 
         reportCutoffStatistics();
