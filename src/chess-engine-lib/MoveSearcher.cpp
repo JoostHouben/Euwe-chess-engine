@@ -295,10 +295,21 @@ const auto lmrReductionTable = []() {
     return min(lmrFromTable, depth - 1);
 }
 
-FORCE_INLINE void updateMateDistance(EvalT& score) {
-    if (isMate(score)) {
-        score = mateDistancePlus1(score);
+FORCE_INLINE EvalT updateMateDistanceOut(const EvalT score) {
+    if (abs(score) == kInfiniteEval) {
+        return score;
     }
+    if (isMate(score)) {
+        return mateDistancePlus1(score);
+    }
+    return score;
+}
+
+FORCE_INLINE EvalT updateMateDistanceIn(const EvalT score) {
+    if (isMate(score)) {
+        return mateDistanceMinus1(score);
+    }
+    return score;
 }
 
 // Compute the delta between two wrapping counters
@@ -711,12 +722,21 @@ EvalT MoveSearcher::Impl::search(
     if (ply > 0) {
         if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
             // Exact value
-            return *endStateValue;
+            return updateMateDistanceOut(*endStateValue);
         }
     }
 
     const BoardControl boardControl = gameState.getBoardControl();
     const bool isInCheck            = gameState.isInCheck(boardControl);
+
+    // Mate distance pruning: check for impossible mate
+    if (kMateEval < alpha) {
+        return updateMateDistanceOut(kMateEval);
+    }
+    const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
+    if (worstCaseMate > beta) {
+        return updateMateDistanceOut(worstCaseMate);
+    }
 
     const int extension = getDepthExtension(isInCheck, lastMove);
     if (ply > 0) {
@@ -750,7 +770,7 @@ EvalT MoveSearcher::Impl::search(
 
         if (futilityValue >= beta) {
             // Return a conservative lower bound (fail-hard).
-            return beta;
+            return updateMateDistanceOut(beta);
         }
     }
 
@@ -775,7 +795,7 @@ EvalT MoveSearcher::Impl::search(
         // However, if we're at the root, force a further search to get at least one move in the PV.
         if (ttInfo.scoreType == ScoreType::EGTB && ply > 0) {
             // Exact value
-            return ttInfo.score;
+            return updateMateDistanceOut(ttInfo.score);
         }
 
         if (ttInfo.depth >= depth) {
@@ -785,13 +805,13 @@ EvalT MoveSearcher::Impl::search(
                             max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
                 }
                 // Exact value
-                return ttInfo.score;
+                return updateMateDistanceOut(ttInfo.score);
             } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta) {
                 // Lower bound
-                return ttInfo.score;
+                return updateMateDistanceOut(ttInfo.score);
             } else if (ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha) {
                 // Upper bound
-                return ttInfo.score;
+                return updateMateDistanceOut(ttInfo.score);
             }
         }
 
@@ -819,7 +839,7 @@ EvalT MoveSearcher::Impl::search(
 
             storeEgtbValueInTTable(tbScore, depth, gameState.getBoardHash());
 
-            return tbScore;
+            return updateMateDistanceOut(tbScore);
         }
     }
 
@@ -829,20 +849,18 @@ EvalT MoveSearcher::Impl::search(
 
         const auto unmakeInfo = gameState.makeNullMove();
 
-        EvalT nullMoveScore =
+        const EvalT nullMoveScore =
                 -search(gameState,
                         nullMoveSearchDepth,
                         ply + 1,
-                        -beta,
-                        -beta + 1,
+                        updateMateDistanceIn(-beta),
+                        updateMateDistanceIn(-beta + 1),
                         /*lastMove =*/{},
                         /*lastNullMovePly =*/ply,
                         NodeType::AllNode,
                         stack);
 
         gameState.unmakeNullMove(unmakeInfo);
-
-        updateMateDistance(nullMoveScore);
 
         if (wasInterrupted_) {
             return -kInfiniteEval;
@@ -853,7 +871,7 @@ EvalT MoveSearcher::Impl::search(
 
             // Null move failed high, don't bother searching other moves.
             // Return a conservative lower bound (fail-hard).
-            return beta;
+            return updateMateDistanceOut(beta);
         }
     }
 
@@ -882,7 +900,7 @@ EvalT MoveSearcher::Impl::search(
                 /*useScoutSearch =*/false);
 
         if (outcome == SearchMoveOutcome::Interrupted) {
-            return bestScore;
+            return updateMateDistanceOut(bestScore);
         }
 
         ++movesSearched;
@@ -903,7 +921,7 @@ EvalT MoveSearcher::Impl::search(
             // Score was obtained from a subcall that failed high, so it was a lower bound for
             // that position. It is also a lower bound for the overall position because we're
             // maximizing.
-            return bestScore;
+            return updateMateDistanceOut(bestScore);
         }
     }
 
@@ -991,7 +1009,7 @@ EvalT MoveSearcher::Impl::search(
 
     if (!wasInterrupted_ && !moveOrderer.hasFoundAnyLegalMoves()) {
         // Exact value
-        return evaluateNoLegalMoves(gameState);
+        return updateMateDistanceOut(evaluateNoLegalMoves(gameState));
     }
 
     if (movesSearched > 0) {
@@ -1033,7 +1051,7 @@ EvalT MoveSearcher::Impl::search(
     //
     // If we're failing high relative to the original beta then we found a lower bound outside the
     // feasibility window so we can safely return a lower bound.
-    return bestScore;
+    return updateMateDistanceOut(bestScore);
 }
 
 // Quiescence search. When in check search all moves, when not in check only search captures.
@@ -1052,7 +1070,7 @@ EvalT MoveSearcher::Impl::quiesce(
     Move bestMove{};
 
     if (shouldStopSearch()) {
-        return bestScore;
+        return -kInfiniteEval;
     }
 
     ++searchStatistics_.qNodesSearched;
@@ -1064,11 +1082,20 @@ EvalT MoveSearcher::Impl::quiesce(
     }
 
     if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
-        return *endStateValue;
+        return updateMateDistanceOut(*endStateValue);
     }
 
     const BoardControl boardControl = gameState.getBoardControl();
     const bool isInCheck            = gameState.isInCheck(boardControl);
+
+    // Mate distance pruning: check for impossible mate
+    if (kMateEval < alpha) {
+        return updateMateDistanceOut(kMateEval);
+    }
+    const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
+    if (worstCaseMate > beta) {
+        return updateMateDistanceOut(worstCaseMate);
+    }
 
     bool completedAnySearch = false;
     const EvalT alphaOrig   = alpha;
@@ -1076,14 +1103,14 @@ EvalT MoveSearcher::Impl::quiesce(
     EvalT standPat = -kInfiniteEval;
     if (!isInCheck) {
         // Stand pat
-        standPat  = evaluator_.evaluate(gameState, boardControl);
-        bestScore = standPat;
-        if (bestScore >= beta) {
-            return bestScore;
+        standPat = evaluator_.evaluate(gameState, boardControl);
+        if (standPat >= beta) {
+            return standPat;
         }
+        bestScore = standPat;
 
         static constexpr int kStandPatDeltaPruningThreshold = 1'000;
-        const EvalT deltaPruningScore = standPat + kStandPatDeltaPruningThreshold;
+        const EvalT deltaPruningScore = clampNonMateEval(standPat + kStandPatDeltaPruningThreshold);
         if (deltaPruningScore < alpha) {
             // Stand pat is so far below alpha that we have no hope of raising it even if we find a
             // good capture. Return the stand pat evaluation plus a large margin.
@@ -1119,7 +1146,7 @@ EvalT MoveSearcher::Impl::quiesce(
 
         if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
             // Exact value
-            return ttInfo.score;
+            return updateMateDistanceOut(ttInfo.score);
         } else if (ttInfo.scoreType == ScoreType::LowerBound) {
             // Can safely raise the lower bound for our search window, because the true value
             // is guaranteed to be above this bound.
@@ -1140,7 +1167,7 @@ EvalT MoveSearcher::Impl::quiesce(
             // If beta was lowered by the tt entry this is an upper bound and we want to return
             // that lowered beta (fail-soft: that's the tightest upper bound we have).
             // So either way we return the tt entry score.
-            return ttInfo.score;
+            return updateMateDistanceOut(ttInfo.score);
         }
 
         hashMove = getTTableMove(ttInfo, gameState);
@@ -1188,15 +1215,19 @@ EvalT MoveSearcher::Impl::quiesce(
             tTable_.prefetch(gameState.getBoardHash());
             evaluator_.prefetch(gameState);
 
-            EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, (NodeType)-nodeType, stack);
+            const EvalT score = -quiesce(
+                    gameState,
+                    updateMateDistanceIn(-beta),
+                    updateMateDistanceIn(-alpha),
+                    ply + 1,
+                    (NodeType)-nodeType,
+                    stack);
 
             gameState.unmakeMove(*hashMove, unmakeInfo);
 
             if (wasInterrupted_) {
-                return bestScore;
+                return updateMateDistanceOut(bestScore);
             }
-
-            updateMateDistance(score);
 
             completedAnySearch = true;
             bestScore          = max(bestScore, score);
@@ -1216,7 +1247,7 @@ EvalT MoveSearcher::Impl::quiesce(
                             gameState.getBoardHash(),
                             isPvNode);
 
-                    return score;
+                    return updateMateDistanceOut(score);
                 }
             }
         }
@@ -1228,7 +1259,7 @@ EvalT MoveSearcher::Impl::quiesce(
         if (isInCheck) {
             // We ran full move generation, so no legal moves exist, and we're in check, so it's a
             // checkmate.
-            return -kMateEval;
+            return updateMateDistanceOut(-kMateEval);
         }
 
         // No captures are available.
@@ -1244,7 +1275,7 @@ EvalT MoveSearcher::Impl::quiesce(
         }
 
         // If we're not in an end state return the stand pat evaluation.
-        return bestScore;
+        return updateMateDistanceOut(bestScore);
     }
 
     // Ignore the hash move even if we didn't try it, since that would mean we pruned it.
@@ -1294,15 +1325,19 @@ EvalT MoveSearcher::Impl::quiesce(
         tTable_.prefetch(gameState.getBoardHash());
         evaluator_.prefetch(gameState);
 
-        EvalT score = -quiesce(gameState, -beta, -alpha, ply + 1, (NodeType)-nodeType, stack);
+        const EvalT score = -quiesce(
+                gameState,
+                updateMateDistanceIn(-beta),
+                updateMateDistanceIn(-alpha),
+                ply + 1,
+                (NodeType)-nodeType,
+                stack);
 
         gameState.unmakeMove(move, unmakeInfo);
 
         if (wasInterrupted_) {
             break;
         }
-
-        updateMateDistance(score);
 
         completedAnySearch = true;
 
@@ -1330,7 +1365,7 @@ EvalT MoveSearcher::Impl::quiesce(
                 isPvNode);
     }
 
-    return bestScore;
+    return updateMateDistanceOut(bestScore);
 }
 
 FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMove(
@@ -1367,8 +1402,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                 -search(gameState,
                         reducedDepth,
                         ply + 1,
-                        -alpha - 1,
-                        -alpha,
+                        updateMateDistanceIn(-alpha - 1),
+                        updateMateDistanceIn(-alpha),
                         move,
                         lastNullMovePly,
                         NodeType::CutNode,
@@ -1380,8 +1415,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                     -search(gameState,
                             fullDepth,
                             ply + 1,
-                            -alpha - 1,
-                            -alpha,
+                            updateMateDistanceIn(-alpha - 1),
+                            updateMateDistanceIn(-alpha),
                             move,
                             lastNullMovePly,
                             NodeType::CutNode,
@@ -1394,8 +1429,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                     -search(gameState,
                             fullDepth,
                             ply + 1,
-                            -beta,
-                            -alpha,
+                            updateMateDistanceIn(-beta),
+                            updateMateDistanceIn(-alpha),
                             move,
                             lastNullMovePly,
                             NodeType::PvNode,
@@ -1408,8 +1443,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                 -search(gameState,
                         reducedDepth,
                         ply + 1,
-                        -beta,
-                        -alpha,
+                        updateMateDistanceIn(-beta),
+                        updateMateDistanceIn(-alpha),
                         move,
                         lastNullMovePly,
                         (NodeType)-currentNodeType,
@@ -1421,8 +1456,6 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     if (wasInterrupted_) {
         return SearchMoveOutcome::Interrupted;
     }
-
-    updateMateDistance(score);
 
     if (score > bestScore) {
         bestScore = score;
@@ -1459,7 +1492,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     int upperTolerance = kInitialTolerance;
 
     auto toEval = [](int v) {
-        return (EvalT)(clamp(v, (int)-kInfiniteEval, (int)kInfiniteEval));
+        return (EvalT)(clamp(v, (int)-kMateEval, (int)kMateEval));
     };
 
     EvalT lowerBound = toEval(initialGuess - lowerTolerance);
@@ -1539,7 +1572,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             if (isMate(searchEval) && searchEval < 0) {
                 // If we found a mate, fully open up the window to the mating side.
                 // This will allow us to find the earliest mate.
-                lowerBound = -kInfiniteEval;
+                lowerBound = -kMateEval;
             } else {
                 // Exponentially grow the tolerance.
                 const int oldTolerance = lowerTolerance;
@@ -1553,7 +1586,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             if (isMate(searchEval) && searchEval > 0) {
                 // If we found a mate, fully open up the window to the mating side.
                 // This will allow us to find the earliest mate.
-                upperBound = kInfiniteEval;
+                upperBound = kMateEval;
             } else {
                 // Exponentially grow the tolerance.
                 const int oldTolerance = upperTolerance;
@@ -1612,8 +1645,8 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
                 search(gameState,
                        depth,
                        0,
-                       -kInfiniteEval,
-                       kInfiniteEval,
+                       -kMateEval,
+                       kMateEval,
                        /*lastMove =*/{},
                        /*lastNullMovePly =*/INT_MIN,
                        NodeType::PvNode,

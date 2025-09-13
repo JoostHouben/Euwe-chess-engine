@@ -1801,8 +1801,7 @@ EvalT Evaluator::evaluate(const GameState& gameState, const BoardControl& boardC
     const auto rawEvalWhite =
             evaluateForWhite<false>(params_, gameState, boardControl, pawnKingEvalHashTable_);
 
-    const EvalT clampedEvalWhite =
-            (EvalT)clamp((int)rawEvalWhite.value, -kMateEval + 1'000, kMateEval - 1'000);
+    const EvalT clampedEvalWhite = clampNonMateEval((int)rawEvalWhite.value);
 
     return gameState.getSideToMove() == Side::White ? clampedEvalWhite : -clampedEvalWhite;
 }
