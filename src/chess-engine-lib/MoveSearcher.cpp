@@ -637,6 +637,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards) {
     const bool isTactical = isCaptureOrQueenPromo(move);
     MY_ASSERT(IMPLIES(isLosingTactical, isTactical));
+    MY_ASSERT_DEBUG(!isMate(alpha));
 
     if (isTactical && !isLosingTactical) {
         // Don't futility prune winning tactical moves.
@@ -645,6 +646,22 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
     if (isCapture(move) && captureWillProbeSyzygy(gameState, reducedDepth)) {
         // We will get a fast and accurate value from syzygy probe, so no point pruning this move.
         return {kMateEval, false};
+    }
+    if (isMate(eval)) {
+        if (eval > 0) {
+            // Eval (from TT) indicates a winning mate position, so we can't reasonably prune any moves.
+            return {kMateEval, false};
+        } else {
+            // Eval (from TT) indicates a losing mate position, let's prune all moves (except
+            // winning tactical moves, which we already handled above).
+            // In this case, we want to avoid returning a futility value based on the eval, because
+            // that will cause non-sensical values to be returned (like a mate-in-100). Returning
+            // alpha is sufficient to ensure the move is pruned.
+            // We also vote to skip quiets, but we can only do that once we've reached a quiet move,
+            // otherwise we will end up violating an invariant of the move orderer.
+            const bool voteToSkipQuiets = !isTactical;
+            return {alpha, voteToSkipQuiets};
+        }
     }
 
     const EvalT futilityMargin = calculateFutilityMargin(reducedDepth, movesSearched, isTactical);
@@ -964,15 +981,24 @@ EvalT MoveSearcher::Impl::search(
                     directCheckBitBoards);
 
             if (futilityValue <= alpha) {
-                if (futilityValue > bestScore) {
-                    bestScore = futilityValue;
-                }
+                // Raise bestScore to at least alpha so that we don't return -kInfiniteEval if all
+                // moves are pruned.
+                // We could consider raising the score to futilityValue instead (which would give
+                // us a tighter soft-fail score), but this value may not be meaningful.
+                // In particular, if eval is a mate score (obtained from the ttable), then
+                // futilityValue
+                bestScore = max(bestScore, futilityValue);
 
                 if (voteToSkip) {
                     ++votesToSkipQuiets;
 
+                    // Check if we have enough votes to skip remaining quiets.
+                    // If the eval is a mate (which we got from the ttable), there's no need to wait
+                    // to accumulate enough votes, since they'll all go the same way. We still wait
+                    // for the first void so that we only skip after we've seen at least one quiet
+                    // move.
                     static constexpr int kVotesToSkipQuietsThreshold = 5;
-                    if (votesToSkipQuiets >= kVotesToSkipQuietsThreshold) {
+                    if (votesToSkipQuiets >= kVotesToSkipQuietsThreshold || isMate(eval)) {
                         moveOrderer.skipRemainingQuiets();
                     }
                 }
@@ -1176,7 +1202,12 @@ EvalT MoveSearcher::Impl::quiesce(
         if (hashMove && !isInCheck) {
             if (!isCapture(hashMove->flags)) {
                 shouldTryHashMove = false;
-            } else {
+            } else if (!isMate(alpha)) {
+                // Delta pruning.
+                // We skip delta pruning if alpha is a mate score, since in that case we're looking
+                // for a mate, and can't prune moves based purely on material exchange
+                // considerations.
+
                 // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
                 // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
                 // So we need to check if SEE >= alpha - standPat - kDeltaPruningThreshold
@@ -1195,7 +1226,7 @@ EvalT MoveSearcher::Impl::quiesce(
                     // function if we prune moves is still reliable. Note that this is definitely below
                     // alpha.
                     const EvalT deltaPruningScore =
-                            (EvalT)(standPat + seeBound + kDeltaPruningThreshold);
+                            clampNonMateEval(standPat + seeBound + kDeltaPruningThreshold);
                     bestScore = max(bestScore, deltaPruningScore);
 
                     if (!directCheckBitBoards) {
@@ -1285,8 +1316,10 @@ EvalT MoveSearcher::Impl::quiesce(
     while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
         const Move move = *maybeMove;
 
-        if (!isInCheck) {
+        if (!isInCheck && !isMate(alpha)) {
             // Delta pruning
+            // We skip delta pruning if alpha is a mate score, since in that case we're looking for
+            // a mate, and can't prune moves based purely on material exchange considerations.
 
             MY_ASSERT(isCapture(move));
 
@@ -1307,7 +1340,7 @@ EvalT MoveSearcher::Impl::quiesce(
                 // function if we prune moves is still reliable. Note that this is definitely below
                 // alpha.
                 const EvalT deltaPruningScore =
-                        (EvalT)(standPat + seeBound + kDeltaPruningThreshold);
+                        clampNonMateEval(standPat + seeBound + kDeltaPruningThreshold);
                 bestScore = max(bestScore, deltaPruningScore);
 
                 if (!directCheckBitBoards) {
@@ -1491,7 +1524,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     int lowerTolerance = kInitialTolerance;
     int upperTolerance = kInitialTolerance;
 
-    auto toEval = [](int v) {
+    const auto toEval = [](const int v) {
         return (EvalT)(clamp(v, (int)-kMateEval, (int)kMateEval));
     };
 
@@ -1503,6 +1536,15 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     EvalT lastCompletedEval = -kInfiniteEval;
 
     do {
+        // If the bounds are mate scores, fully open up the bound to the mating side to allow
+        // finding the fastest mate sequence.
+        if (isMate(lowerBound) && lowerBound < 0) {
+            lowerBound = -kMateEval;
+        }
+        if (isMate(upperBound) && upperBound > 0) {
+            upperBound = kMateEval;
+        }
+
         const auto searchEval =
                 search(gameState,
                        depth,
@@ -1569,32 +1611,20 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         if (searchEval <= lowerBound) {
             // Failed low
-            if (isMate(searchEval) && searchEval < 0) {
-                // If we found a mate, fully open up the window to the mating side.
-                // This will allow us to find the earliest mate.
-                lowerBound = -kMateEval;
-            } else {
-                // Exponentially grow the tolerance.
-                const int oldTolerance = lowerTolerance;
-                lowerTolerance *= kToleranceIncreaseFactor;
-                // Expand the lower bound based on the increased tolerance or the search result,
-                // whichever is lower.
-                lowerBound = toEval(min(searchEval - oldTolerance, initialGuess - lowerTolerance));
-            }
+            // Exponentially grow the tolerance.
+            const int oldTolerance = lowerTolerance;
+            lowerTolerance *= kToleranceIncreaseFactor;
+            // Expand the lower bound based on the increased tolerance or the search result,
+            // whichever is lower.
+            lowerBound = toEval(min(searchEval - oldTolerance, initialGuess - lowerTolerance));
         } else {
             // Failed high
-            if (isMate(searchEval) && searchEval > 0) {
-                // If we found a mate, fully open up the window to the mating side.
-                // This will allow us to find the earliest mate.
-                upperBound = kMateEval;
-            } else {
-                // Exponentially grow the tolerance.
-                const int oldTolerance = upperTolerance;
-                upperTolerance *= kToleranceIncreaseFactor;
-                // Expand the upper bound based on the increased tolerance or the search result,
-                // whichever is higher.
-                upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
-            }
+            // Exponentially grow the tolerance.
+            const int oldTolerance = upperTolerance;
+            upperTolerance *= kToleranceIncreaseFactor;
+            // Expand the upper bound based on the increased tolerance or the search result,
+            // whichever is higher.
+            upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
         }
 
         if (frontEnd_) {
