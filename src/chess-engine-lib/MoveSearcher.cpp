@@ -958,21 +958,10 @@ EvalT MoveSearcher::Impl::search(
     static constexpr int kVotesToSkipQuietsThreshold = 5;
     int votesToSkipQuiets                            = 0;
 
-    int losingTacticalAdditionalMoveCount = 0;
     if (futilityPruningEnabled && isMate(eval) && eval < 0) {
         // If eval (from TT) indicates a losing mate position, then all quiet moves will be
         // considered futile. Let's skip them all.
         moveOrderer.skipQuiets();
-
-        // Since we're skipping the futility value calculation for quiet moves, we need to raise
-        // bestScore so that it is a reasonable upper bound on the position's value. We can simply
-        // raise it to alpha.
-        bestScore = max(bestScore, alpha);
-
-        // We'll inflate the move count (for purposes of futility margin calculation) so that
-        // skipping the quiet voting process doesn't raise the futility margin applied to losing
-        // tactical moves.
-        losingTacticalAdditionalMoveCount = kVotesToSkipQuietsThreshold;
     }
 
     while (const auto maybeMove =
@@ -984,17 +973,13 @@ EvalT MoveSearcher::Impl::search(
 
         // Futility pruning
         if (futilityPruningEnabled) {
-            const bool isLosingTactical = moveOrderer.lastMoveWasLosing();
-            const int moveCountForFutility =
-                    movesSearched + (isLosingTactical ? losingTacticalAdditionalMoveCount : 0);
-
             const auto [futilityValue, voteToSkip] = getMoveFutilityValue(
                     eval,
                     alpha,
                     depth - reduction,
-                    moveCountForFutility,
+                    movesSearched,
                     move,
-                    isLosingTactical,
+                    moveOrderer.lastMoveWasLosing(),
                     gameState,
                     enemyPinBitBoard,
                     directCheckBitBoards);
@@ -1044,13 +1029,24 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
-    if (!wasInterrupted_ && !moveOrderer.anyLegalMoves(gameState, boardControl)) {
+    const bool anyLegalMoves = moveOrderer.anyLegalMoves(gameState, boardControl);
+
+    if (!wasInterrupted_ && !anyLegalMoves) {
         // Exact value
-        return updateMateDistanceOut(evaluateNoLegalMoves(gameState));
+        bestScore = evaluateNoLegalMoves(gameState);
     }
 
-    if (movesSearched > 0) {
-        // If we fully evaluated any positions, update the ttable.
+    if (bestScore == -kInfiniteEval && !wasInterrupted_ && anyLegalMoves) {
+        MY_ASSERT_DEBUG(movesSearched == 0);
+        // All moves were pruned away.
+        // Raise bestScore to alpha to avoid returning -kInfiniteEval.
+        bestScore = alpha;
+    }
+
+    if (movesSearched > 0 || !wasInterrupted_) {
+        MY_ASSERT_DEBUG(bestScore != -kInfiniteEval);
+        // If we were not interrupted, or if we were but we fully evaluated any moves, updated the
+        // ttable.
         updateTTable(
                 bestScore,
                 alphaOrig,
