@@ -113,7 +113,7 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
       lastMoveType_(MoveType::None),
       moveToIgnore_(moveToIgnore),
       usingPregeneratedMoves_(!moves_.empty()),
-      foundAnyLegalMoves_(!moves_.empty()),
+      foundAnyLegalMoves_(!moves_.empty() || moveToIgnore.has_value()),
       skipQuietMoveGeneration_(false) {
     if (usingPregeneratedMoves_) {
         // Use pre-generated moves.

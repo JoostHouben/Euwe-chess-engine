@@ -654,10 +654,8 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         } else {
             // Eval (from TT) indicates a losing mate position, let's prune all moves (except
             // winning tactical moves, which we already handled above).
-            // In this case, we want to avoid returning a futility value based on the eval, because
-            // that will cause non-sensical values to be returned (like a mate-in-100). Returning
-            // alpha is sufficient to ensure the move is pruned.
-            return {alpha, false};
+            // We still want the score to be a reasonable upper bound, so we clamp to non-mate eval.
+            return {clampNonMateEval(eval), false};
         }
     }
 
@@ -955,14 +953,13 @@ EvalT MoveSearcher::Impl::search(
             lastMove,
             ply);
 
-    static constexpr int kVotesToSkipQuietsThreshold = 5;
-    int votesToSkipQuiets                            = 0;
-
     if (futilityPruningEnabled && isMate(eval) && eval < 0) {
         // If eval (from TT) indicates a losing mate position, then all quiet moves will be
         // considered futile. Let's skip them all.
         moveOrderer.skipQuiets();
     }
+
+    int votesToSkipQuiets = 0;
 
     while (const auto maybeMove =
                    moveOrderer.getNextBestMove(gameState, boardControl, lastMove, ply)) {
@@ -994,6 +991,7 @@ EvalT MoveSearcher::Impl::search(
                     ++votesToSkipQuiets;
 
                     // Check if we have enough votes to skip remaining quiets.
+                    static constexpr int kVotesToSkipQuietsThreshold = 5;
                     if (votesToSkipQuiets >= kVotesToSkipQuietsThreshold) {
                         moveOrderer.skipQuiets();
                     }
@@ -1039,14 +1037,16 @@ EvalT MoveSearcher::Impl::search(
     if (bestScore == -kInfiniteEval && !wasInterrupted_ && anyLegalMoves) {
         MY_ASSERT_DEBUG(movesSearched == 0);
         // All moves were pruned away.
-        // Raise bestScore to alpha to avoid returning -kInfiniteEval.
-        bestScore = alpha;
+        // Raise bestScore to avoid returning -kInfiniteEval.
+        // If we have an eval (either static or from TTable), use that; but clamp it to a non-mate
+        // value to avoid returning an uncertain mate score.
+        // If we don't have an eval, return fail-hard alpha.
+        bestScore = eval != -kInfiniteEval ? clampNonMateEval(eval) : alpha;
     }
 
-    if (movesSearched > 0 || !wasInterrupted_) {
+    if (movesSearched > 0) {
         MY_ASSERT_DEBUG(bestScore != -kInfiniteEval);
-        // If we were not interrupted, or if we were but we fully evaluated any moves, updated the
-        // ttable.
+        // If we fully evaluated any moves, update the ttable.
         updateTTable(
                 bestScore,
                 alphaOrig,
