@@ -113,7 +113,8 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
       lastMoveType_(MoveType::None),
       moveToIgnore_(moveToIgnore),
       usingPregeneratedMoves_(!moves_.empty()),
-      foundAnyLegalMoves_(!moves_.empty()) {
+      foundAnyLegalMoves_(!moves_.empty()),
+      skipQuietMoveGeneration_(false) {
     if (usingPregeneratedMoves_) {
         // Use pre-generated moves.
         // This should only happen in the root move and in quiescence search.
@@ -212,6 +213,13 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
                 return bestMove;
             }
 
+            if (skipQuietMoveGeneration_) {
+                state_          = State::LosingCaptures;
+                currentMoveIdx_ = firstLosingCaptureIdx_;
+                // NOLINTNEXTLINE(cppcoreguidelines-avoid-goto)
+                goto skipQuietsLabel;
+            }
+
             state_          = State::InitQuiets;
             currentMoveIdx_ = firstQuietIdx_;
             [[fallthrough]];
@@ -292,7 +300,8 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
             [[fallthrough]];
         }
 
-        case State::LosingCaptures: {
+        case State::LosingCaptures:
+        skipQuietsLabel: {
             MY_ASSERT(
                     firstLosingCaptureIdx_ <= currentMoveIdx_ && currentMoveIdx_ <= firstQuietIdx_);
 
@@ -353,10 +362,33 @@ FORCE_INLINE MoveType MoveOrderer::getLastMoveType() const {
     return lastMoveType_;
 }
 
-FORCE_INLINE void MoveOrderer::skipRemainingQuiets() {
-    MY_ASSERT(state_ == State::Quiets);
-    state_          = State::LosingCaptures;
-    currentMoveIdx_ = firstLosingCaptureIdx_;
+FORCE_INLINE bool MoveOrderer::anyLegalMoves(
+        const GameState& gameState, const BoardControl& boardControl) {
+    if (foundAnyLegalMoves_) {
+        return true;
+    }
+    if (usingPregeneratedMoves_ || !skipQuietMoveGeneration_) {
+        return foundAnyLegalMoves_;  // false
+    }
+
+    // We skipped quiet move generation, so we need to check if there are any quiet moves.
+    MY_ASSERT_DEBUG(moves_.empty());
+    moves_.unlock();
+    gameState.generateMoves(
+            moves_, boardControl, MoveCategories::Quiets | MoveCategories::UnderPromotions);
+    moves_.lock();
+
+    foundAnyLegalMoves_ |= !moves_.empty();
+    return foundAnyLegalMoves_;
+}
+
+FORCE_INLINE void MoveOrderer::skipQuiets() {
+    if (state_ == State::GoodTactical) {
+        skipQuietMoveGeneration_ = true;
+    } else if (state_ == State::Quiets) {
+        state_          = State::LosingCaptures;
+        currentMoveIdx_ = firstLosingCaptureIdx_;
+    }
 }
 
 FORCE_INLINE int MoveOrderer::findHighestScoringMove(const int startIdx, const int endIdx) const {

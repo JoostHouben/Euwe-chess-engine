@@ -657,10 +657,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
             // In this case, we want to avoid returning a futility value based on the eval, because
             // that will cause non-sensical values to be returned (like a mate-in-100). Returning
             // alpha is sufficient to ensure the move is pruned.
-            // We also vote to skip quiets, but we can only do that once we've reached a quiet move,
-            // otherwise we will end up violating an invariant of the move orderer.
-            const bool voteToSkipQuiets = !isTactical;
-            return {alpha, voteToSkipQuiets};
+            return {alpha, false};
         }
     }
 
@@ -958,7 +955,20 @@ EvalT MoveSearcher::Impl::search(
             lastMove,
             ply);
 
-    int votesToSkipQuiets = 0;
+    static constexpr int kVotesToSkipQuietsThreshold = 5;
+    int votesToSkipQuiets                            = 0;
+
+    int losingTacticalAdditionalMoveCount = 0;
+    if (futilityPruningEnabled && isMate(eval) && eval < 0) {
+        // If eval (from TT) indicates a losing mate position, then all quiet moves will be
+        // considered futile. Let's skip them all.
+        moveOrderer.skipQuiets();
+
+        // We'll inflate the move count (for purposes of futility margin calculation) so that
+        // skipping the quiet voting process doesn't raise the futility margin applied to losing
+        // tactical moves.
+        losingTacticalAdditionalMoveCount = kVotesToSkipQuietsThreshold;
+    }
 
     while (const auto maybeMove =
                    moveOrderer.getNextBestMove(gameState, boardControl, lastMove, ply)) {
@@ -969,37 +979,33 @@ EvalT MoveSearcher::Impl::search(
 
         // Futility pruning
         if (futilityPruningEnabled) {
+            const bool isLosingTactical = moveOrderer.lastMoveWasLosing();
+            const int moveCountForFutility =
+                    movesSearched + (isLosingTactical ? losingTacticalAdditionalMoveCount : 0);
+
             const auto [futilityValue, voteToSkip] = getMoveFutilityValue(
                     eval,
                     alpha,
                     depth - reduction,
-                    movesSearched,
+                    moveCountForFutility,
                     move,
-                    moveOrderer.lastMoveWasLosing(),
+                    isLosingTactical,
                     gameState,
                     enemyPinBitBoard,
                     directCheckBitBoards);
 
             if (futilityValue <= alpha) {
-                // Raise bestScore to at least alpha so that we don't return -kInfiniteEval if all
-                // moves are pruned.
-                // We could consider raising the score to futilityValue instead (which would give
-                // us a tighter soft-fail score), but this value may not be meaningful.
-                // In particular, if eval is a mate score (obtained from the ttable), then
-                // futilityValue
+                // Raise bestScore to the futility value so that it is a reasonable upper bound on
+                // the position's value. In particular, this ensures that if all moves are pruned,
+                // we don't return -kInfiniteEval.
                 bestScore = max(bestScore, futilityValue);
 
                 if (voteToSkip) {
                     ++votesToSkipQuiets;
 
                     // Check if we have enough votes to skip remaining quiets.
-                    // If the eval is a mate (which we got from the ttable), there's no need to wait
-                    // to accumulate enough votes, since they'll all go the same way. We still wait
-                    // for the first void so that we only skip after we've seen at least one quiet
-                    // move.
-                    static constexpr int kVotesToSkipQuietsThreshold = 5;
-                    if (votesToSkipQuiets >= kVotesToSkipQuietsThreshold || isMate(eval)) {
-                        moveOrderer.skipRemainingQuiets();
+                    if (votesToSkipQuiets >= kVotesToSkipQuietsThreshold) {
+                        moveOrderer.skipQuiets();
                     }
                 }
 
@@ -1033,7 +1039,7 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
-    if (!wasInterrupted_ && !moveOrderer.hasFoundAnyLegalMoves()) {
+    if (!wasInterrupted_ && !moveOrderer.anyLegalMoves(gameState, boardControl)) {
         // Exact value
         return updateMateDistanceOut(evaluateNoLegalMoves(gameState));
     }
