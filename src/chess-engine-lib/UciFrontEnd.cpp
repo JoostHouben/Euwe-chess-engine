@@ -140,6 +140,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     GameState gameState_;
 
     bool debugMode_ = false;
+    bool quietMode_ = false;
 
     std::map<std::string, FrontEndOption, std::less<>> optionsMap_;
 
@@ -164,6 +165,8 @@ UciFrontEnd::Impl::Impl(
             0,
             1 * 1024 * 1024,
             [this](const int requestedSizeInMb) { engine_.setTTableSize(requestedSizeInMb); }));
+
+    addOption(FrontEndOption::createBoolean("Quiet", quietMode_));
 }
 
 UciFrontEnd::Impl::~Impl() {
@@ -262,7 +265,9 @@ void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {
 }
 
 void UciFrontEnd::Impl::reportPartialSearch(const SearchInfo& searchInfo) const {
-    writeDebug("Completed partial search of depth {}", searchInfo.depth);
+    if (!quietMode_) {
+        writeDebug("Completed partial search of depth {}", searchInfo.depth);
+    }
 
     SearchInfo completedSearchInfo = searchInfo;
     completedSearchInfo.depth      = searchInfo.depth - 1;
@@ -271,12 +276,14 @@ void UciFrontEnd::Impl::reportPartialSearch(const SearchInfo& searchInfo) const 
 }
 
 void UciFrontEnd::Impl::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
-    if (debugMode_) {
-        writeDebug("Normal nodes searched: {}", searchStatistics.normalNodesSearched);
-        writeDebug("Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
-        writeDebug("TTable hits: {}", searchStatistics.tTableHits);
-        writeDebug("TTable utilization: {:.1f}%", searchStatistics.ttableUtilization * 100.f);
+    if (!debugMode_) {
+        return;
     }
+
+    writeDebug("Normal nodes searched: {}", searchStatistics.normalNodesSearched);
+    writeDebug("Quiescence nodes searched: {}", searchStatistics.qNodesSearched);
+    writeDebug("TTable hits: {}", searchStatistics.tTableHits);
+    writeDebug("TTable utilization: {:.1f}%", searchStatistics.ttableUtilization * 100.f);
 }
 
 void UciFrontEnd::Impl::reportAspirationWindowReSearch(
@@ -326,6 +333,10 @@ void UciFrontEnd::Impl::reportAspirationWindowReSearch(
 }
 
 void UciFrontEnd::Impl::reportDiscardedPv(std::string_view reason) const {
+    if (quietMode_) {
+        return;
+    }
+
     writeDebug("Discarded PV: {}", reason);
 }
 
@@ -338,6 +349,10 @@ void UciFrontEnd::Impl::reportString(std::string_view message) const {
 }
 
 void UciFrontEnd::Impl::reportDebugString(std::string_view message) const {
+    if (quietMode_) {
+        return;
+    }
+
     writeDebug("{}", message);
 }
 
