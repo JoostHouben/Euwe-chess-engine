@@ -964,6 +964,11 @@ EvalT MoveSearcher::Impl::search(
         // considered futile. Let's skip them all.
         moveOrderer.skipQuiets();
 
+        // Since we're skipping the futility value calculation for quiet moves, we need to raise
+        // bestScore so that it is a reasonable upper bound on the position's value. We can simply
+        // raise it to alpha.
+        bestScore = max(bestScore, alpha);
+
         // We'll inflate the move count (for purposes of futility margin calculation) so that
         // skipping the quiet voting process doesn't raise the futility margin applied to losing
         // tactical moves.
@@ -1056,6 +1061,8 @@ EvalT MoveSearcher::Impl::search(
                 gameState.getBoardHash(),
                 isPvNode);
     }
+
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_, bestScore != -kInfiniteEval));
 
     // If bestScore <= alphaOrig, then all subcalls returned upper bounds and bestScore is the
     // maximum of these upper bounds, so an upper bound on the overall position. This is ok because
