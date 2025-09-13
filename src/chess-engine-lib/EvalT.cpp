@@ -26,8 +26,18 @@ FORCE_INLINE EvalT mateDistancePlus1(const EvalT eval) {
     return (EvalT)(eval - signum(eval));
 }
 
+FORCE_INLINE EvalT mateDistanceMinus1(const EvalT eval) {
+    MY_ASSERT(isMate(eval));
+
+    return (EvalT)(eval + signum(eval));
+}
+
 FORCE_INLINE EvalT mateIn(const int mateDistance) {
     MY_ASSERT(mateDistance >= 0);
 
     return (EvalT)(kMateEval - mateDistance);
+}
+
+FORCE_INLINE EvalT clampNonMateEval(const int eval) {
+    return (EvalT)clamp((int)eval, -kMateEval + 1'000, kMateEval - 1'000);
 }

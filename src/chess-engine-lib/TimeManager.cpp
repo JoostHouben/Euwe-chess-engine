@@ -104,7 +104,7 @@ bool TimeManager::shouldStopAfterMateFound(int depth, int mateDistanceInPly) con
     MY_ASSERT(mode_ != TimeManagementMode::None);
 
     if (mode_ == TimeManagementMode::TimeControl) {
-        return mateDistanceInPly <= depth;
+        return 3 * mateDistanceInPly <= depth;
     }
 
     return false;

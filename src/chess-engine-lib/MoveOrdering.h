@@ -68,9 +68,9 @@ class MoveOrderer {
     [[nodiscard]] bool lastMoveWasLosing() const;
     [[nodiscard]] MoveType getLastMoveType() const;
 
-    [[nodiscard]] bool hasFoundAnyLegalMoves() const { return foundAnyLegalMoves_; }
+    [[nodiscard]] bool anyLegalMoves(const GameState& gameState, const BoardControl& boardControl);
 
-    void skipRemainingQuiets();
+    void skipQuiets();
 
     static constexpr int kCaptureLosingThreshold = -20;
 
@@ -105,6 +105,7 @@ class MoveOrderer {
 
     bool usingPregeneratedMoves_;
     bool foundAnyLegalMoves_;
+    bool skipQuietMoveGeneration_;
 };
 
 class MoveScorer {

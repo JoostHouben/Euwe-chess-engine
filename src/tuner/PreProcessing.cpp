@@ -33,10 +33,21 @@ bool isDraw(const GameState& gameState, StackOfVectors<Move>& stack) {
     return false;
 }
 
-void updateMateDistance(EvalT& score) {
-    if (isMate(score)) {
-        score = mateDistancePlus1(score);
+FORCE_INLINE EvalT updateMateDistanceOut(const EvalT score) {
+    if (abs(score) == kInfiniteEval) {
+        return score;
     }
+    if (isMate(score)) {
+        return mateDistancePlus1(score);
+    }
+    return score;
+}
+
+FORCE_INLINE EvalT updateMateDistanceIn(const EvalT score) {
+    if (isMate(score)) {
+        return mateDistanceMinus1(score);
+    }
+    return score;
 }
 
 std::pair<EvalT, GameState> quiesce(
@@ -71,7 +82,7 @@ std::pair<EvalT, GameState> quiesce(
             stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
     if (moves.size() == 0) {
         if (isInCheck) {
-            return {-kMateEval, gameState};
+            return {updateMateDistanceOut(-kMateEval), gameState};
         }
 
         const auto allMoves = gameState.generateMoves(stack, boardControl);
@@ -80,7 +91,7 @@ std::pair<EvalT, GameState> quiesce(
             return {0, gameState};
         }
 
-        return {bestScore, bestState};
+        return {updateMateDistanceOut(bestScore), bestState};
     }
 
     auto moveOrderer = moveScorer.getMoveOrdererQuiescence(
@@ -91,12 +102,16 @@ std::pair<EvalT, GameState> quiesce(
 
         const auto unmakeInfo = gameState.makeMove(move);
 
-        auto [score, state] = quiesce(gameState, -beta, -alpha, stack, moveScorer, evaluator);
-        score               = -score;
+        auto [score, state] =
+                quiesce(gameState,
+                        updateMateDistanceIn(-beta),
+                        updateMateDistanceIn(-alpha),
+                        stack,
+                        moveScorer,
+                        evaluator);
+        score = -score;
 
         gameState.unmakeMove(move, unmakeInfo);
-
-        updateMateDistance(score);
 
         alpha = max(alpha, score);
         if (score > bestScore) {
@@ -109,7 +124,7 @@ std::pair<EvalT, GameState> quiesce(
         }
     }
 
-    return {bestScore, bestState};
+    return {updateMateDistanceOut(bestScore), bestState};
 }
 
 }  // namespace
