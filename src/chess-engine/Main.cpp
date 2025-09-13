@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "no-all-node-hash-move");
+            UciFrontEnd uciFrontEnd(engine, "mate-distance-pruning");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
