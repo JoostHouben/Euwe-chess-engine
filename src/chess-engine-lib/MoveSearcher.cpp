@@ -37,7 +37,7 @@ class MoveSearcher::Impl {
 
     void newGame();
 
-    [[nodiscard]] RootSearchResult searchForBestMove(
+    [[nodiscard]] SearchResult searchForBestMove(
             GameState& gameState,
             int depth,
             StackOfVectors<Move>& stack,
@@ -56,7 +56,7 @@ class MoveSearcher::Impl {
 
     void setTTableSize(int requestedSizeInMb);
 
-    [[nodiscard]] std::optional<RootNodeInfo> getRootNodeInfo(const GameState& gameState) const;
+    [[nodiscard]] std::optional<SearchInfo> getRootNodeInfo(const GameState& gameState) const;
 
   private:
     // == Types ==
@@ -87,7 +87,7 @@ class MoveSearcher::Impl {
 
     // Extract the principal variation from the transposition table.
     [[nodiscard]] std::vector<Move> extractPv(
-            GameState gameState, StackOfVectors<Move>& stack, int depth);
+            GameState gameState, StackOfVectors<Move>& stack, int depth) const;
 
     [[nodiscard]] bool shouldStopSearch() const;
 
@@ -156,7 +156,7 @@ class MoveSearcher::Impl {
             bool useScoutSearch);
 
     // Perform an aspiration window search.
-    [[nodiscard]] RootSearchResult aspirationWindowSearch(
+    [[nodiscard]] SearchResult aspirationWindowSearch(
             GameState& gameState,
             const int depth,
             StackOfVectors<Move>& stack,
@@ -570,7 +570,7 @@ FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
 }
 
 std::vector<Move> MoveSearcher::Impl::extractPv(
-        GameState gameState, StackOfVectors<Move>& stack, const int depth) {
+        GameState gameState, StackOfVectors<Move>& stack, const int depth) const {
     const int maxPvLength = max(depth, searchStatistics_.selectiveDepth);
 
     std::vector<Move> pv;
@@ -1536,7 +1536,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 }
 
 // Perform an aspiration window search.
-RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
+SearchResult MoveSearcher::Impl::aspirationWindowSearch(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1612,17 +1612,21 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 if (frontEnd_) {
                     frontEnd_->reportDiscardedPv("partial aspiration search with failed low");
                 }
-                return {.principalVariation = {},
+                return {
+                        .principalVariation = {},
                         .eval               = lastCompletedEval,
                         .scoreType          = lastCompletedScoreType,
-                        .wasInterrupted     = true};
+                        .wasInterrupted     = true,
+                };
             }
 
             // Return partial result.
-            return {.principalVariation = extractPv(gameState, stack, depth),
+            return {
+                    .principalVariation = extractPv(gameState, stack, depth),
                     .eval               = lastCompletedEval,
                     .scoreType          = lastCompletedScoreType,
-                    .wasInterrupted     = true};
+                    .wasInterrupted     = true,
+            };
         }
 
         // If we weren't interrupted we should have a valid eval.
@@ -1630,10 +1634,12 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         if (lowerBound < searchEval && searchEval < upperBound) {
             // Eval is within the aspiration window; return result.
-            return {.principalVariation = extractPv(gameState, stack, depth),
+            return {
+                    .principalVariation = extractPv(gameState, stack, depth),
                     .eval               = searchEval,
                     .scoreType          = lastCompletedScoreType,
-                    .wasInterrupted     = false};
+                    .wasInterrupted     = false,
+            };
         }
 
         const EvalT previousLowerBound = lowerBound;
@@ -1667,12 +1673,17 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
         }
 
         if (frontEnd_) {
-            const SearchInfo searchInfo{
+            SearchResult partialResult = {
                     .principalVariation = extractPv(gameState, stack, depth),
-                    .score              = searchEval,
+                    .eval               = searchEval,
                     .scoreType          = lastCompletedScoreType,
-                    .depth              = depth,
-                    .statistics         = getSearchStatistics()};
+            };
+
+            const SearchInfo searchInfo{
+                    .result     = std::move(partialResult),
+                    .depth      = depth,
+                    .statistics = getSearchStatistics(),
+            };
 
             frontEnd_->reportAspirationWindowReSearch(
                     searchInfo, previousLowerBound, previousUpperBound, lowerBound, upperBound);
@@ -1681,7 +1692,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 }
 
 // Entry point: perform search and return the principal variation and evaluation.
-RootSearchResult MoveSearcher::Impl::searchForBestMove(
+SearchResult MoveSearcher::Impl::searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1823,7 +1834,7 @@ void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
     }
 }
 
-std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState& gameState) const {
+std::optional<SearchInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState& gameState) const {
     const HashT hash = gameState.getBoardHash();
     const auto ttHit = tTable_.probe(hash);
     if (!ttHit) {
@@ -1837,9 +1848,19 @@ std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState&
         return std::nullopt;
     }
 
-    return RootNodeInfo{
-            .eval  = ttInfo.score,
-            .depth = ttInfo.depth,
+    // The stack is needed for move-gen to check if a position is an end-state (mate / stalemate).
+    StackOfVectors<Move> stack;
+    SearchResult searchResult{
+            .principalVariation = extractPv(gameState, stack, ttInfo.depth),
+            .eval               = ttInfo.score,
+            .scoreType          = ttInfo.scoreType,
+            .wasInterrupted     = false,
+    };
+
+    return SearchInfo{
+            .result     = std::move(searchResult),
+            .depth      = ttInfo.depth,
+            .statistics = {},
     };
 }
 
@@ -1862,7 +1883,7 @@ void MoveSearcher::newGame() {
     impl_->newGame();
 }
 
-RootSearchResult MoveSearcher::searchForBestMove(
+SearchResult MoveSearcher::searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1897,6 +1918,6 @@ void MoveSearcher::setTTableSize(const int requestedSizeInMb) {
     impl_->setTTableSize(requestedSizeInMb);
 }
 
-std::optional<RootNodeInfo> MoveSearcher::getRootNodeInfo(const GameState& gameState) const {
+std::optional<SearchInfo> MoveSearcher::getRootNodeInfo(const GameState& gameState) const {
     return impl_->getRootNodeInfo(gameState);
 }

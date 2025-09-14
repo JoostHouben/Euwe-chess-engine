@@ -236,13 +236,13 @@ void UciFrontEnd::Impl::reportSearchHasStarted() {
 
 void UciFrontEnd::Impl::reportSearchInfo(const SearchInfo& searchInfo) const {
     std::string optionalScoreString = "";
-    if (searchInfo.scoreType != ScoreType::NotSet) {
-        MY_ASSERT(isValid(searchInfo.score));
+    if (searchInfo.result.scoreType != ScoreType::NotSet) {
+        MY_ASSERT(isValid(searchInfo.result.eval));
 
-        optionalScoreString = std::format(" score {}", scoreToString(searchInfo.score));
-        if (searchInfo.scoreType == ScoreType::UpperBound) {
+        optionalScoreString = std::format(" score {}", scoreToString(searchInfo.result.eval));
+        if (searchInfo.result.scoreType == ScoreType::UpperBound) {
             optionalScoreString += " upperbound";
-        } else if (searchInfo.scoreType == ScoreType::LowerBound) {
+        } else if (searchInfo.result.scoreType == ScoreType::LowerBound) {
             optionalScoreString += " lowerbound";
         }
     }
@@ -258,7 +258,7 @@ void UciFrontEnd::Impl::reportSearchInfo(const SearchInfo& searchInfo) const {
                 std::format(" nps {}", (int)std::round(searchInfo.statistics.nodesPerSecond));
     }
 
-    const std::string pvString = moveListToString(searchInfo.principalVariation);
+    const std::string pvString = moveListToString(searchInfo.result.principalVariation);
 
     writeUci(
             "info depth {} seldepth {}{} nodes {}{} time {}{} hashfull {} pv {}",
@@ -314,7 +314,7 @@ void UciFrontEnd::Impl::reportAspirationWindowReSearch(
                 "{}]",
                 previousLowerBound,
                 previousUpperBound,
-                searchInfo.score,
+                searchInfo.result.eval,
                 newLowerBound,
                 newUpperBound);
     }
@@ -543,9 +543,9 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
         try {
             const auto searchInfo = engine_.findMove(gameState_, searchMoves);
 
-            MY_ASSERT(!searchInfo.principalVariation.empty());
+            MY_ASSERT(!searchInfo.result.principalVariation.empty());
 
-            writeUci("bestmove {}", searchInfo.principalVariation[0].toUci());
+            writeUci("bestmove {}", searchInfo.result.principalVariation[0].toUci());
             std::flush(out_);
         } catch (const std::exception& e) {
             reportError(e.what());

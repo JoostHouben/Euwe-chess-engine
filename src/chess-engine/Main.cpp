@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "matetrack-fixes");
+            UciFrontEnd uciFrontEnd(engine, "report-root-info");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

@@ -4,24 +4,13 @@
 #include "EvalT.h"
 #include "GameState.h"
 #include "IFrontEnd.h"
+#include "SearchInfo.h"
 #include "SearchStatistics.h"
 #include "TimeManager.h"
 
 #include <memory>
 #include <optional>
 #include <vector>
-
-struct RootSearchResult {
-    std::vector<Move> principalVariation;
-    EvalT eval;
-    ScoreType scoreType;
-    bool wasInterrupted = false;
-};
-
-struct RootNodeInfo {
-    EvalT eval;
-    int depth;
-};
 
 class MoveSearcher {
   public:
@@ -43,7 +32,7 @@ class MoveSearcher {
     void newGame();
 
     // Perform search and return the principal variation and evaluation.
-    [[nodiscard]] RootSearchResult searchForBestMove(
+    [[nodiscard]] SearchResult searchForBestMove(
             GameState& gameState,
             int depth,
             StackOfVectors<Move>& stack,
@@ -67,7 +56,7 @@ class MoveSearcher {
 
     void setTTableSize(int requestedSizeInMb);
 
-    [[nodiscard]] std::optional<RootNodeInfo> getRootNodeInfo(const GameState& gameState) const;
+    [[nodiscard]] std::optional<SearchInfo> getRootNodeInfo(const GameState& gameState) const;
 
   private:
     class Impl;
