@@ -304,6 +304,8 @@ void UciFrontEnd::Impl::reportAspirationWindowReSearch(
         const EvalT previousUpperBound,
         const EvalT newLowerBound,
         const EvalT newUpperBound) const {
+    reportSearchInfo(searchInfo);
+
     if (debugMode_) {
         writeDebug(
                 "Aspiration window [{}, {}] failed (search returned {}); re-searching with "
@@ -317,7 +319,6 @@ void UciFrontEnd::Impl::reportAspirationWindowReSearch(
                 newUpperBound);
     }
 
-    reportSearchInfo(searchInfo);
     std::flush(out_);
 }
 
