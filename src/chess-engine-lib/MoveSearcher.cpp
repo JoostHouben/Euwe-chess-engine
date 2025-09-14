@@ -953,10 +953,14 @@ EvalT MoveSearcher::Impl::search(
             lastMove,
             ply);
 
+    bool prunedAnyMoves = false;
+
     if (futilityPruningEnabled && isMate(eval) && eval < 0) {
         // If eval (from TT) indicates a losing mate position, then all quiet moves will be
         // considered futile. Let's skip them all.
         moveOrderer.skipQuiets();
+
+        prunedAnyMoves = true;
     }
 
     int votesToSkipQuiets = 0;
@@ -997,6 +1001,7 @@ EvalT MoveSearcher::Impl::search(
                     }
                 }
 
+                prunedAnyMoves = true;
                 continue;
             }
         }
@@ -1036,12 +1041,20 @@ EvalT MoveSearcher::Impl::search(
 
     if (bestScore == -kInfiniteEval && !wasInterrupted_ && anyLegalMoves) {
         MY_ASSERT_DEBUG(movesSearched == 0);
+        MY_ASSERT_DEBUG(!boundsAreMate);
         // All moves were pruned away.
         // Raise bestScore to avoid returning -kInfiniteEval.
         // If we have an eval (either static or from TTable), use that; but clamp it to a non-mate
         // value to avoid returning an uncertain mate score.
         // If we don't have an eval, return fail-hard alpha.
         bestScore = eval != -kInfiniteEval ? clampNonMateEval(eval) : alpha;
+    } else if (prunedAnyMoves && isMate(bestScore) && bestScore < 0) {
+        MY_ASSERT_DEBUG(!boundsAreMate);
+
+        // We found we're getting mated, but we didn't try all moves (because of futility pruning).
+        // So we can't say that the score is an upper bound on the mate distance.
+        // To avoid returning and storing bad mate bounds, we clamp the score to a non-mate value.
+        bestScore = clampNonMateEval(bestScore);
     }
 
     if (movesSearched > 0) {
