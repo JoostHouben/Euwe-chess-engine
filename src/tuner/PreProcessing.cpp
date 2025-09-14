@@ -2,7 +2,8 @@
 
 #include "chess-engine-lib/Eval.h"
 #include "chess-engine-lib/Math.h"
-#include "chess-engine-lib/MoveOrdering.h"
+#include "chess-engine-lib/MoveOrderer.h"
+#include "chess-engine-lib/MoveScorer.h"
 #include "chess-engine-lib/RangePatches.h"
 
 #include <algorithm>

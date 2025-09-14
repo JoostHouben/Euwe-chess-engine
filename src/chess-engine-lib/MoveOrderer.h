@@ -1,0 +1,134 @@
+#pragma once
+
+#include "BoardConstants.h"
+#include "GameState.h"
+#include "Move.h"
+#include "StackOfVectors.h"
+
+#include <array>
+#include <optional>
+#include <ostream>
+#include <utility>
+
+using MoveEvalT = int;
+
+class Evaluator;
+
+//#define TRACK_CUTOFF_STATISTICS
+
+enum class MoveType {
+    None,
+    HashMove,
+    GoodTactical,
+    LosingCapture,
+#ifdef TRACK_CUTOFF_STATISTICS
+    //KillerCounterMove,
+    //KillerMove,
+    //CounterMove,
+    GoodHistory,
+    BadHistory,
+#else
+    Quiet,
+#endif
+    NumMoveTypes,
+};
+
+static constexpr std::size_t kNumMoveTypes = (std::size_t)MoveType::NumMoveTypes;
+
+class MoveScorer;
+
+class MoveOrderer {
+  public:
+    MoveOrderer(
+            StackVector<Move>&& preGeneratedMoves,
+            StackVector<MoveEvalT>&& emptyMoveScores,
+            const std::optional<Move>& moveToIgnore,
+            const MoveScorer& moveScorer,
+            bool isQuiesce);
+
+    MoveOrderer(const MoveOrderer&)            = delete;
+    MoveOrderer& operator=(const MoveOrderer&) = delete;
+
+    MoveOrderer(MoveOrderer&&)            = delete;
+    MoveOrderer& operator=(MoveOrderer&&) = delete;
+
+    ~MoveOrderer() = default;
+
+    [[nodiscard]] std::optional<Move> getNextBestMove(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
+    [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence(const GameState& gameState);
+
+    [[nodiscard]] bool lastMoveWasLosing() const;
+    [[nodiscard]] MoveType getLastMoveType() const;
+
+    [[nodiscard]] bool anyLegalMoves(const GameState& gameState, const BoardControl& boardControl);
+
+    void skipQuiets();
+
+    static constexpr int kCaptureLosingThreshold = -20;
+
+  private:
+    enum class State {
+        InitTacticals,
+        GoodTactical,
+        InitQuiets,
+        Quiets,
+        LosingCaptures,
+
+        InitQuiesce,
+        Quiesce,
+
+        Done,
+    };
+
+    void initTacticals(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
+
+    std::optional<Move> findGoodTactical(const GameState& gameState);
+
+    void initQuiets(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
+
+    std::optional<Move> findQuiet();
+
+    std::optional<Move> findLosingCapture();
+
+    void initQuiesce(const GameState& gameState);
+
+    std::optional<Move> findQuiesce();
+
+    void partitionTacticalMoves();
+
+    [[nodiscard]] int findHighestScoringMove(int startIdx, int endIdx) const;
+
+    // Data members ordered for alignment
+
+    StackVector<Move> moves_;
+    StackVector<MoveEvalT> moveScores_;
+
+    const MoveScorer& moveScorer_;
+
+    State state_;
+
+    int currentMoveIdx_;
+    int firstLosingCaptureIdx_;
+    int firstQuietIdx_;
+
+    MoveType lastMoveType_;
+
+    std::optional<Move> moveToIgnore_;
+
+    bool isQuiesce_;
+    bool usingPregeneratedMoves_;
+    bool foundAnyLegalMoves_;
+    bool skipQuietMoveGeneration_;
+};

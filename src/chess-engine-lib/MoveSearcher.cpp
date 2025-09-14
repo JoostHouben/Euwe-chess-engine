@@ -2,7 +2,8 @@
 
 #include "Eval.h"
 #include "Math.h"
-#include "MoveOrdering.h"
+#include "MoveOrderer.h"
+#include "MoveScorer.h"
 #include "SEE.h"
 #include "Syzygy.h"
 #include "TTable.h"
