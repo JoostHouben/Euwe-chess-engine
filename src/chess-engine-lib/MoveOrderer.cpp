@@ -42,7 +42,7 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
     : moves_(std::move(preGeneratedMoves)),
       moveScores_(std::move(emptyMoveScores)),
       moveScorer_(moveScorer),
-      state_(isQuiesce ? State::InitQuiesce : State::InitTacticals),
+      state_(isQuiesce ? State::QuiesceGenMoves : State::GenTacticals),
       currentMoveIdx_(0),
       firstLosingCaptureIdx_(moves_.size()),
       firstQuietIdx_(moves_.size()),
@@ -66,14 +66,14 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
     MY_ASSERT(0 <= currentMoveIdx_ && currentMoveIdx_ <= moves_.size());
 
     switch (state_) {
-        case State::InitTacticals: {
-            initTacticals(gameState, boardControl, lastMove, ply);
+        case State::GenTacticals: {
+            genTacticals(gameState, boardControl, lastMove, ply);
 
-            state_ = State::GoodTactical;
+            state_ = State::PickGoodTactical;
             [[fallthrough]];
         }
 
-        case State::GoodTactical: {
+        case State::PickGoodTactical: {
             MY_ASSERT(currentMoveIdx_ <= firstLosingCaptureIdx_);
 
             if (const auto goodTactical = findGoodTactical(gameState); goodTactical.has_value()) {
@@ -81,37 +81,37 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
             }
 
             if (skipQuietMoveGeneration_) {
-                state_          = State::LosingCaptures;
+                state_          = State::PickLosingCaptures;
                 currentMoveIdx_ = firstLosingCaptureIdx_;
                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-goto)
                 goto skipQuietsLabel;
             }
 
-            state_          = State::InitQuiets;
+            state_          = State::GenQuiets;
             currentMoveIdx_ = firstQuietIdx_;
             [[fallthrough]];
         }
 
-        case State::InitQuiets: {
-            initQuiets(gameState, boardControl, lastMove, ply);
+        case State::GenQuiets: {
+            genQuiets(gameState, boardControl, lastMove, ply);
 
-            state_ = State::Quiets;
+            state_ = State::PickQuiets;
             [[fallthrough]];
         }
 
-        case State::Quiets: {
+        case State::PickQuiets: {
             MY_ASSERT(firstQuietIdx_ <= currentMoveIdx_ && currentMoveIdx_ <= moves_.size());
 
             if (const auto quiet = findQuiet(); quiet.has_value()) {
                 return quiet;
             }
 
-            state_          = State::LosingCaptures;
+            state_          = State::PickLosingCaptures;
             currentMoveIdx_ = firstLosingCaptureIdx_;
             [[fallthrough]];
         }
 
-        case State::LosingCaptures:
+        case State::PickLosingCaptures:
         skipQuietsLabel: {
             MY_ASSERT(
                     firstLosingCaptureIdx_ <= currentMoveIdx_ && currentMoveIdx_ <= firstQuietIdx_);
@@ -130,8 +130,8 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
             return std::nullopt;
         }
 
-        case State::InitQuiesce:
-        case State::Quiesce: {
+        case State::QuiesceGenMoves:
+        case State::QuiescePickMove: {
             UNREACHABLE;
         }
     }
@@ -142,14 +142,14 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
 FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
         const GameState& gameState) {
     switch (state_) {
-        case State::InitQuiesce: {
-            initQuiesce(gameState);
+        case State::QuiesceGenMoves: {
+            quiesceGenMoves(gameState);
 
-            state_ = State::Quiesce;
+            state_ = State::QuiescePickMove;
             [[fallthrough]];
         }
 
-        case State::Quiesce: {
+        case State::QuiescePickMove: {
             if (const auto quiesceMove = findQuiesce(); quiesceMove.has_value()) {
                 return quiesceMove;
             }
@@ -164,11 +164,11 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
             return std::nullopt;
         }
 
-        case State::InitTacticals:
-        case State::GoodTactical:
-        case State::InitQuiets:
-        case State::Quiets:
-        case State::LosingCaptures: {
+        case State::GenTacticals:
+        case State::PickGoodTactical:
+        case State::GenQuiets:
+        case State::PickQuiets:
+        case State::PickLosingCaptures: {
             UNREACHABLE;
         }
     }
@@ -209,20 +209,20 @@ FORCE_INLINE bool MoveOrderer::anyLegalMoves(
 }
 
 FORCE_INLINE void MoveOrderer::skipQuiets() {
-    if (state_ == State::GoodTactical) {
+    if (state_ == State::PickGoodTactical) {
         skipQuietMoveGeneration_ = true;
-    } else if (state_ == State::Quiets) {
-        state_          = State::LosingCaptures;
+    } else if (state_ == State::PickQuiets) {
+        state_          = State::PickLosingCaptures;
         currentMoveIdx_ = firstLosingCaptureIdx_;
     }
 }
 
-void MoveOrderer::initTacticals(
+void MoveOrderer::genTacticals(
         const GameState& gameState,
         const BoardControl& boardControl,
         const Move& lastMove,
         const int ply) {
-    MY_ASSERT_DEBUG(state_ == State::InitTacticals && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::GenTacticals && !isQuiesce_);
 
     moveScores_.unlock();
 
@@ -279,7 +279,7 @@ void MoveOrderer::initTacticals(
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findGoodTactical(const GameState& gameState) {
-    MY_ASSERT_DEBUG(state_ == State::GoodTactical && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickGoodTactical && !isQuiesce_);
 
     while (currentMoveIdx_ < firstLosingCaptureIdx_) {
         const int bestMoveIdx = findHighestScoringMove(currentMoveIdx_, firstLosingCaptureIdx_);
@@ -313,12 +313,12 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findGoodTactical(const GameState& 
     return std::nullopt;
 }
 
-void MoveOrderer::initQuiets(
+void MoveOrderer::genQuiets(
         const GameState& gameState,
         const BoardControl& boardControl,
         const Move& lastMove,
         const int ply) {
-    MY_ASSERT_DEBUG(state_ == State::InitQuiets && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::GenQuiets && !isQuiesce_);
 
     if (!usingPregeneratedMoves_) {
         MY_ASSERT(currentMoveIdx_ == firstQuietIdx_ && firstQuietIdx_ == moves_.size());
@@ -349,7 +349,7 @@ void MoveOrderer::initQuiets(
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findQuiet() {
-    MY_ASSERT_DEBUG(state_ == State::Quiets && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickQuiets && !isQuiesce_);
 
     if (currentMoveIdx_ < moves_.size()) {
         const int bestMoveIdx = findHighestScoringMove(currentMoveIdx_, moves_.size());
@@ -379,7 +379,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findQuiet() {
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findLosingCapture() {
-    MY_ASSERT_DEBUG(state_ == State::LosingCaptures && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickLosingCaptures && !isQuiesce_);
 
     if (currentMoveIdx_ < firstQuietIdx_) {
         // We've exhausted all the non-losing moves. Return the best losing move.
@@ -400,8 +400,8 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findLosingCapture() {
     return std::nullopt;
 }
 
-void MoveOrderer::initQuiesce(const GameState& gameState) {
-    MY_ASSERT_DEBUG(state_ == State::InitQuiesce && isQuiesce_ && usingPregeneratedMoves_);
+void MoveOrderer::quiesceGenMoves(const GameState& gameState) {
+    MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && isQuiesce_ && usingPregeneratedMoves_);
 
     moveScores_.unlock();
     if (moveToIgnore_

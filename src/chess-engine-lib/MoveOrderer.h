@@ -72,19 +72,19 @@ class MoveOrderer {
 
   private:
     enum class State {
-        InitTacticals,
-        GoodTactical,
-        InitQuiets,
-        Quiets,
-        LosingCaptures,
+        GenTacticals,
+        PickGoodTactical,
+        GenQuiets,
+        PickQuiets,
+        PickLosingCaptures,
 
-        InitQuiesce,
-        Quiesce,
+        QuiesceGenMoves,
+        QuiescePickMove,
 
         Done,
     };
 
-    void initTacticals(
+    void genTacticals(
             const GameState& gameState,
             const BoardControl& boardControl,
             const Move& lastMove,
@@ -92,7 +92,7 @@ class MoveOrderer {
 
     std::optional<Move> findGoodTactical(const GameState& gameState);
 
-    void initQuiets(
+    void genQuiets(
             const GameState& gameState,
             const BoardControl& boardControl,
             const Move& lastMove,
@@ -102,7 +102,7 @@ class MoveOrderer {
 
     std::optional<Move> findLosingCapture();
 
-    void initQuiesce(const GameState& gameState);
+    void quiesceGenMoves(const GameState& gameState);
 
     std::optional<Move> findQuiesce();
 
