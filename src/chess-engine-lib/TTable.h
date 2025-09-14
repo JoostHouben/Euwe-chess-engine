@@ -12,14 +12,6 @@
 
 #include <cstdint>
 
-enum ScoreType : std::uint8_t {
-    NotSet     = 0,
-    Exact      = 1,
-    LowerBound = 2,
-    UpperBound = 3,
-    EGTB       = 4,
-};
-
 template <typename PayloadT>
 struct TTEntry {
     HashT hash       = 0;

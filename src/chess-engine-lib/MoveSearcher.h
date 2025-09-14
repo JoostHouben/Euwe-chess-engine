@@ -14,6 +14,7 @@
 struct RootSearchResult {
     std::vector<Move> principalVariation;
     EvalT eval;
+    ScoreType scoreType;
     bool wasInterrupted = false;
 };
 

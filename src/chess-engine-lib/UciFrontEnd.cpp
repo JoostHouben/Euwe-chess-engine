@@ -31,7 +31,7 @@ std::string scoreToString(const EvalT score) {
 
     if (isMate(score)) {
         const int mateInPly           = getMateDistanceInPly(score);
-        const int mateInMoves         = (mateInPly + 1) / 2;
+        const int mateInMoves         = mateInPly / 2;
         const int relativeMateInMoves = signum(score) * mateInMoves;
         return std::format("mate {}", relativeMateInMoves);
     }
@@ -77,13 +77,11 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void reportSearchStatistics(const SearchStatistics& searchStatistics) const override;
 
     void reportAspirationWindowReSearch(
-            int depth,
+            const SearchInfo& searchInfo,
             EvalT previousLowerBound,
             EvalT previousUpperBound,
-            EvalT searchEval,
             EvalT newLowerBound,
-            EvalT newUpperBound,
-            const SearchStatistics& searchStatistics) const override;
+            EvalT newUpperBound) const override;
 
     void reportDiscardedPv(std::string_view reason) const override;
 
@@ -116,6 +114,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void writeOptions() const;
 
     std::optional<OptionStringParseResult> parseOptionLine(std::string_view line) const;
+
+    void reportSearchInfo(const SearchInfo& searchInfo) const;
 
     template <typename... Args>
     void reportError(std::format_string<Args...> fmt, Args&&... args) const;
@@ -231,10 +231,17 @@ void UciFrontEnd::Impl::reportSearchHasStarted() {
     searchHasStarted_.notify_all();
 }
 
-void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {
+void UciFrontEnd::Impl::reportSearchInfo(const SearchInfo& searchInfo) const {
     std::string optionalScoreString = "";
-    if (isValid(searchInfo.score)) {
+    if (searchInfo.scoreType != ScoreType::NotSet) {
+        MY_ASSERT(isValid(searchInfo.score));
+
         optionalScoreString = std::format(" score {}", scoreToString(searchInfo.score));
+        if (searchInfo.scoreType == ScoreType::UpperBound) {
+            optionalScoreString += " upperbound";
+        } else if (searchInfo.scoreType == ScoreType::LowerBound) {
+            optionalScoreString += " lowerbound";
+        }
     }
 
     std::string optionalTbHitsString = "";
@@ -261,6 +268,10 @@ void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {
             optionalNpsString,
             (int)std::round(searchInfo.statistics.ttableUtilization * 1000),
             pvString);
+}
+
+void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {
+    reportSearchInfo(searchInfo);
     std::flush(out_);
 }
 
@@ -269,10 +280,8 @@ void UciFrontEnd::Impl::reportPartialSearch(const SearchInfo& searchInfo) const 
         writeDebug("Completed partial search of depth {}", searchInfo.depth);
     }
 
-    SearchInfo completedSearchInfo = searchInfo;
-    completedSearchInfo.depth      = searchInfo.depth - 1;
-
-    reportFullSearch(completedSearchInfo);
+    reportSearchInfo(searchInfo);
+    std::flush(out_);
 }
 
 void UciFrontEnd::Impl::reportSearchStatistics(const SearchStatistics& searchStatistics) const {
@@ -287,13 +296,11 @@ void UciFrontEnd::Impl::reportSearchStatistics(const SearchStatistics& searchSta
 }
 
 void UciFrontEnd::Impl::reportAspirationWindowReSearch(
-        const int depth,
+        const SearchInfo& searchInfo,
         const EvalT previousLowerBound,
         const EvalT previousUpperBound,
-        const EvalT searchEval,
         const EvalT newLowerBound,
-        const EvalT newUpperBound,
-        const SearchStatistics& searchStatistics) const {
+        const EvalT newUpperBound) const {
     if (debugMode_) {
         writeDebug(
                 "Aspiration window [{}, {}] failed (search returned {}); re-searching with "
@@ -302,33 +309,12 @@ void UciFrontEnd::Impl::reportAspirationWindowReSearch(
                 "{}]",
                 previousLowerBound,
                 previousUpperBound,
-                searchEval,
+                searchInfo.score,
                 newLowerBound,
                 newUpperBound);
     }
 
-    std::string optionalTbHitsString = "";
-    if (searchStatistics.tbHits) {
-        optionalTbHitsString = std::format(" tbhits {}", *searchStatistics.tbHits);
-    }
-
-    std::string optionalNpsString = "";
-    if (searchStatistics.timeElapsed.count() > 0) {
-        optionalNpsString =
-                std::format(" nps {}", (int)std::round(searchStatistics.nodesPerSecond));
-    }
-
-    writeUci(
-            "info depth {} seldepth {} score {} {} nodes {}{} time {}{} hashfull {}",
-            depth,
-            searchStatistics.selectiveDepth,
-            scoreToString(searchEval),
-            searchEval <= previousLowerBound ? "upperbound" : "lowerbound",
-            searchStatistics.normalNodesSearched + searchStatistics.qNodesSearched,
-            optionalTbHitsString,
-            searchStatistics.timeElapsed.count(),
-            optionalNpsString,
-            (int)std::round(searchStatistics.ttableUtilization * 1000));
+    reportSearchInfo(searchInfo);
     std::flush(out_);
 }
 
@@ -858,21 +844,13 @@ void UciFrontEnd::reportSearchStatistics(const SearchStatistics& searchStatistic
 }
 
 void UciFrontEnd::reportAspirationWindowReSearch(
-        const int depth,
+        const SearchInfo& searchInfo,
         const EvalT previousLowerBound,
         const EvalT previousUpperBound,
-        const EvalT searchEval,
         const EvalT newLowerBound,
-        const EvalT newUpperBound,
-        const SearchStatistics& searchStatistics) const {
+        const EvalT newUpperBound) const {
     impl_->reportAspirationWindowReSearch(
-            depth,
-            previousLowerBound,
-            previousUpperBound,
-            searchEval,
-            newLowerBound,
-            newUpperBound,
-            searchStatistics);
+            searchInfo, previousLowerBound, previousUpperBound, newLowerBound, newUpperBound);
 }
 
 void UciFrontEnd::reportDiscardedPv(std::string_view reason) const {

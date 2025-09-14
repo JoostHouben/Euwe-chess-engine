@@ -718,12 +718,6 @@ EvalT MoveSearcher::Impl::search(
     }
     const bool isPvNode = nodeType == NodeType::PvNode;
 
-    ++searchStatistics_.normalNodesSearched;
-
-    if (isPvNode) {
-        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
-    }
-
     // alphaOrig determines whether the value returned is an upper bound
     const EvalT alphaOrig = alpha;
 
@@ -748,6 +742,11 @@ EvalT MoveSearcher::Impl::search(
     const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
     if (worstCaseMate > beta) {
         return updateMateDistanceOut(worstCaseMate);
+    }
+
+    ++searchStatistics_.normalNodesSearched;
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
     }
 
     const int extension = getDepthExtension(isInCheck, lastMove);
@@ -810,12 +809,13 @@ EvalT MoveSearcher::Impl::search(
             return updateMateDistanceOut(ttInfo.score);
         }
 
-        if (ttInfo.depth >= depth) {
+        // See if we can return a value from the TT directly.
+        // We skip this step in PV nodes because:
+        //  - We want to get a full PV.
+        //  - The stored values may be heuristic bounds from pruning techniques that we disallow in
+        //    PV nodes, so we don't want to use those values.
+        if (ttInfo.depth >= depth && !isPvNode) {
             if (ttInfo.scoreType == ScoreType::Exact) {
-                if (isPvNode) {
-                    searchStatistics_.selectiveDepth =
-                            max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
-                }
                 // Exact value
                 return updateMateDistanceOut(ttInfo.score);
             } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta) {
@@ -1099,21 +1099,10 @@ EvalT MoveSearcher::Impl::quiesce(
         const int ply,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
-    constexpr EvalT kDeltaPruningThreshold = 200;
-
-    EvalT bestScore = -kInfiniteEval;
-    Move bestMove{};
+    const bool isPvNode = nodeType == NodeType::PvNode;
 
     if (shouldStopSearch()) {
         return -kInfiniteEval;
-    }
-
-    ++searchStatistics_.qNodesSearched;
-
-    const bool isPvNode = nodeType == NodeType::PvNode;
-
-    if (isPvNode) {
-        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
     }
 
     if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
@@ -1132,6 +1121,13 @@ EvalT MoveSearcher::Impl::quiesce(
         return updateMateDistanceOut(worstCaseMate);
     }
 
+    ++searchStatistics_.qNodesSearched;
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
+
+    EvalT bestScore = -kInfiniteEval;
+    Move bestMove{};
     bool completedAnySearch = false;
     const EvalT alphaOrig   = alpha;
 
@@ -1172,37 +1168,42 @@ EvalT MoveSearcher::Impl::quiesce(
         ttHit = std::nullopt;
     }
 
+    constexpr EvalT kDeltaPruningThreshold = 200;
+
     if (ttHit) {
         const auto& ttInfo = ttHit->payload;
 
         searchStatistics_.tTableHits++;
 
-        // No need to check depth: in qsearch, depth == 0.
+        // In non-PV nodes: check for TT cut-offs.
+        if (!isPvNode) {
+            // No need to check depth: in qsearch, depth == 0.
 
-        if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
-            // Exact value
-            return updateMateDistanceOut(ttInfo.score);
-        } else if (ttInfo.scoreType == ScoreType::LowerBound) {
-            // Can safely raise the lower bound for our search window, because the true value
-            // is guaranteed to be above this bound.
-            alpha = max(alpha, ttInfo.score);
-        } else if (ttInfo.scoreType == ScoreType::UpperBound) {
-            // Can safely lower the upper bound for our search window, because the true value
-            // is guaranteed to be below this bound.
-            beta = min(beta, ttInfo.score);
-        }
-        // Else: score type not set (result from interrupted search).
+            if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
+                // Exact value
+                return updateMateDistanceOut(ttInfo.score);
+            } else if (ttInfo.scoreType == ScoreType::LowerBound) {
+                // Can safely raise the lower bound for our search window, because the true value
+                // is guaranteed to be above this bound.
+                alpha = max(alpha, ttInfo.score);
+            } else if (ttInfo.scoreType == ScoreType::UpperBound) {
+                // Can safely lower the upper bound for our search window, because the true value
+                // is guaranteed to be below this bound.
+                beta = min(beta, ttInfo.score);
+            }
+            // Else: score type not set (result from interrupted search).
 
-        // Check if we can return based on tighter bounds from the transposition table.
-        if (alpha >= beta) {
-            // Based on information from the ttable, we now know that the true value is outside
-            // of the feasibility window.
-            // If alpha was raised by the tt entry this is a lower bound and we want to return
-            // that raised alpha (fail-soft: that's the tightest lower bound we have).
-            // If beta was lowered by the tt entry this is an upper bound and we want to return
-            // that lowered beta (fail-soft: that's the tightest upper bound we have).
-            // So either way we return the tt entry score.
-            return updateMateDistanceOut(ttInfo.score);
+            // Check if we can return based on tighter bounds from the transposition table.
+            if (alpha >= beta) {
+                // Based on information from the ttable, we now know that the true value is outside
+                // of the feasibility window.
+                // If alpha was raised by the tt entry this is a lower bound and we want to return
+                // that raised alpha (fail-soft: that's the tightest lower bound we have).
+                // If beta was lowered by the tt entry this is an upper bound and we want to return
+                // that lowered beta (fail-soft: that's the tightest upper bound we have).
+                // So either way we return the tt entry score.
+                return updateMateDistanceOut(ttInfo.score);
+            }
         }
 
         hashMove = getTTableMove(ttInfo, gameState);
@@ -1540,20 +1541,21 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     EvalT lowerBound = toEval(initialGuess - lowerTolerance);
     EvalT upperBound = toEval(initialGuess + upperTolerance);
 
+    // If the bounds are mate scores, fully open up the bound to the mating side to allow
+    // finding the fastest mate sequence.
+    if (isMate(lowerBound) && lowerBound < 0) {
+        lowerBound = -kMateEval;
+    }
+    if (isMate(upperBound) && upperBound > 0) {
+        upperBound = kMateEval;
+    }
+
     bool everFailedLow = false;
 
-    EvalT lastCompletedEval = -kInfiniteEval;
+    EvalT lastCompletedEval          = -kInfiniteEval;
+    ScoreType lastCompletedScoreType = ScoreType::NotSet;
 
     do {
-        // If the bounds are mate scores, fully open up the bound to the mating side to allow
-        // finding the fastest mate sequence.
-        if (isMate(lowerBound) && lowerBound < 0) {
-            lowerBound = -kMateEval;
-        }
-        if (isMate(upperBound) && upperBound > 0) {
-            upperBound = kMateEval;
-        }
-
         const auto searchEval =
                 search(gameState,
                        depth,
@@ -1567,7 +1569,11 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         const bool noEval = searchEval < -kMateEval;
         if (!noEval) {
-            lastCompletedEval = searchEval;
+            lastCompletedEval      = searchEval;
+            lastCompletedScoreType = searchEval <= lowerBound ? ScoreType::UpperBound
+                                   : searchEval >= upperBound ? ScoreType::LowerBound
+                                   : wasInterrupted_          ? ScoreType::LowerBound
+                                                              : ScoreType::Exact;
 
             everFailedLow |= searchEval <= lowerBound;
         }
@@ -1593,15 +1599,16 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 if (frontEnd_) {
                     frontEnd_->reportDiscardedPv("partial aspiration search with failed low");
                 }
-
                 return {.principalVariation = {},
                         .eval               = lastCompletedEval,
+                        .scoreType          = lastCompletedScoreType,
                         .wasInterrupted     = true};
             }
 
             // Return partial result.
             return {.principalVariation = extractPv(gameState, stack, depth),
                     .eval               = lastCompletedEval,
+                    .scoreType          = lastCompletedScoreType,
                     .wasInterrupted     = true};
         }
 
@@ -1612,6 +1619,7 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             // Eval is within the aspiration window; return result.
             return {.principalVariation = extractPv(gameState, stack, depth),
                     .eval               = searchEval,
+                    .scoreType          = lastCompletedScoreType,
                     .wasInterrupted     = false};
         }
 
@@ -1636,15 +1644,25 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
         }
 
+        // If the bounds are mate scores, fully open up the bound to the mating side to allow
+        // finding the fastest mate sequence.
+        if (isMate(lowerBound) && lowerBound < 0) {
+            lowerBound = -kMateEval;
+        }
+        if (isMate(upperBound) && upperBound > 0) {
+            upperBound = kMateEval;
+        }
+
         if (frontEnd_) {
+            const SearchInfo searchInfo{
+                    .principalVariation = extractPv(gameState, stack, depth),
+                    .score              = searchEval,
+                    .scoreType          = lastCompletedScoreType,
+                    .depth              = depth,
+                    .statistics         = getSearchStatistics()};
+
             frontEnd_->reportAspirationWindowReSearch(
-                    depth,
-                    previousLowerBound,
-                    previousUpperBound,
-                    searchEval,
-                    lowerBound,
-                    upperBound,
-                    getSearchStatistics());
+                    searchInfo, previousLowerBound, previousUpperBound, lowerBound, upperBound);
         }
     } while (true);
 }
@@ -1693,8 +1711,13 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
 
         reportCutoffStatistics();
 
+        const ScoreType scoreType = searchEval < -kMateEval ? ScoreType::NotSet
+                                  : wasInterrupted_         ? ScoreType::LowerBound
+                                                            : ScoreType::Exact;
+
         return {.principalVariation = extractPv(gameState, stack, depth),
                 .eval               = searchEval,
+                .scoreType          = scoreType,
                 .wasInterrupted     = wasInterrupted_};
     }
 }

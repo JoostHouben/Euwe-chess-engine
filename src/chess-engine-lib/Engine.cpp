@@ -173,6 +173,7 @@ SearchInfo Engine::Impl::findMove(
         const auto searchStatistics = moveSearcher_.getSearchStatistics();
 
         searchInfo.score      = searchResult.eval;
+        searchInfo.scoreType  = searchResult.scoreType;
         searchInfo.depth      = depth;
         searchInfo.statistics = searchStatistics;
 
