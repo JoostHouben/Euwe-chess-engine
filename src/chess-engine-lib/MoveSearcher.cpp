@@ -947,11 +947,7 @@ EvalT MoveSearcher::Impl::search(
             /*preGeneratedMoves*/ ply == 0 && rootMovesToSearch_
                     ? stack.makeStackVector(*rootMovesToSearch_)
                     : stack.makeStackVector(),
-            hashMove,
-            gameState,
-            boardControl,
-            lastMove,
-            ply);
+            hashMove);
 
     bool prunedAnyMoves = false;
 
@@ -1333,10 +1329,9 @@ EvalT MoveSearcher::Impl::quiesce(
     }
 
     // Ignore the hash move even if we didn't try it, since that would mean we pruned it.
-    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(
-            std::move(moves), hashMove, gameState, boardControl);
+    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(std::move(moves), hashMove);
 
-    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
+    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence(gameState)) {
         const Move move = *maybeMove;
 
         if (!isInCheck && !isMate(alpha)) {

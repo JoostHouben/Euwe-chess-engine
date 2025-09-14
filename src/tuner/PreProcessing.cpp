@@ -94,10 +94,9 @@ std::pair<EvalT, GameState> quiesce(
         return {updateMateDistanceOut(bestScore), bestState};
     }
 
-    auto moveOrderer = moveScorer.getMoveOrdererQuiescence(
-            std::move(moves), std::nullopt, gameState, boardControl);
+    auto moveOrderer = moveScorer.getMoveOrdererQuiescence(std::move(moves), std::nullopt);
 
-    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
+    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence(gameState)) {
         const Move move = *maybeMove;
 
         const auto unmakeInfo = gameState.makeMove(move);

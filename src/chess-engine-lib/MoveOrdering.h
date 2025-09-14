@@ -44,10 +44,6 @@ class MoveOrderer {
             StackVector<MoveEvalT>&& emptyMoveScores,
             const std::optional<Move>& moveToIgnore,
             const MoveScorer& moveScorer,
-            const GameState& gameState,
-            const BoardControl& boardControl,
-            const Move& lastMove,
-            int ply,
             bool isQuiesce);
 
     MoveOrderer(const MoveOrderer&)            = delete;
@@ -63,7 +59,7 @@ class MoveOrderer {
             const BoardControl& boardControl,
             const Move& lastMove,
             int ply);
-    [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence();
+    [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence(const GameState& gameState);
 
     [[nodiscard]] bool lastMoveWasLosing() const;
     [[nodiscard]] MoveType getLastMoveType() const;
@@ -76,14 +72,42 @@ class MoveOrderer {
 
   private:
     enum class State {
+        InitTacticals,
         GoodTactical,
         InitQuiets,
         Quiets,
         LosingCaptures,
+
+        InitQuiesce,
+        Quiesce,
+
         Done,
     };
 
+    void initTacticals(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
+
+    std::optional<Move> findGoodTactical(const GameState& gameState);
+
+    void initQuiets(
+            const GameState& gameState,
+            const BoardControl& boardControl,
+            const Move& lastMove,
+            int ply);
+
+    std::optional<Move> findQuiet();
+
+    std::optional<Move> findLosingCapture();
+
+    void initQuiesce(const GameState& gameState);
+
+    std::optional<Move> findQuiesce();
+
     void partitionTacticalMoves();
+
     [[nodiscard]] int findHighestScoringMove(int startIdx, int endIdx) const;
 
     // Data members ordered for alignment
@@ -103,6 +127,7 @@ class MoveOrderer {
 
     std::optional<Move> moveToIgnore_;
 
+    bool isQuiesce_;
     bool usingPregeneratedMoves_;
     bool foundAnyLegalMoves_;
     bool skipQuietMoveGeneration_;
@@ -123,18 +148,10 @@ class MoveScorer {
             int depth);
 
     [[nodiscard]] MoveOrderer getMoveOrderer(
-            StackVector<Move>&& preGeneratedMoves,
-            const std::optional<Move>& moveToIgnore,
-            const GameState& gameState,
-            const BoardControl& boardControl,
-            const Move& lastMove,
-            int ply) const;
+            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& moveToIgnore) const;
 
     [[nodiscard]] MoveOrderer getMoveOrdererQuiescence(
-            StackVector<Move>&& preGeneratedMoves,
-            const std::optional<Move>& moveToIgnore,
-            const GameState& gameState,
-            const BoardControl& boardControl) const;
+            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& moveToIgnore) const;
 
     void newGame();
     void prepareForNewSearch(const GameState& gameState);
@@ -143,6 +160,9 @@ class MoveScorer {
 
     void printCutoffStatistics(std::ostream& out) const;
 
+    // Scores tactical and quiet moves.
+    // Applies history and threat heuristics to all non-captures, and applies killer and
+    // counter-move heuristics
     void scoreMoves(
             StackVector<MoveEvalT>& scores,
             const StackVector<Move>& moves,
@@ -152,6 +172,8 @@ class MoveScorer {
             const Move& lastMove,
             int ply) const;
 
+    // Scores tactical moves (captures + queen promotions); gives the same score to all quiet moves.
+    // Also does not apply history and threat heuristics to promotions.
     void scoreMovesQuiesce(
             StackVector<MoveEvalT>& scores,
             const StackVector<Move>& moves,
