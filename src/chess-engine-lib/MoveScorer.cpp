@@ -1,7 +1,5 @@
 #include "MoveScorer.h"
 
-#include "Eval.h"
-
 namespace {
 
 // Killer and counter bonuses can potentially both apply.
@@ -110,22 +108,22 @@ FORCE_INLINE void MoveScorer::reportCutoff(
 #endif
 }
 
-FORCE_INLINE MoveOrderer MoveScorer::getMoveOrderer(
-        StackVector<Move>&& moves, const std::optional<Move>& moveToIgnore) const {
+FORCE_INLINE MoveOrderer
+MoveScorer::getMoveOrderer(StackVector<Move>&& moves, const std::optional<Move>& hashMove) const {
     return MoveOrderer(
             std::move(moves),
             moveScoreStack_.makeStackVector(),
-            moveToIgnore,
+            hashMove,
             *this,
             /*isQuiesce*/ false);
 }
 
 FORCE_INLINE MoveOrderer MoveScorer::getMoveOrdererQuiescence(
-        StackVector<Move>&& moves, const std::optional<Move>& moveToIgnore) const {
+        StackVector<Move>&& moves, const std::optional<Move>& hashMove) const {
     return MoveOrderer(
             std::move(moves),
             moveScoreStack_.makeStackVector(),
-            moveToIgnore,
+            hashMove,
             *this,
             /*isQuiesce*/ true);
 }
@@ -200,6 +198,8 @@ void MoveScorer::printCutoffStatistics(std::ostream& out) const {
                 return "GoodHistory";
             case MoveType::BadHistory:
                 return "BadHistory";
+            case MoveType::Quiesce:
+                return "Quiesce";
             case MoveType::NumMoveTypes:
                 UNREACHABLE;
         }

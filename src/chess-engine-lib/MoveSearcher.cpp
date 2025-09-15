@@ -97,12 +97,12 @@ class MoveSearcher::Impl {
     [[nodiscard]] bool captureWillProbeSyzygy(const GameState& gameState, int depth) const;
 
     [[nodiscard]] std::pair<EvalT, bool> getMoveFutilityValue(
-            const EvalT eval,
-            const EvalT alpha,
-            const int reducedDepth,
-            const int movesSearched,
+            EvalT eval,
+            EvalT alpha,
+            int reducedDepth,
+            int movesSearched,
             const Move& move,
-            const bool moveIsLosing,
+            MoveType moveType,
             const GameState& gameState,
             const std::optional<BitBoard> enemyPinBitBoard,
             std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards);
@@ -255,7 +255,7 @@ const auto lmrReductionTable = []() {
 [[nodiscard]] FORCE_INLINE int getDepthReduction(
         const Move& move,
         const int movesSearched,
-        const bool moveIsLosing,
+        const MoveType moveType,
         const bool isPvNode,
         const int depth,
         const int extension) {
@@ -275,20 +275,20 @@ const auto lmrReductionTable = []() {
         return 0;
     }
 
-    const bool isTactical = isCaptureOrQueenPromo(move);
-
-    if (!moveIsLosing) {
-        // Don't apply reductions to tactical moves with positive SEE.
-        if (isTactical) {
-            return 0;
-        }
+    if (moveType == MoveType::HashMove || moveType == MoveType::GoodTactical) {
+        // Don't apply reductions to these important move types.
+        return 0;
     }
 
     // Late Move Reduction (LMR)
+
+    const bool isTactical = isCaptureOrQueenPromo(move);
     if (isTactical) {
+        // Reduce tactical moves by at most 1.
         return 1;
     }
 
+    // For non-tactical moves, use the LMR table.
     const int depthIdx         = min(depth - 1, (int)lmrReductionTable.size() - 1);
     const int movesSearchedIdx = min(movesSearched, (int)lmrReductionTable[0].size() - 1);
     const int lmrFromTable     = lmrReductionTable[depthIdx][movesSearchedIdx];
@@ -632,16 +632,15 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         const int reducedDepth,
         const int movesSearched,
         const Move& move,
-        const bool isLosingTactical,
+        const MoveType moveType,
         const GameState& gameState,
         const std::optional<BitBoard> enemyPinBitBoard,
         std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards) {
     const bool isTactical = isCaptureOrQueenPromo(move);
-    MY_ASSERT(IMPLIES(isLosingTactical, isTactical));
     MY_ASSERT_DEBUG(!isMate(alpha));
 
-    if (isTactical && !isLosingTactical) {
-        // Don't futility prune winning tactical moves.
+    if (moveType == MoveType::HashMove || moveType == MoveType::GoodTactical) {
+        // Don't futility prune these important types of moves.
         return {kMateEval, false};
     }
     if (isCapture(move) && captureWillProbeSyzygy(gameState, reducedDepth)) {
@@ -665,7 +664,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
     const int seeThreshold = alpha - (eval + futilityMargin);
 
     EvalT futilityValue{};
-    if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isLosingTactical) {
+    if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isTactical) {
         // We know the move is losing, so no need to check whether SEE is above the losing
         // threshold.
         // Note that in this case, alpha >= eval + futilityMargin + kCaptureLosingThreshold.
@@ -892,52 +891,6 @@ EvalT MoveSearcher::Impl::search(
     Move bestMove{};
     int movesSearched = 0;
 
-    if (hashMove) {
-        // Try hash move first.
-        // Do we need a legality check here for hash collisions?
-        const auto outcome = searchMove(
-                gameState,
-                *hashMove,
-                MoveType::HashMove,
-                depth,
-                /*reduction =*/0,
-                ply,
-                alpha,
-                beta,
-                stack,
-                bestScore,
-                bestMove,
-                lastMove,
-                lastNullMovePly,
-                nodeType,
-                /*useScoutSearch =*/false);
-
-        if (outcome == SearchMoveOutcome::Interrupted) {
-            return updateMateDistanceOut(bestScore);
-        }
-
-        ++movesSearched;
-
-        if (outcome == SearchMoveOutcome::Cutoff) {
-            // Fail high
-
-            updateTTable(
-                    bestScore,
-                    alphaOrig,
-                    beta,
-                    wasInterrupted_,
-                    bestMove,
-                    depth,
-                    gameState.getBoardHash(),
-                    isPvNode);
-
-            // Score was obtained from a subcall that failed high, so it was a lower bound for
-            // that position. It is also a lower bound for the overall position because we're
-            // maximizing.
-            return updateMateDistanceOut(bestScore);
-        }
-    }
-
     static constexpr int kMinDepthForIIR = 5;
     if (!hashMove && depth >= kMinDepthForIIR && nodeType != NodeType::AllNode) {
         // Internal iterative reductions (IIR)
@@ -964,10 +917,13 @@ EvalT MoveSearcher::Impl::search(
 
     while (const auto maybeMove =
                    moveOrderer.getNextBestMove(gameState, boardControl, lastMove, ply)) {
-        const Move move = *maybeMove;
+        const Move move         = *maybeMove;
+        const MoveType moveType = moveOrderer.getLastMoveType();
 
-        const int reduction = getDepthReduction(
-                move, movesSearched, moveOrderer.lastMoveWasLosing(), isPvNode, depth, extension);
+        // TODO: Do we need a legality check for the HashMove in case of hash collisions?
+
+        const int reduction =
+                getDepthReduction(move, movesSearched, moveType, isPvNode, depth, extension);
 
         // Futility pruning
         if (futilityPruningEnabled) {
@@ -977,7 +933,7 @@ EvalT MoveSearcher::Impl::search(
                     depth - reduction,
                     movesSearched,
                     move,
-                    moveOrderer.lastMoveWasLosing(),
+                    moveType,
                     gameState,
                     enemyPinBitBoard,
                     directCheckBitBoards);
@@ -1006,7 +962,7 @@ EvalT MoveSearcher::Impl::search(
         const auto outcome = searchMove(
                 gameState,
                 move,
-                moveOrderer.getLastMoveType(),
+                moveType,
                 depth,
                 reduction,
                 ply,
@@ -1029,9 +985,15 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
-    const bool anyLegalMoves = moveOrderer.anyLegalMoves(gameState, boardControl);
+    // If we were interrupted, we should assume there's a legal move.
+    // If we searched any moves, there's certainly legal moves.
+    // Otherwise, if we didn't search any moves, this can't be a fail high, so we must have
+    // exhausted the moveOrderer, and we can safely ask it if it found any legal moves.
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_ && movesSearched == 0, bestScore < beta));
+    const bool anyLegalMoves = wasInterrupted_ || movesSearched > 0
+                            || moveOrderer.anyLegalMoves(gameState, boardControl);
 
-    if (!wasInterrupted_ && !anyLegalMoves) {
+    if (!anyLegalMoves) {
         // Exact value
         bestScore = evaluateNoLegalMoves(gameState);
     }

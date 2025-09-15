@@ -1,6 +1,15 @@
 #pragma once
 
+#include "BoardConstants.h"
+#include "Eval.h"
+#include "GameState.h"
+#include "Move.h"
 #include "MoveOrderer.h"
+#include "StackOfVectors.h"
+
+#include <array>
+#include <cstdint>
+#include <optional>
 
 class MoveScorer {
   public:
@@ -17,10 +26,10 @@ class MoveScorer {
             int depth);
 
     [[nodiscard]] MoveOrderer getMoveOrderer(
-            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& moveToIgnore) const;
+            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& hashMove) const;
 
     [[nodiscard]] MoveOrderer getMoveOrdererQuiescence(
-            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& moveToIgnore) const;
+            StackVector<Move>&& preGeneratedMoves, const std::optional<Move>& hashMove) const;
 
     void newGame();
     void prepareForNewSearch(const GameState& gameState);

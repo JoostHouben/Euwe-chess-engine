@@ -36,22 +36,25 @@ FORCE_INLINE bool ignoreMove(
 FORCE_INLINE MoveOrderer::MoveOrderer(
         StackVector<Move>&& preGeneratedMoves,
         StackVector<MoveEvalT>&& emptyMoveScores,
-        const std::optional<Move>& moveToIgnore,
+        const std::optional<Move>& hashMove,
         const MoveScorer& moveScorer,
         const bool isQuiesce)
     : moves_(std::move(preGeneratedMoves)),
       moveScores_(std::move(emptyMoveScores)),
       moveScorer_(moveScorer),
-      state_(isQuiesce ? State::QuiesceGenMoves : State::GenTacticals),
+      state_(isQuiesce ? State::QuiesceGenMoves : State::HashMove),
       currentMoveIdx_(0),
       firstLosingCaptureIdx_(moves_.size()),
       firstQuietIdx_(moves_.size()),
       lastMoveType_(MoveType::None),
-      moveToIgnore_(moveToIgnore),
+      hashMove_(hashMove),
       isQuiesce_(isQuiesce),
       usingPregeneratedMoves_(!moves_.empty()),
-      foundAnyLegalMoves_(!moves_.empty() || moveToIgnore.has_value()),
+      foundAnyLegalMoves_(!moves_.empty() || hashMove.has_value()),
       skipQuietMoveGeneration_(false) {
+    if (!usingPregeneratedMoves_) {
+        moves_.lock();
+    }
     moveScores_.lock();
 }
 
@@ -66,6 +69,18 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
     MY_ASSERT(0 <= currentMoveIdx_ && currentMoveIdx_ <= moves_.size());
 
     switch (state_) {
+        case State::HashMove: {
+            // Progress the state machine regardless of whether we have a hash move.
+            state_ = State::GenTacticals;
+
+            if (hashMove_) {
+                lastMoveType_ = MoveType::HashMove;
+                return *hashMove_;
+            }
+
+            [[fallthrough]];
+        }
+
         case State::GenTacticals: {
             genTacticals(gameState, boardControl, lastMove, ply);
 
@@ -164,6 +179,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
             return std::nullopt;
         }
 
+        case State::HashMove:
         case State::GenTacticals:
         case State::PickGoodTactical:
         case State::GenQuiets:
@@ -176,10 +192,6 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
     UNREACHABLE;
 }
 
-FORCE_INLINE bool MoveOrderer::lastMoveWasLosing() const {
-    return getLastMoveType() == MoveType::LosingCapture;
-}
-
 FORCE_INLINE MoveType MoveOrderer::getLastMoveType() const {
     return lastMoveType_;
 }
@@ -189,6 +201,8 @@ FORCE_INLINE bool MoveOrderer::anyLegalMoves(
     // Pre-generated move list in quiescence search may be incomplete; we need to rely on
     // logic in the quiescence search routine to determine whether there are legal moves.
     MY_ASSERT_DEBUG(!isQuiesce_);
+    // If we aren't done yet, we can never know for certain that there are no legal moves.
+    MY_ASSERT_DEBUG(state_ == State::Done);
 
     if (foundAnyLegalMoves_) {
         return true;
@@ -232,9 +246,9 @@ void MoveOrderer::genTacticals(
         // If we add specialized root move ordering in the future, this code path can be
         // removed, including partitionTacticalMoves().
 
-        if (moveToIgnore_
+        if (hashMove_
             && ignoreMove(
-                    *moveToIgnore_,
+                    *hashMove_,
                     moves_,
                     currentMoveIdx_,
                     /*ignoredMoveShouldExist*/ true)) {
@@ -249,6 +263,7 @@ void MoveOrderer::genTacticals(
     } else {
         // Generate tactical moves.
 
+        moves_.unlock();
         gameState.generateMoves(
                 moves_, boardControl, MoveCategories::Captures | MoveCategories::QueenPromotions);
         moves_.lock();
@@ -258,9 +273,9 @@ void MoveOrderer::genTacticals(
         firstQuietIdx_         = moves_.size();
         firstLosingCaptureIdx_ = firstQuietIdx_;
 
-        if (moveToIgnore_
+        if (hashMove_
             && ignoreMove(
-                    *moveToIgnore_,
+                    *hashMove_,
                     moves_,
                     currentMoveIdx_,
                     /*ignoredMoveShouldExist*/ false)) {
@@ -332,9 +347,9 @@ void MoveOrderer::genQuiets(
 
         moveScores_.unlock();
 
-        if (moveToIgnore_
+        if (hashMove_
             && ignoreMove(
-                    *moveToIgnore_,
+                    *hashMove_,
                     moves_,
                     currentMoveIdx_,
                     /*ignoredMoveShouldExist*/ false)) {
@@ -404,9 +419,9 @@ void MoveOrderer::quiesceGenMoves(const GameState& gameState) {
     MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && isQuiesce_ && usingPregeneratedMoves_);
 
     moveScores_.unlock();
-    if (moveToIgnore_
+    if (hashMove_
         && ignoreMove(
-                *moveToIgnore_,
+                *hashMove_,
                 moves_,
                 currentMoveIdx_,
                 /*ignoredMoveShouldExist*/ false)) {
@@ -433,6 +448,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findQuiesce() {
 
     ++currentMoveIdx_;
 
+    lastMoveType_ = MoveType::Quiesce;
     return bestMove;
 }
 

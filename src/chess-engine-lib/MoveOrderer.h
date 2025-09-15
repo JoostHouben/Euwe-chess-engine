@@ -1,14 +1,9 @@
 #pragma once
 
-#include "BoardConstants.h"
 #include "GameState.h"
 #include "Move.h"
-#include "StackOfVectors.h"
 
-#include <array>
 #include <optional>
-#include <ostream>
-#include <utility>
 
 using MoveEvalT = int;
 
@@ -30,6 +25,7 @@ enum class MoveType {
 #else
     Quiet,
 #endif
+    Quiesce,
     NumMoveTypes,
 };
 
@@ -42,7 +38,7 @@ class MoveOrderer {
     MoveOrderer(
             StackVector<Move>&& preGeneratedMoves,
             StackVector<MoveEvalT>&& emptyMoveScores,
-            const std::optional<Move>& moveToIgnore,
+            const std::optional<Move>& hashMove,
             const MoveScorer& moveScorer,
             bool isQuiesce);
 
@@ -61,7 +57,6 @@ class MoveOrderer {
             int ply);
     [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence(const GameState& gameState);
 
-    [[nodiscard]] bool lastMoveWasLosing() const;
     [[nodiscard]] MoveType getLastMoveType() const;
 
     [[nodiscard]] bool anyLegalMoves(const GameState& gameState, const BoardControl& boardControl);
@@ -72,6 +67,7 @@ class MoveOrderer {
 
   private:
     enum class State {
+        HashMove,
         GenTacticals,
         PickGoodTactical,
         GenQuiets,
@@ -125,7 +121,7 @@ class MoveOrderer {
 
     MoveType lastMoveType_;
 
-    std::optional<Move> moveToIgnore_;
+    std::optional<Move> hashMove_;
 
     bool isQuiesce_;
     bool usingPregeneratedMoves_;
