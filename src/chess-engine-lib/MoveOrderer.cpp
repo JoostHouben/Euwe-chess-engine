@@ -42,7 +42,7 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
     : moves_(std::move(preGeneratedMoves)),
       moveScores_(std::move(emptyMoveScores)),
       moveScorer_(moveScorer),
-      state_(isQuiesce ? State::QuiesceGenMoves : State::HashMove),
+      state_(isQuiesce ? State::QuiesceHashMove : State::HashMove),
       currentMoveIdx_(0),
       firstLosingCaptureIdx_(moves_.size()),
       firstQuietIdx_(moves_.size()),
@@ -145,6 +145,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
             return std::nullopt;
         }
 
+        case State::QuiesceHashMove:
         case State::QuiesceGenMoves:
         case State::QuiescePickMove: {
             UNREACHABLE;
@@ -155,10 +156,22 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
-        const GameState& gameState) {
+        const GameState& gameState, const BoardControl& boardControl, const bool isInCheck) {
     switch (state_) {
+        case State::QuiesceHashMove: {
+            // Progress the state machine regardless of whether we have a hash move.
+            state_ = State::QuiesceGenMoves;
+
+            if (hashMove_ && (isCapture(*hashMove_) || isInCheck)) {
+                lastMoveType_ = MoveType::HashMove;
+                return *hashMove_;
+            }
+
+            [[fallthrough]];
+        }
+
         case State::QuiesceGenMoves: {
-            quiesceGenMoves(gameState);
+            quiesceGenMoves(gameState, boardControl, isInCheck);
 
             state_ = State::QuiescePickMove;
             [[fallthrough]];
@@ -198,15 +211,13 @@ FORCE_INLINE MoveType MoveOrderer::getLastMoveType() const {
 
 FORCE_INLINE bool MoveOrderer::anyLegalMoves(
         const GameState& gameState, const BoardControl& boardControl) {
-    // Pre-generated move list in quiescence search may be incomplete; we need to rely on
-    // logic in the quiescence search routine to determine whether there are legal moves.
-    MY_ASSERT_DEBUG(!isQuiesce_);
     // If we aren't done yet, we can never know for certain that there are no legal moves.
-    MY_ASSERT_DEBUG(state_ == State::Done);
+    MY_ASSERT_DEBUG(state_ == State::Done && !isQuiesce_);
 
     if (foundAnyLegalMoves_) {
         return true;
     }
+
     if (usingPregeneratedMoves_ || !skipQuietMoveGeneration_) {
         return foundAnyLegalMoves_;  // false
     }
@@ -218,7 +229,32 @@ FORCE_INLINE bool MoveOrderer::anyLegalMoves(
             moves_, boardControl, MoveCategories::Quiets | MoveCategories::UnderPromotions);
     moves_.lock();
 
-    foundAnyLegalMoves_ |= !moves_.empty();
+    foundAnyLegalMoves_ = !moves_.empty();
+    return foundAnyLegalMoves_;
+}
+
+FORCE_INLINE bool MoveOrderer::anyLegalMovesQuiescence(
+        const GameState& gameState, const BoardControl& boardControl, const bool isInCheck) {
+    // If we aren't done yet, we can never know for certain that there are no legal moves.
+    MY_ASSERT_DEBUG(state_ == State::Done && isQuiesce_);
+
+    if (foundAnyLegalMoves_) {
+        return true;
+    }
+
+    if (isInCheck) {
+        // We already ran full move generation in quiescence search if the king is in check.
+        return foundAnyLegalMoves_;  // false
+    }
+
+    // Since we're not in check, we only generated captures. So now we need to check if there
+    // are any non-captures.
+    MY_ASSERT_DEBUG(moves_.empty());
+    moves_.unlock();
+    gameState.generateMoves(moves_, boardControl, MoveCategories::NonCaptures);
+    moves_.lock();
+
+    foundAnyLegalMoves_ = !moves_.empty();
     return foundAnyLegalMoves_;
 }
 
@@ -415,8 +451,16 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findLosingCapture() {
     return std::nullopt;
 }
 
-void MoveOrderer::quiesceGenMoves(const GameState& gameState) {
-    MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && isQuiesce_ && usingPregeneratedMoves_);
+FORCE_INLINE void MoveOrderer::quiesceGenMoves(
+        const GameState& gameState, const BoardControl& boardControl, const bool isInCheck) {
+    MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && isQuiesce_ && !usingPregeneratedMoves_);
+
+    moves_.unlock();
+    gameState.generateMoves(
+            moves_, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
+    moves_.lock();
+
+    foundAnyLegalMoves_ |= !moves_.empty();
 
     moveScores_.unlock();
     if (hashMove_
@@ -424,7 +468,7 @@ void MoveOrderer::quiesceGenMoves(const GameState& gameState) {
                 *hashMove_,
                 moves_,
                 currentMoveIdx_,
-                /*ignoredMoveShouldExist*/ false)) {
+                /*ignoredMoveShouldExist*/ isInCheck)) {
         moveScores_.push_back(0);  // Placeholder for ignored move
     }
 

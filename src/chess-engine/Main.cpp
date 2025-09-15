@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "refactor-move-orderer");
+            UciFrontEnd uciFrontEnd(engine, "refactor-move-orderer2");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

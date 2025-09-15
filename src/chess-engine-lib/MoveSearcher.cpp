@@ -1179,122 +1179,12 @@ EvalT MoveSearcher::Impl::quiesce(
         }
 
         hashMove = getTTableMove(ttInfo, gameState);
-
-        bool shouldTryHashMove = hashMove.has_value();
-        if (hashMove && !isInCheck) {
-            if (!isCapture(hashMove->flags)) {
-                shouldTryHashMove = false;
-            } else if (!isMate(alpha)) {
-                // Delta pruning.
-                // We skip delta pruning if alpha is a mate score, since in that case we're looking
-                // for a mate, and can't prune moves based purely on material exchange
-                // considerations.
-
-                // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
-                // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
-                // So we need to check if SEE >= alpha - standPat - kDeltaPruningThreshold
-                const int seeThreshold = alpha - standPat - kDeltaPruningThreshold;
-
-                const int seeBound =
-                        staticExchangeEvaluationBound(gameState, *hashMove, seeThreshold);
-
-                if (seeBound < seeThreshold) {
-                    // This move looks like it has no hope of raising alpha, so unless it's a check we
-                    // can prune it. For some reason still calculating the upper bound for bestScore
-                    // helps even for moves that give check...
-
-                    // If our optimistic estimate of the score of this move is above bestScore, raise
-                    // bestScore to match. This should mean that an upper bound returned from this
-                    // function if we prune moves is still reliable. Note that this is definitely below
-                    // alpha.
-                    const EvalT deltaPruningScore =
-                            clampNonMateEval(standPat + seeBound + kDeltaPruningThreshold);
-                    bestScore = max(bestScore, deltaPruningScore);
-
-                    if (!directCheckBitBoards) {
-                        directCheckBitBoards = gameState.getDirectCheckBitBoards();
-                    }
-
-                    if (!gameState.givesCheck(*hashMove, *directCheckBitBoards, enemyPinBitBoard)) {
-                        shouldTryHashMove = false;
-                    }
-                }
-            }
-        }
-
-        if (shouldTryHashMove) {
-            const auto unmakeInfo = gameState.makeMove(*hashMove);
-
-            tTable_.prefetch(gameState.getBoardHash());
-            evaluator_.prefetch(gameState);
-
-            const EvalT score = -quiesce(
-                    gameState,
-                    updateMateDistanceIn(-beta),
-                    updateMateDistanceIn(-alpha),
-                    ply + 1,
-                    (NodeType)-nodeType,
-                    stack);
-
-            gameState.unmakeMove(*hashMove, unmakeInfo);
-
-            if (wasInterrupted_) {
-                return updateMateDistanceOut(bestScore);
-            }
-
-            completedAnySearch = true;
-            bestScore          = max(bestScore, score);
-
-            if (score > alpha) {
-                alpha    = score;
-                bestMove = *hashMove;
-
-                if (score >= beta) {
-                    updateTTable(
-                            bestScore,
-                            alphaOrig,
-                            beta,
-                            false,
-                            bestMove,
-                            /*depth =*/0,
-                            gameState.getBoardHash(),
-                            isPvNode);
-
-                    return updateMateDistanceOut(score);
-                }
-            }
-        }
     }
 
-    auto moves = gameState.generateMoves(
-            stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
-    if (moves.size() == 0) {
-        if (isInCheck) {
-            // We ran full move generation, so no legal moves exist, and we're in check, so it's a
-            // checkmate.
-            return updateMateDistanceOut(-kMateEval);
-        }
+    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(stack.makeStackVector(), hashMove);
 
-        // No captures are available.
-
-        // Check if we're in an end state by generating non-captures (we already know there's no
-        // captures).
-        // Note that this ignores repetitions and 50 move rule.
-        const auto allMoves =
-                gameState.generateMoves(stack, boardControl, MoveCategories::NonCaptures);
-        if (allMoves.size() == 0) {
-            // No legal moves, not in check, so stalemate.
-            return 0;
-        }
-
-        // If we're not in an end state return the stand pat evaluation.
-        return updateMateDistanceOut(bestScore);
-    }
-
-    // Ignore the hash move even if we didn't try it, since that would mean we pruned it.
-    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(std::move(moves), hashMove);
-
-    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence(gameState)) {
+    while (const auto maybeMove =
+                   moveOrderer.getNextBestMoveQuiescence(gameState, boardControl, isInCheck)) {
         const Move move = *maybeMove;
 
         if (!isInCheck && !isMate(alpha)) {
@@ -1366,6 +1256,27 @@ EvalT MoveSearcher::Impl::quiesce(
             }
         }
     }
+
+    // If we were interrupted, we should assume there's a legal move.
+    // If we searched any moves, there's certainly legal moves.
+    // Otherwise, if we didn't search any moves, this can't be a fail high, so we must have
+    // exhausted the moveOrderer, and we can safely ask it if it found any legal moves.
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_ && !completedAnySearch, bestScore < beta));
+    const bool anyLegalMoves =
+            wasInterrupted_ || completedAnySearch
+            || moveOrderer.anyLegalMovesQuiescence(gameState, boardControl, isInCheck);
+
+    if (!anyLegalMoves) {
+        if (isInCheck) {
+            // No legal moves and in check, so checkmate.
+            return updateMateDistanceOut(-kMateEval);
+        } else {
+            // Otherwise, it's a stalemate.
+            return 0;
+        }
+    }
+
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_, bestScore != -kInfiniteEval));
 
     if (completedAnySearch) {
         updateTTable(

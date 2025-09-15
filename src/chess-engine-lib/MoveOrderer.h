@@ -55,11 +55,14 @@ class MoveOrderer {
             const BoardControl& boardControl,
             const Move& lastMove,
             int ply);
-    [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence(const GameState& gameState);
+    [[nodiscard]] std::optional<Move> getNextBestMoveQuiescence(
+            const GameState& gameState, const BoardControl& boardControl, bool isInCheck);
 
     [[nodiscard]] MoveType getLastMoveType() const;
 
     [[nodiscard]] bool anyLegalMoves(const GameState& gameState, const BoardControl& boardControl);
+    [[nodiscard]] bool anyLegalMovesQuiescence(
+            const GameState& gameState, const BoardControl& boardControl, bool isInCheck);
 
     void skipQuiets();
 
@@ -74,6 +77,7 @@ class MoveOrderer {
         PickQuiets,
         PickLosingCaptures,
 
+        QuiesceHashMove,
         QuiesceGenMoves,
         QuiescePickMove,
 
@@ -98,7 +102,8 @@ class MoveOrderer {
 
     std::optional<Move> findLosingCapture();
 
-    void quiesceGenMoves(const GameState& gameState);
+    void quiesceGenMoves(
+            const GameState& gameState, const BoardControl& boardControl, bool isInCheck);
 
     std::optional<Move> findQuiesce();
 
