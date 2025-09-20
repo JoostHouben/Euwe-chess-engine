@@ -5,11 +5,13 @@
 #include "GameState.h"
 #include "Move.h"
 #include "MoveOrderer.h"
+#include "SearchConstants.h"
 #include "StackOfVectors.h"
 
 #include <array>
 #include <cstdint>
 #include <optional>
+#include <ostream>
 
 class MoveScorer {
   public:
@@ -60,10 +62,9 @@ class MoveScorer {
 
   private:
     static constexpr std::size_t kNumKillerMoves = 2;
-    static constexpr int kMaxDepth               = 100;
 
     using KillerMoves         = std::array<Move, kNumKillerMoves>;
-    using KillerMovesPerDepth = std::array<KillerMoves, kMaxDepth>;
+    using KillerMovesPerDepth = std::array<KillerMoves, kMaxSearchDepth>;
 
     using MovePerSquare       = std::array<Move, kSquares>;
     using CounterMovePerPiece = std::array<MovePerSquare, kNumPieceTypes>;

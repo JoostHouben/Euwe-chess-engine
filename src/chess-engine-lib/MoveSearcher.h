@@ -14,8 +14,6 @@
 
 class MoveSearcher {
   public:
-    static constexpr int kMaxDepth = 100;
-
     MoveSearcher(TimeManager& timeManager, const Evaluator& evaluator);
     ~MoveSearcher();
 

@@ -1,5 +1,9 @@
 #include "MoveScorer.h"
 
+#include "SearchConstants.h"
+
+#include <print>
+
 namespace {
 
 // Killer and counter bonuses can potentially both apply.
@@ -233,12 +237,12 @@ void MoveScorer::printCutoffStatistics(std::ostream& out) const {
 }
 
 FORCE_INLINE MoveScorer::KillerMoves& MoveScorer::getKillerMoves(const int ply) {
-    MY_ASSERT(ply < kMaxDepth);
+    MY_ASSERT(ply < kMaxSearchDepth);
     return killerMoves_[ply];
 }
 
 FORCE_INLINE const MoveScorer::KillerMoves& MoveScorer::getKillerMoves(const int ply) const {
-    MY_ASSERT(ply < kMaxDepth);
+    MY_ASSERT(ply < kMaxSearchDepth);
     return killerMoves_[ply];
 }
 
@@ -335,7 +339,7 @@ FORCE_INLINE void MoveScorer::updateHistory(HistoryValueT& history, const Histor
 void MoveScorer::shiftKillerMoves(const int halfMoveClock) {
     const int shiftAmount = halfMoveClock - moveClockForKillerMoves_;
 
-    for (int ply = 0; ply < kMaxDepth - shiftAmount; ++ply) {
+    for (int ply = 0; ply < kMaxSearchDepth - shiftAmount; ++ply) {
         killerMoves_[ply] = killerMoves_[(std::size_t)ply + shiftAmount];
     }
 

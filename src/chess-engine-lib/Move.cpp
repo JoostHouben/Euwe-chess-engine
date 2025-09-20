@@ -84,6 +84,24 @@ namespace {
 
 }  // namespace
 
+FORCE_INLINE CompactMove::CompactMove(const Move& move)
+    : from(move.from), to(move.to), flags(move.flags) {}
+
+FORCE_INLINE bool CompactMove::isNull() const {
+    return from == to;
+}
+
+FORCE_INLINE Move CompactMove::toMove(const GameState& gameState) const {
+    const Piece pieceToMove = getPiece(gameState.getPieceOnSquare(from));
+    MY_ASSERT(pieceToMove != Piece::Invalid);
+    return Move{.pieceToMove = pieceToMove, .from = from, .to = to, .flags = flags};
+}
+
+FORCE_INLINE bool Move::isNull() const {
+    MY_ASSERT(IMPLIES(from != to, pieceToMove != Piece::Invalid));
+    return from == to;
+}
+
 std::string Move::toAlgebraic(const GameState& gameState) const {
     StackOfVectors<Move> stack;
 
@@ -142,6 +160,10 @@ std::string Move::toExtendedString() const {
 
     return pieceToString(pieceToMove) + algebraicFromPosition(from) + positionSeparator
          + algebraicFromPosition(to) + promotionString + enPassant;
+}
+
+FORCE_INLINE CompactMove Move::toCompact() const {
+    return CompactMove(*this);
 }
 
 Move Move::fromUci(std::string_view uciString, const GameState& gameState) {

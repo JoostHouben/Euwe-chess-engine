@@ -19,13 +19,11 @@ struct TTEntry {
 };
 
 struct SearchTTPayload {
-    EvalT score            = 0;
-    std::uint8_t depth     = 0;
-    std::uint8_t tick      = 0;
-    ScoreType scoreType    = ScoreType::NotSet;
-    BoardPosition moveFrom = (BoardPosition)0;
-    BoardPosition moveTo   = (BoardPosition)0;
-    MoveFlags moveFlags    = MoveFlags::None;
+    EvalT score         = 0;
+    std::uint8_t depth  = 0;
+    std::uint8_t tick   = 0;
+    ScoreType scoreType = ScoreType::NotSet;
+    CompactMove move{};
 };
 
 using SearchTTEntry = TTEntry<SearchTTPayload>;

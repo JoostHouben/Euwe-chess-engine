@@ -5,6 +5,7 @@
 #include "MoveOrderer.h"
 #include "MoveScorer.h"
 #include "SEE.h"
+#include "SearchConstants.h"
 #include "Syzygy.h"
 #include "TTable.h"
 
@@ -326,16 +327,11 @@ FORCE_INLINE std::int8_t computeWrappingTickDelta(std::uint8_t tickA, std::uint8
 
 FORCE_INLINE std::optional<Move> getTTableMove(
         const SearchTTPayload payload, const GameState& gameState) {
-    if (payload.moveFrom == payload.moveTo) {
+    if (payload.move.isNull()) {
         return std::nullopt;
     }
 
-    return Move{
-            .pieceToMove = getPiece(gameState.getPieceOnSquare(payload.moveFrom)),
-            .from        = payload.moveFrom,
-            .to          = payload.moveTo,
-            .flags       = payload.moveFlags,
-    };
+    return payload.move.toMove(gameState);
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForcedEndState(
@@ -484,14 +480,12 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
         scoreType = ScoreType::Exact;
     }
 
-    Move moveToStore = bestMove;
-    if (moveToStore.from == moveToStore.to) {
+    CompactMove moveToStore = bestMove.toCompact();
+    if (moveToStore.isNull()) {
         // No best move found; retain the existing hash move, if it exists.
         const auto ttHit = tTable_.probe(hash);
         if (ttHit) {
-            moveToStore.from  = ttHit->payload.moveFrom;
-            moveToStore.to    = ttHit->payload.moveTo;
-            moveToStore.flags = ttHit->payload.moveFlags;
+            moveToStore = ttHit->payload.move;
         }
     }
 
@@ -502,9 +496,7 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = scoreType,
-                    .moveFrom  = moveToStore.from,
-                    .moveTo    = moveToStore.to,
-                    .moveFlags = moveToStore.flags,
+                    .move      = moveToStore,
             }};
 
     if (isPvNode) {
@@ -533,9 +525,7 @@ FORCE_INLINE void MoveSearcher::Impl::storeEgtbValueInTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = ScoreType::EGTB,
-                    .moveFrom  = (BoardPosition)0,
-                    .moveTo    = (BoardPosition)0,
-                    .moveFlags = MoveFlags::None,
+                    .move      = CompactMove(),
             }};
 
     tTable_.store(entry, isTTEntryMoreValuable);
@@ -543,17 +533,9 @@ FORCE_INLINE void MoveSearcher::Impl::storeEgtbValueInTTable(
 
 FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
         const EvalT value, const int depth, const HashT hash) {
-    BoardPosition moveFrom = (BoardPosition)0;
-    BoardPosition moveTo   = (BoardPosition)0;
-    MoveFlags moveFlags    = MoveFlags::None;
-
     // Retain the existing hash move, if it exists.
-    const auto ttHit = tTable_.probe(hash);
-    if (ttHit) {
-        moveFrom  = ttHit->payload.moveFrom;
-        moveTo    = ttHit->payload.moveTo;
-        moveFlags = ttHit->payload.moveFlags;
-    }
+    const auto ttHit              = tTable_.probe(hash);
+    const CompactMove moveToStore = ttHit ? ttHit->payload.move : CompactMove();
 
     const SearchTTable::EntryT entry = {
             .hash    = hash,
@@ -562,9 +544,7 @@ FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = ScoreType::LowerBound,
-                    .moveFrom  = moveFrom,
-                    .moveTo    = moveTo,
-                    .moveFlags = moveFlags,
+                    .move      = moveToStore,
             }};
 
     tTable_.store(entry, isTTEntryMoreValuable);

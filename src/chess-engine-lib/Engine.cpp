@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #include "MoveSearcher.h"
+#include "SearchConstants.h"
 #include "Syzygy.h"
 
 #include <algorithm>
@@ -167,7 +168,7 @@ SearchInfo Engine::Impl::findMove(
         frontEnd_->reportSearchHasStarted();
     }
 
-    for (; depth <= MoveSearcher::kMaxDepth; ++depth) {
+    for (; depth <= kMaxSearchDepth; ++depth) {
         // Not const to enable std::move of the PV.
         auto searchResult =
                 moveSearcher_.searchForBestMove(copyState, depth, moveStack_, evalGuess);
