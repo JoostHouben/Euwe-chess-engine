@@ -1589,15 +1589,22 @@ SearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 };
             }
 
-            MY_ASSERT_DEBUG(noEval || lastCompletedScoreType == ScoreType::LowerBound);
-            MY_ASSERT_DEBUG(!everFailedLow);
+            std::vector<Move> pv = extractPv(gameState);
+            if (pv.empty()) {
+                MY_ASSERT_DEBUG(!everFailedLow);
+                MY_ASSERT_DEBUG(
+                        lastCompletedScoreType == ScoreType::NotSet
+                        || lastCompletedScoreType == ScoreType::LowerBound);
+
+                // We don't have an actual PV, but we can use the hash move at the root; since we never
+                // failed low in this iteration, this is either a PV move from a previous iteration or
+                // a move that caused a fail high. Either way, it's the best move we currently have.
+                pv = extractRootHashMove(gameState);
+            }
 
             // Return partial result.
-            // We don't have an actual PV, but we can use the hash move at the root; since we never
-            // failed low in this iteration, this is either a PV move from a previous iteration or
-            // a move that caused a fail high. Either way, it's the best move we currently have.
             return {
-                    .principalVariation = extractRootHashMove(gameState),
+                    .principalVariation = std::move(pv),
                     .eval               = lastCompletedEval,
                     .scoreType          = lastCompletedScoreType,
                     .wasInterrupted     = true,
