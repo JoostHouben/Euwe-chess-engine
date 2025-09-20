@@ -258,10 +258,14 @@ void UciFrontEnd::Impl::reportSearchInfo(const SearchInfo& searchInfo) const {
                 std::format(" nps {}", (int)std::round(searchInfo.statistics.nodesPerSecond));
     }
 
-    const std::string pvString = moveListToString(searchInfo.result.principalVariation);
+    std::string optionalPvString = "";
+    if (!searchInfo.result.principalVariation.empty()) {
+        optionalPvString =
+                std::format(" pv {}", moveListToString(searchInfo.result.principalVariation));
+    }
 
     writeUci(
-            "info depth {} seldepth {}{} nodes {}{} time {}{} hashfull {} pv {}",
+            "info depth {} seldepth {}{} nodes {}{} time {}{} hashfull {}{}",
             searchInfo.depth,
             searchInfo.statistics.selectiveDepth,
             optionalScoreString,
@@ -270,7 +274,7 @@ void UciFrontEnd::Impl::reportSearchInfo(const SearchInfo& searchInfo) const {
             searchInfo.statistics.timeElapsed.count(),
             optionalNpsString,
             (int)std::round(searchInfo.statistics.ttableUtilization * 1000),
-            pvString);
+            optionalPvString);
 }
 
 void UciFrontEnd::Impl::reportFullSearch(const SearchInfo& searchInfo) const {

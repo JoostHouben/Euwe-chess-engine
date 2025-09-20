@@ -9,6 +9,9 @@
 #include "Syzygy.h"
 #include "TTable.h"
 
+#include <ranges>
+#include "RangePatches.h"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -27,7 +30,110 @@ enum NodeType {
     AllNode = -1,
 };
 
-}
+class PvTable {
+  public:
+    std::vector<Move> extractPv(GameState gameState) const {
+        std::vector<Move> pv;
+        const Entry& rootPv = data_[0];
+        pv.reserve(rootPv.moveCount);
+
+        for (int i = 0; i < rootPv.moveCount; ++i) {
+            const auto move = rootPv.moves[i].toMove(gameState);
+            pv.push_back(move);
+
+            gameState.makeMove(move);
+        }
+        return pv;
+    }
+
+    FORCE_INLINE void clearPv(const int ply) {
+        MY_ASSERT(ply <= kMaxSearchDepth);
+        if (ply == kMaxSearchDepth) {
+            return;
+        }
+        data_[ply].moveCount = 0;
+    }
+
+    FORCE_INLINE void propagateNewBestMove(const int ply, const Move& move) {
+        MY_ASSERT(ply + 1 <= kMaxSearchDepth);
+
+        Entry& currentEntry   = data_[ply];
+        currentEntry.moves[0] = move.toCompact();
+
+        if (ply + 1 == kMaxSearchDepth) {
+            currentEntry.moveCount = 1;
+            return;
+        }
+
+        Entry& nextEntry = data_[ply + 1];
+
+        currentEntry.moveCount = nextEntry.moveCount + 1;
+        for (int i = 1; i < currentEntry.moveCount; ++i) {
+            MY_ASSERT_DEBUG(!nextEntry.moves[i - 1].isNull());
+            currentEntry.moves[i] = nextEntry.moves[i - 1];
+        }
+    }
+
+    void storeHashes(GameState gameState, const std::vector<Move>& pv) {
+        numRootHashes_ = 0;
+
+        Entry& rootPv = data_[0];
+        if (rootPv.moveCount == 0) {
+            return;
+        }
+
+        for (int i = 0; i < std::min((int)pv.size(), (int)rootHashes_.size()); ++i) {
+            rootHashes_[i] = gameState.getBoardHash();
+            numRootHashes_ = i + 1;
+            gameState.makeMove(pv[i]);
+        }
+    }
+
+    void clear() {
+        data_[0].moveCount = 0;
+        numRootHashes_     = 0;
+    }
+
+    void prepareForNewSearch(const GameState& gameState) {
+        int numMovesToDiscard = 0;
+        for (; numMovesToDiscard < numRootHashes_; ++numMovesToDiscard) {
+            if (rootHashes_[numMovesToDiscard] == gameState.getBoardHash()) {
+                break;
+            }
+        }
+
+        Entry& rootPv = data_[0];
+        if (numMovesToDiscard == numRootHashes_) {
+            // No hash match; discard all.
+            rootPv.moveCount = 0;
+
+            numRootHashes_ = 0;
+        } else if (numMovesToDiscard > 0) {
+            MY_ASSERT(numMovesToDiscard <= rootPv.moveCount);
+            for (int i = 0; i + numMovesToDiscard < rootPv.moveCount; ++i) {
+                rootPv.moves[i] = rootPv.moves[i + numMovesToDiscard];
+            }
+            rootPv.moveCount -= (std::uint8_t)numMovesToDiscard;
+
+            numRootHashes_ = 0;
+        }
+    }
+
+  private:
+    // TODO: use triangular PV table?
+
+    struct Entry {
+        std::uint8_t moveCount{};
+        std::array<CompactMove, kMaxSearchDepth> moves{};
+    };
+
+    std::array<Entry, kMaxSearchDepth> data_{};
+
+    int numRootHashes_ = 0;
+    std::array<HashT, 3> rootHashes_{};
+};
+
+}  // namespace
 
 class MoveSearcher::Impl {
   public:
@@ -88,8 +194,9 @@ class MoveSearcher::Impl {
     void storeNullMoveScoreInTTable(const EvalT value, int depth, HashT hash);
 
     // Extract the principal variation from the transposition table.
-    [[nodiscard]] std::vector<Move> extractPv(
-            GameState gameState, StackOfVectors<Move>& stack, int depth) const;
+    [[nodiscard]] std::vector<Move> extractPv(const GameState& gameState) const;
+
+    [[nodiscard]] std::vector<Move> extractRootHashMove(const GameState& gameState) const;
 
     [[nodiscard]] bool shouldStopSearch() const;
 
@@ -177,6 +284,8 @@ class MoveSearcher::Impl {
     int syzygyMinProbeDepth_ = 1;
 
     SearchTTable tTable_ = {};
+
+    PvTable pvTable_ = {};
 
     MoveScorer moveScorer_;
 
@@ -550,34 +659,20 @@ FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
     tTable_.store(entry, isTTEntryMoreValuable);
 }
 
-std::vector<Move> MoveSearcher::Impl::extractPv(
-        GameState gameState, StackOfVectors<Move>& stack, const int depth) const {
-    const int maxPvLength = max(depth, searchStatistics_.selectiveDepth);
+std::vector<Move> MoveSearcher::Impl::extractPv(const GameState& gameState) const {
+    return pvTable_.extractPv(gameState);
+}
 
-    std::vector<Move> pv;
-    pv.reserve(maxPvLength);
-
-    while ((int)pv.size() < maxPvLength) {
-        const auto ttHit = tTable_.probe(gameState.getBoardHash());
-
-        if (!ttHit) {
-            break;
-        }
-
-        const auto move = getTTableMove(ttHit->payload, gameState);
-        if (!move) {
-            break;
-        }
-
-        pv.push_back(*move);
-        (void)gameState.makeMove(*move);
-
-        if (checkForcedEndState(gameState, stack).has_value()) {
-            break;
-        }
+std::vector<Move> MoveSearcher::Impl::extractRootHashMove(const GameState& gameState) const {
+    const auto ttHit = tTable_.probe(gameState.getBoardHash());
+    if (!ttHit) {
+        return {};
     }
-
-    return pv;
+    const auto hashMove = getTTableMove(ttHit->payload, gameState);
+    if (!hashMove) {
+        return {};
+    }
+    return {*hashMove};
 }
 
 FORCE_INLINE bool MoveSearcher::Impl::shouldStopSearch() const {
@@ -727,6 +822,10 @@ EvalT MoveSearcher::Impl::search(
     ++searchStatistics_.normalNodesSearched;
     if (isPvNode) {
         searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
+
+    if (ply >= kMaxSearchDepth) {
+        return evaluator_.evaluate(gameState, boardControl);
     }
 
     const int extension = getDepthExtension(isInCheck, lastMove);
@@ -954,7 +1053,7 @@ EvalT MoveSearcher::Impl::search(
                 lastMove,
                 lastNullMovePly,
                 nodeType,
-                /*useScoutSearch =*/isPvNode && (movesSearched > 0));
+                /*useScoutSearch =*/isPvNode && movesSearched > 0);
 
         if (outcome != SearchMoveOutcome::Interrupted) {
             ++movesSearched;
@@ -1076,6 +1175,10 @@ EvalT MoveSearcher::Impl::quiesce(
     ++searchStatistics_.qNodesSearched;
     if (isPvNode) {
         searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
+
+    if (ply >= kMaxSearchDepth) {
+        return evaluator_.evaluate(gameState, boardControl);
     }
 
     EvalT bestScore = -kInfiniteEval;
@@ -1209,6 +1312,10 @@ EvalT MoveSearcher::Impl::quiesce(
         tTable_.prefetch(gameState.getBoardHash());
         evaluator_.prefetch(gameState);
 
+        // Clear the PV on the next ply to make sure we won't copy an outdated PV if we call
+        // propagateBestMove below.
+        pvTable_.clearPv(ply + 1);
+
         const EvalT score = -quiesce(
                 gameState,
                 updateMateDistanceIn(-beta),
@@ -1234,6 +1341,8 @@ EvalT MoveSearcher::Impl::quiesce(
             if (alpha >= beta) {
                 break;
             }
+
+            pvTable_.propagateNewBestMove(ply, move);
         }
     }
 
@@ -1330,6 +1439,11 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
         if (score > alpha && score < beta && !wasInterrupted_) {
             // If the score is within the window, do a full window search.
+
+            // This might gives us a new PV, so clear the next ply PV to avoid copying an
+            // outdated PV.
+            pvTable_.clearPv(ply + 1);
+
             score =
                     -search(gameState,
                             fullDepth,
@@ -1343,6 +1457,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
         }
     } else {
         MY_ASSERT_DEBUG(currentNodeType != NodeType::PvNode || reduction == 0);
+
+        pvTable_.clearPv(ply + 1);
 
         score =
                 -search(gameState,
@@ -1377,6 +1493,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                 // Fail high; score is a lower bound.
                 return SearchMoveOutcome::Cutoff;
             }
+
+            pvTable_.propagateNewBestMove(ply, move);
         }
     }
     moveScorer_.reportNonCutoff(move, gameState, moveType, depth);
@@ -1418,6 +1536,8 @@ SearchResult MoveSearcher::Impl::aspirationWindowSearch(
     ScoreType lastCompletedScoreType = ScoreType::NotSet;
 
     do {
+        pvTable_.clearPv(0);
+
         const auto searchEval =
                 search(gameState,
                        depth,
@@ -1469,9 +1589,15 @@ SearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 };
             }
 
+            MY_ASSERT_DEBUG(noEval || lastCompletedScoreType == ScoreType::LowerBound);
+            MY_ASSERT_DEBUG(!everFailedLow);
+
             // Return partial result.
+            // We don't have an actual PV, but we can use the hash move at the root; since we never
+            // failed low in this iteration, this is either a PV move from a previous iteration or
+            // a move that caused a fail high. Either way, it's the best move we currently have.
             return {
-                    .principalVariation = extractPv(gameState, stack, depth),
+                    .principalVariation = extractRootHashMove(gameState),
                     .eval               = lastCompletedEval,
                     .scoreType          = lastCompletedScoreType,
                     .wasInterrupted     = true,
@@ -1484,7 +1610,7 @@ SearchResult MoveSearcher::Impl::aspirationWindowSearch(
         if (lowerBound < searchEval && searchEval < upperBound) {
             // Eval is within the aspiration window; return result.
             return {
-                    .principalVariation = extractPv(gameState, stack, depth),
+                    .principalVariation = extractPv(gameState),
                     .eval               = searchEval,
                     .scoreType          = lastCompletedScoreType,
                     .wasInterrupted     = false,
@@ -1523,7 +1649,7 @@ SearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         if (frontEnd_) {
             SearchResult partialResult = {
-                    .principalVariation = extractPv(gameState, stack, depth),
+                    .principalVariation = extractPv(gameState),
                     .eval               = searchEval,
                     .scoreType          = lastCompletedScoreType,
             };
@@ -1568,9 +1694,12 @@ SearchResult MoveSearcher::Impl::searchForBestMove(
         auto searchResult = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
 
         reportCutoffStatistics();
+        pvTable_.storeHashes(gameState, searchResult.principalVariation);
 
         return searchResult;
     } else {
+        pvTable_.clearPv(0);
+
         const auto searchEval =
                 search(gameState,
                        depth,
@@ -1588,7 +1717,14 @@ SearchResult MoveSearcher::Impl::searchForBestMove(
                                   : wasInterrupted_         ? ScoreType::LowerBound
                                                             : ScoreType::Exact;
 
-        return {.principalVariation = extractPv(gameState, stack, depth),
+        std::vector<Move> pv = extractPv(gameState);
+        pvTable_.storeHashes(gameState, pv);
+
+        if (pv.empty() && scoreType == ScoreType::LowerBound) {
+            pv = extractRootHashMove(gameState);
+        }
+
+        return {.principalVariation = std::move(pv),
                 .eval               = searchEval,
                 .scoreType          = scoreType,
                 .wasInterrupted     = wasInterrupted_};
@@ -1625,18 +1761,23 @@ void MoveSearcher::Impl::prepareForNewSearch(
             }
         }
 
+        pvTable_.clear();
     } else if (rootMovesToSearch_) {
         rootMovesToSearch_ = nullptr;
 
         // If we previously had a restriction on moves to search and now we don't, erase the root
         // node from the TTable to avoid polluting with results from the previous restricted search.
         tTable_.erase(gameState.getBoardHash());
+
+        pvTable_.clear();
     }
 
     rootInTb_ = tbHitAtRoot;
     if (tbHitAtRoot) {
         searchStatistics_.tbHits = searchStatistics_.tbHits.value_or(0) + 1;
     }
+
+    pvTable_.prepareForNewSearch(gameState);
 }
 
 void MoveSearcher::Impl::interruptSearch() {
@@ -1693,14 +1834,18 @@ std::optional<SearchInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState& g
     if (ttInfo.scoreType != ScoreType::Exact) {
         return std::nullopt;
     }
-    if (!getTTableMove(ttInfo, gameState).has_value()) {
+    const auto ttableMove = getTTableMove(ttInfo, gameState);
+    if (!ttableMove) {
         return std::nullopt;
     }
 
-    // The stack is needed for move-gen to check if a position is an end-state (mate / stalemate).
-    StackOfVectors<Move> stack;
+    auto pv = extractPv(gameState);
+    if (pv.empty()) {
+        pv.push_back(*ttableMove);
+    }
+
     SearchResult searchResult{
-            .principalVariation = extractPv(gameState, stack, ttInfo.depth),
+            .principalVariation = std::move(pv),
             .eval               = ttInfo.score,
             .scoreType          = ttInfo.scoreType,
             .wasInterrupted     = false,
