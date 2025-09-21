@@ -399,8 +399,10 @@ The author would like to thank:
  - [lichess](https://lichess.org/) for providing an
    [API](https://github.com/lichess-bot-devs/lichess-bot) and platform for chess engines to play
    online.
- - [Fastchess](https://github.com/Disservin/fastchess) and
-   [Cute Chess](https://github.com/cutechess/cutechess) for providing valuable testing tools.
+ - [Fastchess](https://github.com/Disservin/fastchess),
+   [Qapla Engine Tester](https://github.com/Mangar2/qapla-engine-tester) (by Volker Böhm aka
+   Mangar2), and [Cute Chess](https://github.com/cutechess/cutechess) for providing valuable testing
+   tools.
  - Stefan Pohl for providing unbalanced opening books for testing. See his website
    [here](https://www.sp-cc.de/anti-draw-openings.htm) and [here](https://www.sp-cc.de/uho_2024.htm).
  - Microsoft for providing valuable free development tools: Visual Studio Community Edition, GitHub,
