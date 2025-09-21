@@ -38,13 +38,11 @@ class UciFrontEnd final : public IFrontEnd {
     void reportSearchStatistics(const SearchStatistics& searchStatistics) const override;
 
     void reportAspirationWindowReSearch(
-            int depth,
+            const SearchInfo& searchInfo,
             EvalT previousLowerBound,
             EvalT previousUpperBound,
-            EvalT searchEval,
             EvalT newLowerBound,
-            EvalT newUpperBound,
-            const SearchStatistics& searchStatistics) const override;
+            EvalT newUpperBound) const override;
 
     void reportDiscardedPv(std::string_view reason) const override;
 

@@ -1,6 +1,7 @@
 #include "Engine.h"
 
 #include "MoveSearcher.h"
+#include "SearchConstants.h"
 #include "Syzygy.h"
 
 #include <algorithm>
@@ -147,10 +148,18 @@ SearchInfo Engine::Impl::findMove(
 
     int depth = 1;
 
-    const auto rootNodeInfo = moveSearcher_.getRootNodeInfo(gameState);
-    if (rootNodeInfo) {
-        depth     = max(depth, rootNodeInfo->depth);
-        evalGuess = rootNodeInfo->eval;
+    {
+        const auto rootNodeInfo = moveSearcher_.getRootNodeInfo(gameState);
+        if (rootNodeInfo) {
+            searchInfo = *rootNodeInfo;
+
+            if (frontEnd_) {
+                frontEnd_->reportFullSearch(searchInfo);
+            }
+
+            depth     = max(depth, searchInfo.depth + 1);
+            evalGuess = searchInfo.result.eval;
+        }
     }
 
     if (frontEnd_) {
@@ -159,7 +168,7 @@ SearchInfo Engine::Impl::findMove(
         frontEnd_->reportSearchHasStarted();
     }
 
-    for (; depth <= MoveSearcher::kMaxDepth; ++depth) {
+    for (; depth <= kMaxSearchDepth; ++depth) {
         // Not const to enable std::move of the PV.
         auto searchResult =
                 moveSearcher_.searchForBestMove(copyState, depth, moveStack_, evalGuess);
@@ -167,14 +176,13 @@ SearchInfo Engine::Impl::findMove(
         evalGuess = searchResult.eval;
 
         if (searchResult.principalVariation.size() > 0) {
-            searchInfo.principalVariation = std::move(searchResult.principalVariation);
+            searchInfo.result.principalVariation = std::move(searchResult.principalVariation);
         }
 
-        const auto searchStatistics = moveSearcher_.getSearchStatistics();
-
-        searchInfo.score      = searchResult.eval;
-        searchInfo.depth      = depth;
-        searchInfo.statistics = searchStatistics;
+        searchInfo.result.eval      = searchResult.eval;
+        searchInfo.result.scoreType = searchResult.scoreType;
+        searchInfo.depth            = depth;
+        searchInfo.statistics       = moveSearcher_.getSearchStatistics();
 
         if (searchResult.wasInterrupted) {
             if (frontEnd_) {
@@ -203,7 +211,7 @@ SearchInfo Engine::Impl::findMove(
         frontEnd_->reportSearchStatistics(searchInfo.statistics);
     }
 
-    if (searchInfo.principalVariation.empty()) {
+    if (searchInfo.result.principalVariation.empty()) {
         if (frontEnd_) {
             frontEnd_->reportError(
                     "Search reported no principal variation! Falling back to any legal move.");
@@ -213,11 +221,11 @@ SearchInfo Engine::Impl::findMove(
         if (movesToSearch) {
             // If we were searching among a specific set of moves, just grab the first one of those.
             MY_ASSERT(!movesToSearch->empty());
-            searchInfo.principalVariation.push_back(movesToSearch->front());
+            searchInfo.result.principalVariation.push_back(movesToSearch->front());
         } else {
             // Otherwise, just grab the first legal move.
             MY_ASSERT(!allLegalMoves.empty());
-            searchInfo.principalVariation.push_back(allLegalMoves.front());
+            searchInfo.result.principalVariation.push_back(allLegalMoves.front());
         }
     }
 

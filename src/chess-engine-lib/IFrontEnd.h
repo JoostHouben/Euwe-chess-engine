@@ -33,13 +33,11 @@ class IFrontEnd {
     // Can be used by the move searcher to report that we are re-searching with an updated
     // aspiration window.
     virtual void reportAspirationWindowReSearch(
-            int depth,
+            const SearchInfo& searchInfo,
             EvalT previousLowerBound,
             EvalT previousUpperBound,
-            EvalT searchEval,
             EvalT newLowerBound,
-            EvalT newUpperBound,
-            const SearchStatistics& searchStatistics) const = 0;
+            EvalT newUpperBound) const = 0;
 
     // Can be used by the move searcher to report that the PV from a (partial) search was discarded
     // for some reason.

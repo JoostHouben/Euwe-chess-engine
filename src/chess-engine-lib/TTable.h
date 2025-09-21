@@ -12,14 +12,6 @@
 
 #include <cstdint>
 
-enum ScoreType : std::uint8_t {
-    NotSet     = 0,
-    Exact      = 1,
-    LowerBound = 2,
-    UpperBound = 3,
-    EGTB       = 4,
-};
-
 template <typename PayloadT>
 struct TTEntry {
     HashT hash       = 0;
@@ -27,13 +19,11 @@ struct TTEntry {
 };
 
 struct SearchTTPayload {
-    EvalT score            = 0;
-    std::uint8_t depth     = 0;
-    std::uint8_t tick      = 0;
-    ScoreType scoreType    = ScoreType::NotSet;
-    BoardPosition moveFrom = (BoardPosition)0;
-    BoardPosition moveTo   = (BoardPosition)0;
-    MoveFlags moveFlags    = MoveFlags::None;
+    EvalT score         = 0;
+    std::uint8_t depth  = 0;
+    std::uint8_t tick   = 0;
+    ScoreType scoreType = ScoreType::NotSet;
+    CompactMove move{};
 };
 
 using SearchTTEntry = TTEntry<SearchTTPayload>;

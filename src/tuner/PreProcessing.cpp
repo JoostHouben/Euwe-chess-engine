@@ -2,7 +2,8 @@
 
 #include "chess-engine-lib/Eval.h"
 #include "chess-engine-lib/Math.h"
-#include "chess-engine-lib/MoveOrdering.h"
+#include "chess-engine-lib/MoveOrderer.h"
+#include "chess-engine-lib/MoveScorer.h"
 #include "chess-engine-lib/RangePatches.h"
 
 #include <algorithm>
@@ -78,26 +79,10 @@ std::pair<EvalT, GameState> quiesce(
     EvalT bestScore     = standPat;
     GameState bestState = gameState;
 
-    auto moves = gameState.generateMoves(
-            stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
-    if (moves.size() == 0) {
-        if (isInCheck) {
-            return {updateMateDistanceOut(-kMateEval), gameState};
-        }
+    auto moveOrderer = moveScorer.getMoveOrdererQuiescence(stack.makeStackVector(), std::nullopt);
 
-        const auto allMoves = gameState.generateMoves(stack, boardControl);
-        if (allMoves.size() == 0) {
-            // No legal moves, not in check, so stalemate.
-            return {0, gameState};
-        }
-
-        return {updateMateDistanceOut(bestScore), bestState};
-    }
-
-    auto moveOrderer = moveScorer.getMoveOrdererQuiescence(
-            std::move(moves), std::nullopt, gameState, boardControl);
-
-    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
+    while (const auto maybeMove =
+                   moveOrderer.getNextBestMoveQuiescence(gameState, boardControl, isInCheck)) {
         const Move move = *maybeMove;
 
         const auto unmakeInfo = gameState.makeMove(move);
@@ -121,6 +106,15 @@ std::pair<EvalT, GameState> quiesce(
 
         if (alpha >= beta) {
             break;
+        }
+    }
+
+    if (!moveOrderer.anyLegalMovesQuiescence(gameState, boardControl, isInCheck)) {
+        if (isInCheck) {
+            return {updateMateDistanceOut(-kMateEval), gameState};
+        } else {
+            // No legal moves, not in check, so stalemate.
+            return {0, gameState};
         }
     }
 

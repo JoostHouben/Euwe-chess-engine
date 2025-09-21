@@ -2,8 +2,10 @@
 
 #include "Eval.h"
 #include "Math.h"
-#include "MoveOrdering.h"
+#include "MoveOrderer.h"
+#include "MoveScorer.h"
 #include "SEE.h"
+#include "SearchConstants.h"
 #include "Syzygy.h"
 #include "TTable.h"
 
@@ -25,7 +27,110 @@ enum NodeType {
     AllNode = -1,
 };
 
-}
+class PvTable {
+  public:
+    std::vector<Move> extractPv(GameState gameState) const {
+        std::vector<Move> pv;
+        const Entry& rootPv = data_[0];
+        pv.reserve(rootPv.moveCount);
+
+        for (int i = 0; i < rootPv.moveCount; ++i) {
+            const auto move = rootPv.moves[i].toMove(gameState);
+            pv.push_back(move);
+
+            gameState.makeMove(move);
+        }
+        return pv;
+    }
+
+    FORCE_INLINE void clearPv(const int ply) {
+        MY_ASSERT(ply <= kMaxSearchDepth);
+        if (ply == kMaxSearchDepth) {
+            return;
+        }
+        data_[ply].moveCount = 0;
+    }
+
+    FORCE_INLINE void propagateNewBestMove(const int ply, const Move& move) {
+        MY_ASSERT(ply + 1 <= kMaxSearchDepth);
+
+        Entry& currentEntry   = data_[ply];
+        currentEntry.moves[0] = move.toCompact();
+
+        if (ply + 1 == kMaxSearchDepth) {
+            currentEntry.moveCount = 1;
+            return;
+        }
+
+        Entry& nextEntry = data_[ply + 1];
+
+        currentEntry.moveCount = nextEntry.moveCount + 1;
+        for (int i = 1; i < currentEntry.moveCount; ++i) {
+            MY_ASSERT_DEBUG(!nextEntry.moves[i - 1].isNull());
+            currentEntry.moves[i] = nextEntry.moves[i - 1];
+        }
+    }
+
+    void storeHashes(GameState gameState, const std::vector<Move>& pv) {
+        numRootHashes_ = 0;
+
+        Entry& rootPv = data_[0];
+        if (rootPv.moveCount == 0) {
+            return;
+        }
+
+        for (int i = 0; i < std::min((int)pv.size(), (int)rootHashes_.size()); ++i) {
+            rootHashes_[i] = gameState.getBoardHash();
+            numRootHashes_ = i + 1;
+            gameState.makeMove(pv[i]);
+        }
+    }
+
+    void clear() {
+        data_[0].moveCount = 0;
+        numRootHashes_     = 0;
+    }
+
+    void prepareForNewSearch(const GameState& gameState) {
+        int numMovesToDiscard = 0;
+        for (; numMovesToDiscard < numRootHashes_; ++numMovesToDiscard) {
+            if (rootHashes_[numMovesToDiscard] == gameState.getBoardHash()) {
+                break;
+            }
+        }
+
+        Entry& rootPv = data_[0];
+        if (numMovesToDiscard == numRootHashes_) {
+            // No hash match; discard all.
+            rootPv.moveCount = 0;
+
+            numRootHashes_ = 0;
+        } else if (numMovesToDiscard > 0) {
+            MY_ASSERT(numMovesToDiscard <= rootPv.moveCount);
+            for (int i = 0; i + numMovesToDiscard < rootPv.moveCount; ++i) {
+                rootPv.moves[i] = rootPv.moves[i + numMovesToDiscard];
+            }
+            rootPv.moveCount -= (std::uint8_t)numMovesToDiscard;
+
+            numRootHashes_ = 0;
+        }
+    }
+
+  private:
+    // TODO: use triangular PV table?
+
+    struct Entry {
+        std::uint8_t moveCount{};
+        std::array<CompactMove, kMaxSearchDepth> moves{};
+    };
+
+    std::array<Entry, kMaxSearchDepth> data_{};
+
+    int numRootHashes_ = 0;
+    std::array<HashT, 3> rootHashes_{};
+};
+
+}  // namespace
 
 class MoveSearcher::Impl {
   public:
@@ -37,7 +142,7 @@ class MoveSearcher::Impl {
 
     void newGame();
 
-    [[nodiscard]] RootSearchResult searchForBestMove(
+    [[nodiscard]] SearchResult searchForBestMove(
             GameState& gameState,
             int depth,
             StackOfVectors<Move>& stack,
@@ -56,7 +161,7 @@ class MoveSearcher::Impl {
 
     void setTTableSize(int requestedSizeInMb);
 
-    [[nodiscard]] std::optional<RootNodeInfo> getRootNodeInfo(const GameState& gameState) const;
+    [[nodiscard]] std::optional<SearchInfo> getRootNodeInfo(const GameState& gameState) const;
 
   private:
     // == Types ==
@@ -85,9 +190,9 @@ class MoveSearcher::Impl {
 
     void storeNullMoveScoreInTTable(const EvalT value, int depth, HashT hash);
 
-    // Extract the principal variation from the transposition table.
-    [[nodiscard]] std::vector<Move> extractPv(
-            GameState gameState, StackOfVectors<Move>& stack, int depth);
+    [[nodiscard]] std::vector<Move> extractPv(const GameState& gameState) const;
+
+    [[nodiscard]] std::vector<Move> extractRootHashMove(const GameState& gameState) const;
 
     [[nodiscard]] bool shouldStopSearch() const;
 
@@ -96,12 +201,12 @@ class MoveSearcher::Impl {
     [[nodiscard]] bool captureWillProbeSyzygy(const GameState& gameState, int depth) const;
 
     [[nodiscard]] std::pair<EvalT, bool> getMoveFutilityValue(
-            const EvalT eval,
-            const EvalT alpha,
-            const int reducedDepth,
-            const int movesSearched,
+            EvalT eval,
+            EvalT alpha,
+            int reducedDepth,
+            int movesSearched,
             const Move& move,
-            const bool moveIsLosing,
+            MoveType moveType,
             const GameState& gameState,
             const std::optional<BitBoard> enemyPinBitBoard,
             std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards);
@@ -155,8 +260,12 @@ class MoveSearcher::Impl {
             NodeType currentNodeType,
             bool useScoutSearch);
 
+    // Perform a full window search.
+    [[nodiscard]] SearchResult fullWindowSearch(
+            GameState& gameState, const int depth, StackOfVectors<Move>& stack);
+
     // Perform an aspiration window search.
-    [[nodiscard]] RootSearchResult aspirationWindowSearch(
+    [[nodiscard]] SearchResult aspirationWindowSearch(
             GameState& gameState,
             const int depth,
             StackOfVectors<Move>& stack,
@@ -175,6 +284,8 @@ class MoveSearcher::Impl {
     int syzygyMinProbeDepth_ = 1;
 
     SearchTTable tTable_ = {};
+
+    PvTable pvTable_ = {};
 
     MoveScorer moveScorer_;
 
@@ -254,7 +365,7 @@ const auto lmrReductionTable = []() {
 [[nodiscard]] FORCE_INLINE int getDepthReduction(
         const Move& move,
         const int movesSearched,
-        const bool moveIsLosing,
+        const MoveType moveType,
         const bool isPvNode,
         const int depth,
         const int extension) {
@@ -274,20 +385,20 @@ const auto lmrReductionTable = []() {
         return 0;
     }
 
-    const bool isTactical = isCaptureOrQueenPromo(move);
-
-    if (!moveIsLosing) {
-        // Don't apply reductions to tactical moves with positive SEE.
-        if (isTactical) {
-            return 0;
-        }
+    if (moveType == MoveType::HashMove || moveType == MoveType::GoodTactical) {
+        // Don't apply reductions to these important move types.
+        return 0;
     }
 
     // Late Move Reduction (LMR)
+
+    const bool isTactical = isCaptureOrQueenPromo(move);
     if (isTactical) {
+        // Reduce tactical moves by at most 1.
         return 1;
     }
 
+    // For non-tactical moves, use the LMR table.
     const int depthIdx         = min(depth - 1, (int)lmrReductionTable.size() - 1);
     const int movesSearchedIdx = min(movesSearched, (int)lmrReductionTable[0].size() - 1);
     const int lmrFromTable     = lmrReductionTable[depthIdx][movesSearchedIdx];
@@ -325,16 +436,11 @@ FORCE_INLINE std::int8_t computeWrappingTickDelta(std::uint8_t tickA, std::uint8
 
 FORCE_INLINE std::optional<Move> getTTableMove(
         const SearchTTPayload payload, const GameState& gameState) {
-    if (payload.moveFrom == payload.moveTo) {
+    if (payload.move.isNull()) {
         return std::nullopt;
     }
 
-    return Move{
-            .pieceToMove = getPiece(gameState.getPieceOnSquare(payload.moveFrom)),
-            .from        = payload.moveFrom,
-            .to          = payload.moveTo,
-            .flags       = payload.moveFlags,
-    };
+    return payload.move.toMove(gameState);
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForcedEndState(
@@ -388,6 +494,22 @@ FORCE_INLINE std::optional<Move> getTTableMove(
 
     // Break ties in favor of the newer entry;
     return true;
+}
+
+[[nodiscard]] FORCE_INLINE bool isTTEntryMoreValuablePv(
+        const SearchTTEntry& newEntry, const SearchTTEntry& oldEntry) {
+    // In a PV node, ensure that the new info is always stored.
+    if (newEntry.hash == oldEntry.hash) {
+        // If we already have info for this position, override it.
+        return true;
+    }
+
+    // For index collisions use the default policy. The new entry will be stored in the
+    // 'recent' slot if less valuable than the existing info.
+    // Note that if multiple PV entries end up in this 'recent' slot, they will override each other
+    // TODO: should we simply always override true, so that we get to use the 'valuable' slot,
+    // allowing for a single index collision (per slot) before PV info is lost?
+    return isTTEntryMoreValuable(newEntry, oldEntry);
 }
 
 [[nodiscard]] FORCE_INLINE EvalT
@@ -483,14 +605,12 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
         scoreType = ScoreType::Exact;
     }
 
-    Move moveToStore = bestMove;
-    if (moveToStore.from == moveToStore.to) {
+    CompactMove moveToStore = bestMove.toCompact();
+    if (moveToStore.isNull()) {
         // No best move found; retain the existing hash move, if it exists.
         const auto ttHit = tTable_.probe(hash);
         if (ttHit) {
-            moveToStore.from  = ttHit->payload.moveFrom;
-            moveToStore.to    = ttHit->payload.moveTo;
-            moveToStore.flags = ttHit->payload.moveFlags;
+            moveToStore = ttHit->payload.move;
         }
     }
 
@@ -501,23 +621,11 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = scoreType,
-                    .moveFrom  = moveToStore.from,
-                    .moveTo    = moveToStore.to,
-                    .moveFlags = moveToStore.flags,
+                    .move      = moveToStore,
             }};
 
     if (isPvNode) {
-        // In a PV node, ensure that the new info is always stored.
-        tTable_.store(entry, [](const SearchTTEntry& newEntry, const SearchTTEntry& oldEntry) {
-            if (newEntry.hash == oldEntry.hash) {
-                // If we already have info for this position, override it.
-                return true;
-            }
-
-            // For index collisions use the default policy. The new entry will be stored in the
-            // 'recent' slot if less valuable than the existing info.
-            return isTTEntryMoreValuable(newEntry, oldEntry);
-        });
+        tTable_.store(entry, isTTEntryMoreValuablePv);
     } else {
         tTable_.store(entry, isTTEntryMoreValuable);
     }
@@ -532,9 +640,7 @@ FORCE_INLINE void MoveSearcher::Impl::storeEgtbValueInTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = ScoreType::EGTB,
-                    .moveFrom  = (BoardPosition)0,
-                    .moveTo    = (BoardPosition)0,
-                    .moveFlags = MoveFlags::None,
+                    .move      = CompactMove(),
             }};
 
     tTable_.store(entry, isTTEntryMoreValuable);
@@ -542,17 +648,9 @@ FORCE_INLINE void MoveSearcher::Impl::storeEgtbValueInTTable(
 
 FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
         const EvalT value, const int depth, const HashT hash) {
-    BoardPosition moveFrom = (BoardPosition)0;
-    BoardPosition moveTo   = (BoardPosition)0;
-    MoveFlags moveFlags    = MoveFlags::None;
-
     // Retain the existing hash move, if it exists.
-    const auto ttHit = tTable_.probe(hash);
-    if (ttHit) {
-        moveFrom  = ttHit->payload.moveFrom;
-        moveTo    = ttHit->payload.moveTo;
-        moveFlags = ttHit->payload.moveFlags;
-    }
+    const auto ttHit              = tTable_.probe(hash);
+    const CompactMove moveToStore = ttHit ? ttHit->payload.move : CompactMove();
 
     const SearchTTable::EntryT entry = {
             .hash    = hash,
@@ -561,42 +659,26 @@ FORCE_INLINE void MoveSearcher::Impl::storeNullMoveScoreInTTable(
                     .depth     = (std::uint8_t)depth,
                     .tick      = tTableTick_,
                     .scoreType = ScoreType::LowerBound,
-                    .moveFrom  = moveFrom,
-                    .moveTo    = moveTo,
-                    .moveFlags = moveFlags,
+                    .move      = moveToStore,
             }};
 
     tTable_.store(entry, isTTEntryMoreValuable);
 }
 
-std::vector<Move> MoveSearcher::Impl::extractPv(
-        GameState gameState, StackOfVectors<Move>& stack, const int depth) {
-    const int maxPvLength = max(depth, searchStatistics_.selectiveDepth);
+std::vector<Move> MoveSearcher::Impl::extractPv(const GameState& gameState) const {
+    return pvTable_.extractPv(gameState);
+}
 
-    std::vector<Move> pv;
-    pv.reserve(maxPvLength);
-
-    while ((int)pv.size() < maxPvLength) {
-        const auto ttHit = tTable_.probe(gameState.getBoardHash());
-
-        if (!ttHit) {
-            break;
-        }
-
-        const auto move = getTTableMove(ttHit->payload, gameState);
-        if (!move) {
-            break;
-        }
-
-        pv.push_back(*move);
-        (void)gameState.makeMove(*move);
-
-        if (checkForcedEndState(gameState, stack).has_value()) {
-            break;
-        }
+std::vector<Move> MoveSearcher::Impl::extractRootHashMove(const GameState& gameState) const {
+    const auto ttHit = tTable_.probe(gameState.getBoardHash());
+    if (!ttHit) {
+        return {};
     }
-
-    return pv;
+    const auto hashMove = getTTableMove(ttHit->payload, gameState);
+    if (!hashMove) {
+        return {};
+    }
+    return {*hashMove};
 }
 
 FORCE_INLINE bool MoveSearcher::Impl::shouldStopSearch() const {
@@ -631,16 +713,15 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         const int reducedDepth,
         const int movesSearched,
         const Move& move,
-        const bool isLosingTactical,
+        const MoveType moveType,
         const GameState& gameState,
         const std::optional<BitBoard> enemyPinBitBoard,
         std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards) {
     const bool isTactical = isCaptureOrQueenPromo(move);
-    MY_ASSERT(IMPLIES(isLosingTactical, isTactical));
     MY_ASSERT_DEBUG(!isMate(alpha));
 
-    if (isTactical && !isLosingTactical) {
-        // Don't futility prune winning tactical moves.
+    if (moveType == MoveType::HashMove || moveType == MoveType::GoodTactical) {
+        // Don't futility prune these important types of moves.
         return {kMateEval, false};
     }
     if (isCapture(move) && captureWillProbeSyzygy(gameState, reducedDepth)) {
@@ -664,7 +745,7 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
     const int seeThreshold = alpha - (eval + futilityMargin);
 
     EvalT futilityValue{};
-    if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isLosingTactical) {
+    if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isTactical) {
         // We know the move is losing, so no need to check whether SEE is above the losing
         // threshold.
         // Note that in this case, alpha >= eval + futilityMargin + kCaptureLosingThreshold.
@@ -718,12 +799,6 @@ EvalT MoveSearcher::Impl::search(
     }
     const bool isPvNode = nodeType == NodeType::PvNode;
 
-    ++searchStatistics_.normalNodesSearched;
-
-    if (isPvNode) {
-        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
-    }
-
     // alphaOrig determines whether the value returned is an upper bound
     const EvalT alphaOrig = alpha;
 
@@ -748,6 +823,15 @@ EvalT MoveSearcher::Impl::search(
     const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
     if (worstCaseMate > beta) {
         return updateMateDistanceOut(worstCaseMate);
+    }
+
+    ++searchStatistics_.normalNodesSearched;
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
+
+    if (ply >= kMaxSearchDepth) {
+        return evaluator_.evaluate(gameState, boardControl);
     }
 
     const int extension = getDepthExtension(isInCheck, lastMove);
@@ -810,12 +894,13 @@ EvalT MoveSearcher::Impl::search(
             return updateMateDistanceOut(ttInfo.score);
         }
 
-        if (ttInfo.depth >= depth) {
+        // See if we can return a value from the TT directly.
+        // We skip this step in PV nodes because:
+        //  - We want to get a full PV.
+        //  - The stored values may be heuristic bounds from pruning techniques that we disallow in
+        //    PV nodes, so we don't want to use those values.
+        if (ttInfo.depth >= depth && !isPvNode) {
             if (ttInfo.scoreType == ScoreType::Exact) {
-                if (isPvNode) {
-                    searchStatistics_.selectiveDepth =
-                            max(searchStatistics_.selectiveDepth, ply + ttInfo.depth);
-                }
                 // Exact value
                 return updateMateDistanceOut(ttInfo.score);
             } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta) {
@@ -891,52 +976,6 @@ EvalT MoveSearcher::Impl::search(
     Move bestMove{};
     int movesSearched = 0;
 
-    if (hashMove) {
-        // Try hash move first.
-        // Do we need a legality check here for hash collisions?
-        const auto outcome = searchMove(
-                gameState,
-                *hashMove,
-                MoveType::HashMove,
-                depth,
-                /*reduction =*/0,
-                ply,
-                alpha,
-                beta,
-                stack,
-                bestScore,
-                bestMove,
-                lastMove,
-                lastNullMovePly,
-                nodeType,
-                /*useScoutSearch =*/false);
-
-        if (outcome == SearchMoveOutcome::Interrupted) {
-            return updateMateDistanceOut(bestScore);
-        }
-
-        ++movesSearched;
-
-        if (outcome == SearchMoveOutcome::Cutoff) {
-            // Fail high
-
-            updateTTable(
-                    bestScore,
-                    alphaOrig,
-                    beta,
-                    wasInterrupted_,
-                    bestMove,
-                    depth,
-                    gameState.getBoardHash(),
-                    isPvNode);
-
-            // Score was obtained from a subcall that failed high, so it was a lower bound for
-            // that position. It is also a lower bound for the overall position because we're
-            // maximizing.
-            return updateMateDistanceOut(bestScore);
-        }
-    }
-
     static constexpr int kMinDepthForIIR = 5;
     if (!hashMove && depth >= kMinDepthForIIR && nodeType != NodeType::AllNode) {
         // Internal iterative reductions (IIR)
@@ -947,26 +986,29 @@ EvalT MoveSearcher::Impl::search(
             /*preGeneratedMoves*/ ply == 0 && rootMovesToSearch_
                     ? stack.makeStackVector(*rootMovesToSearch_)
                     : stack.makeStackVector(),
-            hashMove,
-            gameState,
-            boardControl,
-            lastMove,
-            ply);
+            hashMove);
+
+    bool prunedAnyMoves = false;
 
     if (futilityPruningEnabled && isMate(eval) && eval < 0) {
         // If eval (from TT) indicates a losing mate position, then all quiet moves will be
         // considered futile. Let's skip them all.
         moveOrderer.skipQuiets();
+
+        prunedAnyMoves = true;
     }
 
     int votesToSkipQuiets = 0;
 
     while (const auto maybeMove =
                    moveOrderer.getNextBestMove(gameState, boardControl, lastMove, ply)) {
-        const Move move = *maybeMove;
+        const Move move         = *maybeMove;
+        const MoveType moveType = moveOrderer.getLastMoveType();
 
-        const int reduction = getDepthReduction(
-                move, movesSearched, moveOrderer.lastMoveWasLosing(), isPvNode, depth, extension);
+        // TODO: Do we need a legality check for the HashMove in case of hash collisions?
+
+        const int reduction =
+                getDepthReduction(move, movesSearched, moveType, isPvNode, depth, extension);
 
         // Futility pruning
         if (futilityPruningEnabled) {
@@ -976,7 +1018,7 @@ EvalT MoveSearcher::Impl::search(
                     depth - reduction,
                     movesSearched,
                     move,
-                    moveOrderer.lastMoveWasLosing(),
+                    moveType,
                     gameState,
                     enemyPinBitBoard,
                     directCheckBitBoards);
@@ -997,6 +1039,7 @@ EvalT MoveSearcher::Impl::search(
                     }
                 }
 
+                prunedAnyMoves = true;
                 continue;
             }
         }
@@ -1004,7 +1047,7 @@ EvalT MoveSearcher::Impl::search(
         const auto outcome = searchMove(
                 gameState,
                 move,
-                moveOrderer.getLastMoveType(),
+                moveType,
                 depth,
                 reduction,
                 ply,
@@ -1016,7 +1059,7 @@ EvalT MoveSearcher::Impl::search(
                 lastMove,
                 lastNullMovePly,
                 nodeType,
-                /*useScoutSearch =*/isPvNode && (movesSearched > 0));
+                /*useScoutSearch =*/isPvNode && movesSearched > 0);
 
         if (outcome != SearchMoveOutcome::Interrupted) {
             ++movesSearched;
@@ -1027,21 +1070,35 @@ EvalT MoveSearcher::Impl::search(
         }
     }
 
-    const bool anyLegalMoves = moveOrderer.anyLegalMoves(gameState, boardControl);
+    // If we were interrupted, we should assume there's a legal move.
+    // If we searched any moves, there's certainly legal moves.
+    // Otherwise, if we didn't search any moves, this can't be a fail high, so we must have
+    // exhausted the moveOrderer, and we can safely ask it if it found any legal moves.
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_ && movesSearched == 0, bestScore < beta));
+    const bool anyLegalMoves = wasInterrupted_ || movesSearched > 0
+                            || moveOrderer.anyLegalMoves(gameState, boardControl);
 
-    if (!wasInterrupted_ && !anyLegalMoves) {
+    if (!anyLegalMoves) {
         // Exact value
         bestScore = evaluateNoLegalMoves(gameState);
     }
 
     if (bestScore == -kInfiniteEval && !wasInterrupted_ && anyLegalMoves) {
         MY_ASSERT_DEBUG(movesSearched == 0);
+        MY_ASSERT_DEBUG(!boundsAreMate);
         // All moves were pruned away.
         // Raise bestScore to avoid returning -kInfiniteEval.
         // If we have an eval (either static or from TTable), use that; but clamp it to a non-mate
         // value to avoid returning an uncertain mate score.
         // If we don't have an eval, return fail-hard alpha.
         bestScore = eval != -kInfiniteEval ? clampNonMateEval(eval) : alpha;
+    } else if (prunedAnyMoves && isMate(bestScore) && bestScore < 0) {
+        MY_ASSERT_DEBUG(!boundsAreMate);
+
+        // We found we're getting mated, but we didn't try all moves (because of futility pruning).
+        // So we can't say that the score is an upper bound on the mate distance.
+        // To avoid returning and storing bad mate bounds, we clamp the score to a non-mate value.
+        bestScore = clampNonMateEval(bestScore);
     }
 
     if (movesSearched > 0) {
@@ -1099,21 +1156,10 @@ EvalT MoveSearcher::Impl::quiesce(
         const int ply,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
-    constexpr EvalT kDeltaPruningThreshold = 200;
-
-    EvalT bestScore = -kInfiniteEval;
-    Move bestMove{};
+    const bool isPvNode = nodeType == NodeType::PvNode;
 
     if (shouldStopSearch()) {
         return -kInfiniteEval;
-    }
-
-    ++searchStatistics_.qNodesSearched;
-
-    const bool isPvNode = nodeType == NodeType::PvNode;
-
-    if (isPvNode) {
-        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
     }
 
     if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
@@ -1132,6 +1178,17 @@ EvalT MoveSearcher::Impl::quiesce(
         return updateMateDistanceOut(worstCaseMate);
     }
 
+    ++searchStatistics_.qNodesSearched;
+    if (isPvNode) {
+        searchStatistics_.selectiveDepth = max(searchStatistics_.selectiveDepth, ply);
+    }
+
+    if (ply >= kMaxSearchDepth) {
+        return evaluator_.evaluate(gameState, boardControl);
+    }
+
+    EvalT bestScore = -kInfiniteEval;
+    Move bestMove{};
     bool completedAnySearch = false;
     const EvalT alphaOrig   = alpha;
 
@@ -1172,157 +1229,51 @@ EvalT MoveSearcher::Impl::quiesce(
         ttHit = std::nullopt;
     }
 
+    constexpr EvalT kDeltaPruningThreshold = 200;
+
     if (ttHit) {
         const auto& ttInfo = ttHit->payload;
 
         searchStatistics_.tTableHits++;
 
-        // No need to check depth: in qsearch, depth == 0.
+        // In non-PV nodes: check for TT cut-offs.
+        if (!isPvNode) {
+            // No need to check depth: in qsearch, depth == 0.
 
-        if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
-            // Exact value
-            return updateMateDistanceOut(ttInfo.score);
-        } else if (ttInfo.scoreType == ScoreType::LowerBound) {
-            // Can safely raise the lower bound for our search window, because the true value
-            // is guaranteed to be above this bound.
-            alpha = max(alpha, ttInfo.score);
-        } else if (ttInfo.scoreType == ScoreType::UpperBound) {
-            // Can safely lower the upper bound for our search window, because the true value
-            // is guaranteed to be below this bound.
-            beta = min(beta, ttInfo.score);
-        }
-        // Else: score type not set (result from interrupted search).
+            if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
+                // Exact value
+                return updateMateDistanceOut(ttInfo.score);
+            } else if (ttInfo.scoreType == ScoreType::LowerBound) {
+                // Can safely raise the lower bound for our search window, because the true value
+                // is guaranteed to be above this bound.
+                alpha = max(alpha, ttInfo.score);
+            } else if (ttInfo.scoreType == ScoreType::UpperBound) {
+                // Can safely lower the upper bound for our search window, because the true value
+                // is guaranteed to be below this bound.
+                beta = min(beta, ttInfo.score);
+            }
+            // Else: score type not set (result from interrupted search).
 
-        // Check if we can return based on tighter bounds from the transposition table.
-        if (alpha >= beta) {
-            // Based on information from the ttable, we now know that the true value is outside
-            // of the feasibility window.
-            // If alpha was raised by the tt entry this is a lower bound and we want to return
-            // that raised alpha (fail-soft: that's the tightest lower bound we have).
-            // If beta was lowered by the tt entry this is an upper bound and we want to return
-            // that lowered beta (fail-soft: that's the tightest upper bound we have).
-            // So either way we return the tt entry score.
-            return updateMateDistanceOut(ttInfo.score);
+            // Check if we can return based on tighter bounds from the transposition table.
+            if (alpha >= beta) {
+                // Based on information from the ttable, we now know that the true value is outside
+                // of the feasibility window.
+                // If alpha was raised by the tt entry this is a lower bound and we want to return
+                // that raised alpha (fail-soft: that's the tightest lower bound we have).
+                // If beta was lowered by the tt entry this is an upper bound and we want to return
+                // that lowered beta (fail-soft: that's the tightest upper bound we have).
+                // So either way we return the tt entry score.
+                return updateMateDistanceOut(ttInfo.score);
+            }
         }
 
         hashMove = getTTableMove(ttInfo, gameState);
-
-        bool shouldTryHashMove = hashMove.has_value();
-        if (hashMove && !isInCheck) {
-            if (!isCapture(hashMove->flags)) {
-                shouldTryHashMove = false;
-            } else if (!isMate(alpha)) {
-                // Delta pruning.
-                // We skip delta pruning if alpha is a mate score, since in that case we're looking
-                // for a mate, and can't prune moves based purely on material exchange
-                // considerations.
-
-                // Let deltaPruningScore = standPat + SEE + kDeltaPruningThreshold
-                // if deltaPruningScore < alpha, we can prune the move if it doesn't give check
-                // So we need to check if SEE >= alpha - standPat - kDeltaPruningThreshold
-                const int seeThreshold = alpha - standPat - kDeltaPruningThreshold;
-
-                const int seeBound =
-                        staticExchangeEvaluationBound(gameState, *hashMove, seeThreshold);
-
-                if (seeBound < seeThreshold) {
-                    // This move looks like it has no hope of raising alpha, so unless it's a check we
-                    // can prune it. For some reason still calculating the upper bound for bestScore
-                    // helps even for moves that give check...
-
-                    // If our optimistic estimate of the score of this move is above bestScore, raise
-                    // bestScore to match. This should mean that an upper bound returned from this
-                    // function if we prune moves is still reliable. Note that this is definitely below
-                    // alpha.
-                    const EvalT deltaPruningScore =
-                            clampNonMateEval(standPat + seeBound + kDeltaPruningThreshold);
-                    bestScore = max(bestScore, deltaPruningScore);
-
-                    if (!directCheckBitBoards) {
-                        directCheckBitBoards = gameState.getDirectCheckBitBoards();
-                    }
-
-                    if (!gameState.givesCheck(*hashMove, *directCheckBitBoards, enemyPinBitBoard)) {
-                        shouldTryHashMove = false;
-                    }
-                }
-            }
-        }
-
-        if (shouldTryHashMove) {
-            const auto unmakeInfo = gameState.makeMove(*hashMove);
-
-            tTable_.prefetch(gameState.getBoardHash());
-            evaluator_.prefetch(gameState);
-
-            const EvalT score = -quiesce(
-                    gameState,
-                    updateMateDistanceIn(-beta),
-                    updateMateDistanceIn(-alpha),
-                    ply + 1,
-                    (NodeType)-nodeType,
-                    stack);
-
-            gameState.unmakeMove(*hashMove, unmakeInfo);
-
-            if (wasInterrupted_) {
-                return updateMateDistanceOut(bestScore);
-            }
-
-            completedAnySearch = true;
-            bestScore          = max(bestScore, score);
-
-            if (score > alpha) {
-                alpha    = score;
-                bestMove = *hashMove;
-
-                if (score >= beta) {
-                    updateTTable(
-                            bestScore,
-                            alphaOrig,
-                            beta,
-                            false,
-                            bestMove,
-                            /*depth =*/0,
-                            gameState.getBoardHash(),
-                            isPvNode);
-
-                    return updateMateDistanceOut(score);
-                }
-            }
-        }
     }
 
-    auto moves = gameState.generateMoves(
-            stack, boardControl, isInCheck ? MoveCategories::All : MoveCategories::Captures);
-    if (moves.size() == 0) {
-        if (isInCheck) {
-            // We ran full move generation, so no legal moves exist, and we're in check, so it's a
-            // checkmate.
-            return updateMateDistanceOut(-kMateEval);
-        }
+    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(stack.makeStackVector(), hashMove);
 
-        // No captures are available.
-
-        // Check if we're in an end state by generating non-captures (we already know there's no
-        // captures).
-        // Note that this ignores repetitions and 50 move rule.
-        const auto allMoves =
-                gameState.generateMoves(stack, boardControl, MoveCategories::NonCaptures);
-        if (allMoves.size() == 0) {
-            // No legal moves, not in check, so stalemate.
-            return 0;
-        }
-
-        // If we're not in an end state return the stand pat evaluation.
-        return updateMateDistanceOut(bestScore);
-    }
-
-    // Ignore the hash move even if we didn't try it, since that would mean we pruned it.
-    auto moveOrderer = moveScorer_.getMoveOrdererQuiescence(
-            std::move(moves), hashMove, gameState, boardControl);
-
-    while (const auto maybeMove = moveOrderer.getNextBestMoveQuiescence()) {
+    while (const auto maybeMove =
+                   moveOrderer.getNextBestMoveQuiescence(gameState, boardControl, isInCheck)) {
         const Move move = *maybeMove;
 
         if (!isInCheck && !isMate(alpha)) {
@@ -1367,6 +1318,10 @@ EvalT MoveSearcher::Impl::quiesce(
         tTable_.prefetch(gameState.getBoardHash());
         evaluator_.prefetch(gameState);
 
+        // Clear the PV on the next ply to make sure we won't copy an outdated PV if we call
+        // propagateBestMove below.
+        pvTable_.clearPv(ply + 1);
+
         const EvalT score = -quiesce(
                 gameState,
                 updateMateDistanceIn(-beta),
@@ -1392,8 +1347,31 @@ EvalT MoveSearcher::Impl::quiesce(
             if (alpha >= beta) {
                 break;
             }
+
+            pvTable_.propagateNewBestMove(ply, move);
         }
     }
+
+    // If we were interrupted, we should assume there's a legal move.
+    // If we searched any moves, there's certainly legal moves.
+    // Otherwise, if we didn't search any moves, this can't be a fail high, so we must have
+    // exhausted the moveOrderer, and we can safely ask it if it found any legal moves.
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_ && !completedAnySearch, bestScore < beta));
+    const bool anyLegalMoves =
+            wasInterrupted_ || completedAnySearch
+            || moveOrderer.anyLegalMovesQuiescence(gameState, boardControl, isInCheck);
+
+    if (!anyLegalMoves) {
+        if (isInCheck) {
+            // No legal moves and in check, so checkmate.
+            return updateMateDistanceOut(-kMateEval);
+        } else {
+            // Otherwise, it's a stalemate.
+            return 0;
+        }
+    }
+
+    MY_ASSERT_DEBUG(IMPLIES(!wasInterrupted_, bestScore != -kInfiniteEval));
 
     if (completedAnySearch) {
         updateTTable(
@@ -1467,6 +1445,11 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
 
         if (score > alpha && score < beta && !wasInterrupted_) {
             // If the score is within the window, do a full window search.
+
+            // This might gives us a new PV, so clear the next ply PV to avoid copying an
+            // outdated PV.
+            pvTable_.clearPv(ply + 1);
+
             score =
                     -search(gameState,
                             fullDepth,
@@ -1480,6 +1463,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
         }
     } else {
         MY_ASSERT_DEBUG(currentNodeType != NodeType::PvNode || reduction == 0);
+
+        pvTable_.clearPv(ply + 1);
 
         score =
                 -search(gameState,
@@ -1514,6 +1499,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                 // Fail high; score is a lower bound.
                 return SearchMoveOutcome::Cutoff;
             }
+
+            pvTable_.propagateNewBestMove(ply, move);
         }
     }
     moveScorer_.reportNonCutoff(move, gameState, moveType, depth);
@@ -1521,8 +1508,39 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     return SearchMoveOutcome::Continue;
 }
 
+SearchResult MoveSearcher::Impl::fullWindowSearch(
+        GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+    pvTable_.clearPv(0);
+
+    const auto searchEval =
+            search(gameState,
+                   depth,
+                   0,
+                   -kMateEval,
+                   kMateEval,
+                   /*lastMove =*/{},
+                   /*lastNullMovePly =*/INT_MIN,
+                   NodeType::PvNode,
+                   stack);
+
+    const ScoreType scoreType = searchEval < -kMateEval ? ScoreType::NotSet
+                              : wasInterrupted_         ? ScoreType::LowerBound
+                                                        : ScoreType::Exact;
+
+    std::vector<Move> pv = extractPv(gameState);
+
+    if (pv.empty() && scoreType == ScoreType::LowerBound) {
+        pv = extractRootHashMove(gameState);
+    }
+
+    return {.principalVariation = std::move(pv),
+            .eval               = searchEval,
+            .scoreType          = scoreType,
+            .wasInterrupted     = wasInterrupted_};
+}
+
 // Perform an aspiration window search.
-RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
+SearchResult MoveSearcher::Impl::aspirationWindowSearch(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1540,19 +1558,22 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
     EvalT lowerBound = toEval(initialGuess - lowerTolerance);
     EvalT upperBound = toEval(initialGuess + upperTolerance);
 
+    // If the bounds are mate scores, fully open up the bound to the mating side to allow
+    // finding the fastest mate sequence.
+    if (isMate(lowerBound) && lowerBound < 0) {
+        lowerBound = -kMateEval;
+    }
+    if (isMate(upperBound) && upperBound > 0) {
+        upperBound = kMateEval;
+    }
+
     bool everFailedLow = false;
 
-    EvalT lastCompletedEval = -kInfiniteEval;
+    EvalT lastCompletedEval          = -kInfiniteEval;
+    ScoreType lastCompletedScoreType = ScoreType::NotSet;
 
     do {
-        // If the bounds are mate scores, fully open up the bound to the mating side to allow
-        // finding the fastest mate sequence.
-        if (isMate(lowerBound) && lowerBound < 0) {
-            lowerBound = -kMateEval;
-        }
-        if (isMate(upperBound) && upperBound > 0) {
-            upperBound = kMateEval;
-        }
+        pvTable_.clearPv(0);
 
         const auto searchEval =
                 search(gameState,
@@ -1567,7 +1588,11 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         const bool noEval = searchEval < -kMateEval;
         if (!noEval) {
-            lastCompletedEval = searchEval;
+            lastCompletedEval      = searchEval;
+            lastCompletedScoreType = searchEval <= lowerBound ? ScoreType::UpperBound
+                                   : searchEval >= upperBound ? ScoreType::LowerBound
+                                   : wasInterrupted_          ? ScoreType::LowerBound
+                                                              : ScoreType::Exact;
 
             everFailedLow |= searchEval <= lowerBound;
         }
@@ -1593,16 +1618,34 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
                 if (frontEnd_) {
                     frontEnd_->reportDiscardedPv("partial aspiration search with failed low");
                 }
-
-                return {.principalVariation = {},
+                return {
+                        .principalVariation = {},
                         .eval               = lastCompletedEval,
-                        .wasInterrupted     = true};
+                        .scoreType          = lastCompletedScoreType,
+                        .wasInterrupted     = true,
+                };
+            }
+
+            std::vector<Move> pv = extractPv(gameState);
+            if (pv.empty()) {
+                MY_ASSERT_DEBUG(!everFailedLow);
+                MY_ASSERT_DEBUG(
+                        lastCompletedScoreType == ScoreType::NotSet
+                        || lastCompletedScoreType == ScoreType::LowerBound);
+
+                // We don't have an actual PV, but we can use the hash move at the root; since we never
+                // failed low in this iteration, this is either a PV move from a previous iteration or
+                // a move that caused a fail high. Either way, it's the best move we currently have.
+                pv = extractRootHashMove(gameState);
             }
 
             // Return partial result.
-            return {.principalVariation = extractPv(gameState, stack, depth),
+            return {
+                    .principalVariation = std::move(pv),
                     .eval               = lastCompletedEval,
-                    .wasInterrupted     = true};
+                    .scoreType          = lastCompletedScoreType,
+                    .wasInterrupted     = true,
+            };
         }
 
         // If we weren't interrupted we should have a valid eval.
@@ -1610,9 +1653,12 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
 
         if (lowerBound < searchEval && searchEval < upperBound) {
             // Eval is within the aspiration window; return result.
-            return {.principalVariation = extractPv(gameState, stack, depth),
+            return {
+                    .principalVariation = extractPv(gameState),
                     .eval               = searchEval,
-                    .wasInterrupted     = false};
+                    .scoreType          = lastCompletedScoreType,
+                    .wasInterrupted     = false,
+            };
         }
 
         const EvalT previousLowerBound = lowerBound;
@@ -1636,21 +1682,36 @@ RootSearchResult MoveSearcher::Impl::aspirationWindowSearch(
             upperBound = toEval(max(searchEval + oldTolerance, initialGuess + upperTolerance));
         }
 
+        // If the bounds are mate scores, fully open up the bound to the mating side to allow
+        // finding the fastest mate sequence.
+        if (isMate(lowerBound) && lowerBound < 0) {
+            lowerBound = -kMateEval;
+        }
+        if (isMate(upperBound) && upperBound > 0) {
+            upperBound = kMateEval;
+        }
+
         if (frontEnd_) {
+            SearchResult partialResult = {
+                    .principalVariation = extractPv(gameState),
+                    .eval               = searchEval,
+                    .scoreType          = lastCompletedScoreType,
+            };
+
+            const SearchInfo searchInfo{
+                    .result     = std::move(partialResult),
+                    .depth      = depth,
+                    .statistics = getSearchStatistics(),
+            };
+
             frontEnd_->reportAspirationWindowReSearch(
-                    depth,
-                    previousLowerBound,
-                    previousUpperBound,
-                    searchEval,
-                    lowerBound,
-                    upperBound,
-                    getSearchStatistics());
+                    searchInfo, previousLowerBound, previousUpperBound, lowerBound, upperBound);
         }
     } while (true);
 }
 
 // Entry point: perform search and return the principal variation and evaluation.
-RootSearchResult MoveSearcher::Impl::searchForBestMove(
+SearchResult MoveSearcher::Impl::searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1673,30 +1734,14 @@ RootSearchResult MoveSearcher::Impl::searchForBestMove(
             };
 #endif
 
-    if (evalGuess) {
-        auto searchResult = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
+    SearchResult searchResult = evalGuess.has_value()
+                                      ? aspirationWindowSearch(gameState, depth, stack, *evalGuess)
+                                      : fullWindowSearch(gameState, depth, stack);
 
-        reportCutoffStatistics();
+    reportCutoffStatistics();
+    pvTable_.storeHashes(gameState, searchResult.principalVariation);
 
-        return searchResult;
-    } else {
-        const auto searchEval =
-                search(gameState,
-                       depth,
-                       0,
-                       -kMateEval,
-                       kMateEval,
-                       /*lastMove =*/{},
-                       /*lastNullMovePly =*/INT_MIN,
-                       NodeType::PvNode,
-                       stack);
-
-        reportCutoffStatistics();
-
-        return {.principalVariation = extractPv(gameState, stack, depth),
-                .eval               = searchEval,
-                .wasInterrupted     = wasInterrupted_};
-    }
+    return searchResult;
 }
 
 void MoveSearcher::Impl::prepareForNewSearch(
@@ -1729,18 +1774,23 @@ void MoveSearcher::Impl::prepareForNewSearch(
             }
         }
 
+        pvTable_.clear();
     } else if (rootMovesToSearch_) {
         rootMovesToSearch_ = nullptr;
 
         // If we previously had a restriction on moves to search and now we don't, erase the root
         // node from the TTable to avoid polluting with results from the previous restricted search.
         tTable_.erase(gameState.getBoardHash());
+
+        pvTable_.clear();
     }
 
     rootInTb_ = tbHitAtRoot;
     if (tbHitAtRoot) {
         searchStatistics_.tbHits = searchStatistics_.tbHits.value_or(0) + 1;
     }
+
+    pvTable_.prepareForNewSearch(gameState);
 }
 
 void MoveSearcher::Impl::interruptSearch() {
@@ -1787,7 +1837,7 @@ void MoveSearcher::Impl::setTTableSize(const int requestedSizeInMb) {
     }
 }
 
-std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState& gameState) const {
+std::optional<SearchInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState& gameState) const {
     const HashT hash = gameState.getBoardHash();
     const auto ttHit = tTable_.probe(hash);
     if (!ttHit) {
@@ -1797,13 +1847,27 @@ std::optional<RootNodeInfo> MoveSearcher::Impl::getRootNodeInfo(const GameState&
     if (ttInfo.scoreType != ScoreType::Exact) {
         return std::nullopt;
     }
-    if (!getTTableMove(ttInfo, gameState).has_value()) {
+    const auto ttableMove = getTTableMove(ttInfo, gameState);
+    if (!ttableMove) {
         return std::nullopt;
     }
 
-    return RootNodeInfo{
-            .eval  = ttInfo.score,
-            .depth = ttInfo.depth,
+    auto pv = extractPv(gameState);
+    if (pv.empty()) {
+        pv.push_back(*ttableMove);
+    }
+
+    SearchResult searchResult{
+            .principalVariation = std::move(pv),
+            .eval               = ttInfo.score,
+            .scoreType          = ttInfo.scoreType,
+            .wasInterrupted     = false,
+    };
+
+    return SearchInfo{
+            .result     = std::move(searchResult),
+            .depth      = ttInfo.depth,
+            .statistics = {},
     };
 }
 
@@ -1826,7 +1890,7 @@ void MoveSearcher::newGame() {
     impl_->newGame();
 }
 
-RootSearchResult MoveSearcher::searchForBestMove(
+SearchResult MoveSearcher::searchForBestMove(
         GameState& gameState,
         const int depth,
         StackOfVectors<Move>& stack,
@@ -1861,6 +1925,6 @@ void MoveSearcher::setTTableSize(const int requestedSizeInMb) {
     impl_->setTTableSize(requestedSizeInMb);
 }
 
-std::optional<RootNodeInfo> MoveSearcher::getRootNodeInfo(const GameState& gameState) const {
+std::optional<SearchInfo> MoveSearcher::getRootNodeInfo(const GameState& gameState) const {
     return impl_->getRootNodeInfo(gameState);
 }

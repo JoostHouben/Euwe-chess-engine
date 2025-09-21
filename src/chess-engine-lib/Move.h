@@ -67,6 +67,28 @@ constexpr MoveFlags& operator|=(MoveFlags& flags, const Piece promotionPiece) {
 
 class GameState;
 
+struct Move;
+
+struct CompactMove {
+    CompactMove() = default;
+
+    explicit CompactMove(const Move& move);
+
+    [[nodiscard]] bool isNull() const;
+
+    [[nodiscard]] Move toMove(const GameState& gameState) const;
+
+    bool operator==(const CompactMove& other) const = default;
+
+  private:
+    // TODO: we could pack this into 16 bits -- is that beneficial?
+
+    // Initialiazing to zero for efficiency.
+    BoardPosition from = (BoardPosition)0;
+    BoardPosition to   = (BoardPosition)0;
+    MoveFlags flags    = MoveFlags::None;
+};
+
 struct Move {
     Piece pieceToMove  = Piece::Invalid;
     BoardPosition from = BoardPosition::Invalid;
@@ -74,6 +96,8 @@ struct Move {
     MoveFlags flags    = MoveFlags::None;
 
     bool operator==(const Move& other) const = default;
+
+    [[nodiscard]] bool isNull() const;
 
     [[nodiscard]] std::string toAlgebraic(const GameState& gameState) const;
     [[nodiscard]] std::string toUci() const;
@@ -86,6 +110,8 @@ struct Move {
     // For castling: normal algebraic notation
     // Examples: Pe2-e4, Rd3xd7, Pe5xd6 e.p.
     [[nodiscard]] std::string toExtendedString() const;
+
+    [[nodiscard]] CompactMove toCompact() const;
 
     [[nodiscard]] static Move fromAlgebraic(std::string_view algebraic, const GameState& gameState);
 

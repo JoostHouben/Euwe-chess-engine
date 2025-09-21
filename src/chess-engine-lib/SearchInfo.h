@@ -8,9 +8,16 @@
 
 #include <cstdint>
 
+struct SearchResult {
+    std::vector<Move> principalVariation;
+    EvalT eval;
+    ScoreType scoreType;
+    bool wasInterrupted = false;
+};
+
 struct SearchInfo {
-    std::vector<Move> principalVariation{};
-    EvalT score{};
+    SearchResult result{};
+
     int depth{};
 
     SearchStatistics statistics{};
