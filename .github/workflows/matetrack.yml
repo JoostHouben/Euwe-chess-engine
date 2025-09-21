@@ -1,0 +1,90 @@
+name: Matetrack
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pre_job:
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@f75f66ce1886f00957d99748a42c724f4330bdcf
+        with:
+          cancel_others: true
+          concurrent_skipping: same_content_newer
+
+  matetrack:
+    name: ${{ matrix.config.preset }}
+
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ${{ matrix.config.os }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        config:
+          # Linux clang
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-release
+            }
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        
+      - name: Install clang
+        if: matrix.config.os == 'ubuntu-latest'
+        uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
+        with:
+          packages: clang-19
+          version: 1
+
+      - name: Get CMake
+        uses: lukka/get-cmake@56d043d188c3612951d8755da8f4b709ec951ad6
+
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
+
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
+
+      - name: CMake configure & build
+        uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
+        with:
+          configurePreset: ${{ matrix.config.preset }}
+          configurePresetAdditionalArgs: "['-DTARGETS_TO_BUILD=engine']"
+          buildPreset: ${{ matrix.config.preset }}
+          buildPresetAdditionalArgs: "['--target', 'Euwe']"
+
+      - name: Checkout matetrack repo
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: vondele/matetrack
+          path: matetrack
+          ref: c4435a267c4a0c7a224211077f71713075967790
+
+      - name: matetrack install deps
+        working-directory: matetrack
+        run: pip install chess==1.11.2 tqdm==4.66.2
+        # the requirements.txt file in matetrack requires 1.10.0, which is broken under python 3.12.
+        #run: pip install -r requirements.txt
+          
+      - name: Run matetrack
+        working-directory: matetrack
+        shell: bash
+        run: |
+          python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 --engineOpts "{\"quiet\": true}" | tee matecheckout.out
+          ! grep "issues were detected" matecheckout.out > /dev/null
