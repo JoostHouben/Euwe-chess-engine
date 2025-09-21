@@ -76,7 +76,8 @@ jobs:
           
       - name: Run matetrack
         working-directory: matetrack
-        run: >
-          python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 | tee matecheckout.out &&
+        shell: bash
+        run: |
+          python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 | tee matecheckout.out
           ! grep "issues were detected" matecheckout.out > /dev/null
     
