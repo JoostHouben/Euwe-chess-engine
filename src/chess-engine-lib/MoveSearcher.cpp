@@ -9,9 +9,6 @@
 #include "Syzygy.h"
 #include "TTable.h"
 
-#include <ranges>
-#include "RangePatches.h"
-
 #include <algorithm>
 #include <array>
 #include <atomic>

@@ -416,8 +416,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findQuiet() {
         ++currentMoveIdx_;
 
 #ifdef TRACK_CUTOFF_STATISTICS
-        // Re-enable later: KillerCounterMove, KillerMove, CounterMove
-        lastMoveType_ = bestScore > 0 ? MoveType::GoodHistory : MoveType::BadHistory;
+        lastMoveType_ = bestScore > 0 ? MoveType::GoodQuiet : MoveType::BadQuiet;
 #else
         lastMoveType_ = MoveType::Quiet;
 #endif

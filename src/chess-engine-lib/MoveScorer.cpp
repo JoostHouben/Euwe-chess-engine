@@ -192,16 +192,10 @@ void MoveScorer::printCutoffStatistics(std::ostream& out) const {
                 return "GoodTactical";
             case MoveType::LosingCapture:
                 return "LosingCapture";
-            //case MoveType::KillerCounterMove:
-            //    return "KillerCounterMove";
-            //case MoveType::KillerMove:
-            //    return "KillerMove";
-            //case MoveType::CounterMove:
-            //    return "CounterMove";
-            case MoveType::GoodHistory:
-                return "GoodHistory";
-            case MoveType::BadHistory:
-                return "BadHistory";
+            case MoveType::GoodQuiet:
+                return "GoodQuiet";
+            case MoveType::BadQuiet:
+                return "BadQuiet";
             case MoveType::Quiesce:
                 return "Quiesce";
             case MoveType::NumMoveTypes:
