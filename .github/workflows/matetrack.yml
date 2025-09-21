@@ -78,7 +78,7 @@ jobs:
 
       - name: matetrack install deps
         working-directory: matetrack
-        run: pip install chess==1.11.0 tqdm==4.66.2
+        run: pip install chess==1.11.2 tqdm==4.66.2
         # the requirements.txt file in matetrack requires 1.10.0, which is broken under python 3.12.
         #run: pip install -r requirements.txt
           
