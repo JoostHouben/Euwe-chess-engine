@@ -193,7 +193,6 @@ class MoveSearcher::Impl {
 
     void storeNullMoveScoreInTTable(const EvalT value, int depth, HashT hash);
 
-    // Extract the principal variation from the transposition table.
     [[nodiscard]] std::vector<Move> extractPv(const GameState& gameState) const;
 
     [[nodiscard]] std::vector<Move> extractRootHashMove(const GameState& gameState) const;
@@ -263,6 +262,10 @@ class MoveSearcher::Impl {
             int lastNullMovePly,
             NodeType currentNodeType,
             bool useScoutSearch);
+
+    // Perform a full window search.
+    [[nodiscard]] SearchResult fullWindowSearch(
+            GameState& gameState, const int depth, StackOfVectors<Move>& stack);
 
     // Perform an aspiration window search.
     [[nodiscard]] SearchResult aspirationWindowSearch(
@@ -496,6 +499,22 @@ FORCE_INLINE std::optional<Move> getTTableMove(
     return true;
 }
 
+[[nodiscard]] FORCE_INLINE bool isTTEntryMoreValuablePv(
+        const SearchTTEntry& newEntry, const SearchTTEntry& oldEntry) {
+    // In a PV node, ensure that the new info is always stored.
+    if (newEntry.hash == oldEntry.hash) {
+        // If we already have info for this position, override it.
+        return true;
+    }
+
+    // For index collisions use the default policy. The new entry will be stored in the
+    // 'recent' slot if less valuable than the existing info.
+    // Note that if multiple PV entries end up in this 'recent' slot, they will override each other
+    // TODO: should we simply always override true, so that we get to use the 'valuable' slot,
+    // allowing for a single index collision (per slot) before PV info is lost?
+    return isTTEntryMoreValuable(newEntry, oldEntry);
+}
+
 [[nodiscard]] FORCE_INLINE EvalT
 calculateFutilityMargin(const int reducedDepth, const int movesSearched, const bool isTactical) {
     static constexpr EvalT kFutilityMarginForLosingTactical = 100;
@@ -609,17 +628,7 @@ FORCE_INLINE void MoveSearcher::Impl::updateTTable(
             }};
 
     if (isPvNode) {
-        // In a PV node, ensure that the new info is always stored.
-        tTable_.store(entry, [](const SearchTTEntry& newEntry, const SearchTTEntry& oldEntry) {
-            if (newEntry.hash == oldEntry.hash) {
-                // If we already have info for this position, override it.
-                return true;
-            }
-
-            // For index collisions use the default policy. The new entry will be stored in the
-            // 'recent' slot if less valuable than the existing info.
-            return isTTEntryMoreValuable(newEntry, oldEntry);
-        });
+        tTable_.store(entry, isTTEntryMoreValuablePv);
     } else {
         tTable_.store(entry, isTTEntryMoreValuable);
     }
@@ -1502,6 +1511,37 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
     return SearchMoveOutcome::Continue;
 }
 
+SearchResult MoveSearcher::Impl::fullWindowSearch(
+        GameState& gameState, const int depth, StackOfVectors<Move>& stack) {
+    pvTable_.clearPv(0);
+
+    const auto searchEval =
+            search(gameState,
+                   depth,
+                   0,
+                   -kMateEval,
+                   kMateEval,
+                   /*lastMove =*/{},
+                   /*lastNullMovePly =*/INT_MIN,
+                   NodeType::PvNode,
+                   stack);
+
+    const ScoreType scoreType = searchEval < -kMateEval ? ScoreType::NotSet
+                              : wasInterrupted_         ? ScoreType::LowerBound
+                                                        : ScoreType::Exact;
+
+    std::vector<Move> pv = extractPv(gameState);
+
+    if (pv.empty() && scoreType == ScoreType::LowerBound) {
+        pv = extractRootHashMove(gameState);
+    }
+
+    return {.principalVariation = std::move(pv),
+            .eval               = searchEval,
+            .scoreType          = scoreType,
+            .wasInterrupted     = wasInterrupted_};
+}
+
 // Perform an aspiration window search.
 SearchResult MoveSearcher::Impl::aspirationWindowSearch(
         GameState& gameState,
@@ -1697,45 +1737,14 @@ SearchResult MoveSearcher::Impl::searchForBestMove(
             };
 #endif
 
-    if (evalGuess) {
-        auto searchResult = aspirationWindowSearch(gameState, depth, stack, *evalGuess);
+    SearchResult searchResult = evalGuess.has_value()
+                                      ? aspirationWindowSearch(gameState, depth, stack, *evalGuess)
+                                      : fullWindowSearch(gameState, depth, stack);
 
-        reportCutoffStatistics();
-        pvTable_.storeHashes(gameState, searchResult.principalVariation);
+    reportCutoffStatistics();
+    pvTable_.storeHashes(gameState, searchResult.principalVariation);
 
-        return searchResult;
-    } else {
-        pvTable_.clearPv(0);
-
-        const auto searchEval =
-                search(gameState,
-                       depth,
-                       0,
-                       -kMateEval,
-                       kMateEval,
-                       /*lastMove =*/{},
-                       /*lastNullMovePly =*/INT_MIN,
-                       NodeType::PvNode,
-                       stack);
-
-        reportCutoffStatistics();
-
-        const ScoreType scoreType = searchEval < -kMateEval ? ScoreType::NotSet
-                                  : wasInterrupted_         ? ScoreType::LowerBound
-                                                            : ScoreType::Exact;
-
-        std::vector<Move> pv = extractPv(gameState);
-        pvTable_.storeHashes(gameState, pv);
-
-        if (pv.empty() && scoreType == ScoreType::LowerBound) {
-            pv = extractRootHashMove(gameState);
-        }
-
-        return {.principalVariation = std::move(pv),
-                .eval               = searchEval,
-                .scoreType          = scoreType,
-                .wasInterrupted     = wasInterrupted_};
-    }
+    return searchResult;
 }
 
 void MoveSearcher::Impl::prepareForNewSearch(
