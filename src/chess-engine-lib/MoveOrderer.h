@@ -128,7 +128,6 @@ class MoveOrderer {
 
     std::optional<Move> hashMove_;
 
-    bool isQuiesce_;
     bool usingPregeneratedMoves_;
     bool foundAnyLegalMoves_;
     bool skipQuietMoveGeneration_;

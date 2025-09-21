@@ -48,7 +48,6 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
       firstQuietIdx_(moves_.size()),
       lastMoveType_(MoveType::None),
       hashMove_(hashMove),
-      isQuiesce_(isQuiesce),
       usingPregeneratedMoves_(!moves_.empty()),
       foundAnyLegalMoves_(!moves_.empty() || hashMove.has_value()),
       skipQuietMoveGeneration_(false) {
@@ -212,7 +211,7 @@ FORCE_INLINE MoveType MoveOrderer::getLastMoveType() const {
 FORCE_INLINE bool MoveOrderer::anyLegalMoves(
         const GameState& gameState, const BoardControl& boardControl) {
     // If we aren't done yet, we can never know for certain that there are no legal moves.
-    MY_ASSERT_DEBUG(state_ == State::Done && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::Done);
 
     if (foundAnyLegalMoves_) {
         return true;
@@ -236,7 +235,7 @@ FORCE_INLINE bool MoveOrderer::anyLegalMoves(
 FORCE_INLINE bool MoveOrderer::anyLegalMovesQuiescence(
         const GameState& gameState, const BoardControl& boardControl, const bool isInCheck) {
     // If we aren't done yet, we can never know for certain that there are no legal moves.
-    MY_ASSERT_DEBUG(state_ == State::Done && isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::Done);
 
     if (foundAnyLegalMoves_) {
         return true;
@@ -272,7 +271,7 @@ void MoveOrderer::genTacticals(
         const BoardControl& boardControl,
         const Move& lastMove,
         const int ply) {
-    MY_ASSERT_DEBUG(state_ == State::GenTacticals && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::GenTacticals);
 
     moveScores_.unlock();
 
@@ -330,7 +329,7 @@ void MoveOrderer::genTacticals(
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findGoodTactical(const GameState& gameState) {
-    MY_ASSERT_DEBUG(state_ == State::PickGoodTactical && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickGoodTactical);
 
     while (currentMoveIdx_ < firstLosingCaptureIdx_) {
         const int bestMoveIdx = findHighestScoringMove(currentMoveIdx_, firstLosingCaptureIdx_);
@@ -369,7 +368,7 @@ void MoveOrderer::genQuiets(
         const BoardControl& boardControl,
         const Move& lastMove,
         const int ply) {
-    MY_ASSERT_DEBUG(state_ == State::GenQuiets && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::GenQuiets);
 
     if (!usingPregeneratedMoves_) {
         MY_ASSERT(currentMoveIdx_ == firstQuietIdx_ && firstQuietIdx_ == moves_.size());
@@ -400,7 +399,7 @@ void MoveOrderer::genQuiets(
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findQuiet() {
-    MY_ASSERT_DEBUG(state_ == State::PickQuiets && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickQuiets);
 
     if (currentMoveIdx_ < moves_.size()) {
         const int bestMoveIdx = findHighestScoringMove(currentMoveIdx_, moves_.size());
@@ -430,7 +429,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findQuiet() {
 }
 
 FORCE_INLINE std::optional<Move> MoveOrderer::findLosingCapture() {
-    MY_ASSERT_DEBUG(state_ == State::PickLosingCaptures && !isQuiesce_);
+    MY_ASSERT_DEBUG(state_ == State::PickLosingCaptures);
 
     if (currentMoveIdx_ < firstQuietIdx_) {
         // We've exhausted all the non-losing moves. Return the best losing move.
@@ -453,7 +452,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::findLosingCapture() {
 
 FORCE_INLINE void MoveOrderer::quiesceGenMoves(
         const GameState& gameState, const BoardControl& boardControl, const bool isInCheck) {
-    MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && isQuiesce_ && !usingPregeneratedMoves_);
+    MY_ASSERT_DEBUG(state_ == State::QuiesceGenMoves && !usingPregeneratedMoves_);
 
     moves_.unlock();
     gameState.generateMoves(
