@@ -55,6 +55,12 @@ jobs:
       - name: Setup vcpkg
         uses: lukka/run-vcpkg@5e0cab206a5ea620130caf672fce3e4a6b5666a1
 
+      - name: Set reusable strings
+        id: strings
+        shell: bash
+        run: |
+          echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
+
       - name: CMake configure & build
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
