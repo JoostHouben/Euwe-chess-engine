@@ -74,7 +74,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMove(
 
             if (hashMove_) {
                 lastMoveType_ = MoveType::HashMove;
-                return *hashMove_;
+                return hashMove_;
             }
 
             [[fallthrough]];
@@ -163,7 +163,7 @@ FORCE_INLINE std::optional<Move> MoveOrderer::getNextBestMoveQuiescence(
 
             if (hashMove_ && (isCapture(*hashMove_) || isInCheck)) {
                 lastMoveType_ = MoveType::HashMove;
-                return *hashMove_;
+                return hashMove_;
             }
 
             [[fallthrough]];
