@@ -89,12 +89,13 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "build-output-dir=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src" >> "$GITHUB_OUTPUT"
           if [[ ${{ matrix.config.os }} = "windows-2025" ]]; then
             echo "syzygy-paths=\"./3-4-5-wdl;./3-4-5-dtz\"" >> "$GITHUB_OUTPUT"
+            echo "engine-build-path=${{ github.workspace }}\out\build\${{ matrix.config.preset }}\src\chess-engine\Euwe.exe" >> "$GITHUB_OUTPUT"
           fi
           if [[ ${{ matrix.config.os }} = "ubuntu-latest" ]]; then
             echo "syzygy-paths=./3-4-5-wdl:./3-4-5-dtz" >> "$GITHUB_OUTPUT"
+            echo "engine-build-path=${{ github.workspace }}/out/build/${{ matrix.config.preset }}/src/chess-engine/Euwe" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Restore cached MSan libc++
@@ -187,8 +188,8 @@ jobs:
       - name: Run tournament
         run: >
           ./fastchess
-          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe name=Euwe1
-          -engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe name=Euwe2
+          -engine cmd=${{ steps.strings.outputs.engine-build-path }} name=Euwe1
+          -engine cmd=${{ steps.strings.outputs.engine-build-path }} name=Euwe2
           -each tc="inf/1+0.01" option.Hash=64 option.SyzygyPath=${{ steps.strings.outputs.syzygy-paths }}
           -openings file=UHO_4060_v2.epd format=epd order=sequential
           -rounds 50
@@ -206,6 +207,7 @@ jobs:
         shell: bash
         run: |
           wget --no-verbose https://github.com/Mangar2/qapla-engine-tester/releases/download/Version0.4.0/qapla-engine-tester
+          chmod +x qapla-engine-tester
 
       - name: Get Qapla Engine Tester (Windows)
         if: matrix.config.os == 'windows-2025'
@@ -221,9 +223,6 @@ jobs:
         #  - option: Qapla's test for supporting lowercase is unreliable.
         run: >
           ./qapla-engine-tester
-          --engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe
+          --engine cmd=${{ steps.strings.outputs.engine-build-path }}
           --concurrency=2
-          --test
-              noepd=true
-              noponder=true
-              nooption=true
+          --test noepd=true noponder=true nooption=true
