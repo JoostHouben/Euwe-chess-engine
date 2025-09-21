@@ -225,4 +225,4 @@ jobs:
           ./qapla-engine-tester
           --engine cmd=${{ steps.strings.outputs.engine-build-path }}
           --concurrency=2
-          --test noepd=true noponder=true nooption=true
+          --test noepd=true noponder=true nooption=true numgames=2
