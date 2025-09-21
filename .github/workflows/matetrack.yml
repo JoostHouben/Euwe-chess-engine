@@ -78,12 +78,14 @@ jobs:
 
       - name: matetrack install deps
         working-directory: matetrack
-        run: pip install -r requirements.txt
+        run: pip install chess==1.11.0 tqdm==4.66.2
+        # the requirements.txt file in matetrack requires 1.10.0, which is broken under python 3.12.
+        #run: pip install -r requirements.txt
           
       - name: Run matetrack
         working-directory: matetrack
         shell: bash
         run: |
-          python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 | tee matecheckout.out
+          python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 --engineOpts "{\"quiet\": true}" | tee matecheckout.out
           ! grep "issues were detected" matecheckout.out > /dev/null
     
