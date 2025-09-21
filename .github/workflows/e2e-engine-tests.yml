@@ -200,3 +200,30 @@ jobs:
         shell: bash
         run: |
           cat tournament.log
+
+      - name: Get Qapla Engine Tester (Linux)
+        if: matrix.config.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          wget --no-verbose https://github.com/Mangar2/qapla-engine-tester/releases/download/Version0.4.0/qapla-engine-tester
+
+      - name: Get Qapla Engine Tester (Windows)
+        if: matrix.config.os == 'windows-2025'
+        shell: powershell
+        run: |
+          wget https://github.com/Mangar2/qapla-engine-tester/releases/download/Version0.4.0/qapla-engine-tester.exe -OutFile qapla-engine-tester.exe
+
+      - name: Run Qapla Engine Tester
+        # Excluded tets:
+        #  - EPD: tests for expected bestmove, which is a strength test, not a correctness test;
+        #    slower debug builds are likely to fail this test.
+        #  - ponder: Euwe doesn't support pondering yet.
+        #  - option: Qapla's test for supporting lowercase is unreliable.
+        run: >
+          ./qapla-engine-tester
+          --engine cmd=${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe
+          --concurrency=2
+          --test
+              noepd=true
+              noponder=true
+              nooption=true
