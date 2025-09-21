@@ -88,4 +88,3 @@ jobs:
         run: |
           python matecheck.py --engine ${{ steps.strings.outputs.build-output-dir }}/chess-engine/Euwe --epdFile mates2000.epd --nodes 100000 --engineOpts "{\"quiet\": true}" | tee matecheckout.out
           ! grep "issues were detected" matecheckout.out > /dev/null
-    
