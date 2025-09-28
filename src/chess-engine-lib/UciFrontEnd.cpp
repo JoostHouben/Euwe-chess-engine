@@ -94,6 +94,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void addOption(FrontEndOption option) override;
 
   private:
+    void handleUci();
     void handleIsReady();
     void handleNewGame();
     void handlePosition(std::stringstream& lineSStream);
@@ -175,13 +176,7 @@ UciFrontEnd::Impl::~Impl() {
 }
 
 void UciFrontEnd::Impl::run() {
-    writeUci("id name {}", name_);
-    writeUci("id author Joost Houben");
-
-    writeOptions();
-
-    writeUci("uciok");
-    std::flush(out_);
+    handleUci();
 
     while (in_.good()) {
         std::string inputLine;
@@ -195,7 +190,9 @@ void UciFrontEnd::Impl::run() {
         // Not implemented:
         //  ponderhit
 
-        if (command == "isready") {
+        if (command == "uci") {
+            handleUci();
+        } else if (command == "isready") {
             handleIsReady();
         } else if (command == "ucinewgame") {
             handleNewGame();
@@ -353,6 +350,14 @@ void UciFrontEnd::Impl::reportDebugString(std::string_view message) const {
 void UciFrontEnd::Impl::addOption(FrontEndOption option) {
     // UCI option names are case insensitive, so convert to lower case for lookup.
     optionsMap_.emplace(stringToLower(option.getName()), std::move(option));
+}
+
+void UciFrontEnd::Impl::handleUci() {
+    writeUci("id name {}", name_);
+    writeUci("id author Joost Houben");
+    writeOptions();
+    writeUci("uciok");
+    std::flush(out_);
 }
 
 void UciFrontEnd::Impl::handleIsReady() {
