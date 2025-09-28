@@ -6,7 +6,7 @@
 
 using EvalT = std::int16_t;
 
-enum ScoreType : std::uint8_t {
+enum class ScoreType : std::uint8_t {
     NotSet     = 0,
     Exact      = 1,
     LowerBound = 2,

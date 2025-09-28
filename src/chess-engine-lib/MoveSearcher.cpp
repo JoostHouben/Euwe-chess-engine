@@ -789,8 +789,8 @@ EvalT MoveSearcher::Impl::search(
         int depth,
         const int ply,
         EvalT alpha,
-        EvalT beta,
-        Move lastMove,
+        const EvalT beta,
+        const Move lastMove,
         const int lastNullMovePly,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
@@ -899,14 +899,19 @@ EvalT MoveSearcher::Impl::search(
         //  - We want to get a full PV.
         //  - The stored values may be heuristic bounds from pruning techniques that we disallow in
         //    PV nodes, so we don't want to use those values.
-        if (ttInfo.depth >= depth && !isPvNode) {
-            if (ttInfo.scoreType == ScoreType::Exact) {
+        if (ttInfo.depth >= depth) {
+            if (ttInfo.scoreType == ScoreType::Exact
+                && (!isPvNode || ttInfo.score < alphaOrig || ttInfo.score >= beta)) {
                 // Exact value
                 return updateMateDistanceOut(ttInfo.score);
-            } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta) {
+            } else if (
+                    ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta
+                    && !isPvNode) {
                 // Lower bound
                 return updateMateDistanceOut(ttInfo.score);
-            } else if (ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha) {
+            } else if (
+                    ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha
+                    && !isPvNode) {
                 // Upper bound
                 return updateMateDistanceOut(ttInfo.score);
             }
@@ -917,7 +922,7 @@ EvalT MoveSearcher::Impl::search(
             eval = ttInfo.score;
         } else if (ttInfo.scoreType == ScoreType::LowerBound) {
             eval = max(eval, ttInfo.score);
-        } else if (ttInfo.scoreType == UpperBound) {
+        } else if (ttInfo.scoreType == ScoreType::UpperBound) {
             eval = min(eval, ttInfo.score);
         }
 
@@ -1152,7 +1157,7 @@ EvalT MoveSearcher::Impl::search(
 EvalT MoveSearcher::Impl::quiesce(
         GameState& gameState,
         EvalT alpha,
-        EvalT beta,
+        const EvalT beta,
         const int ply,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
@@ -1236,35 +1241,21 @@ EvalT MoveSearcher::Impl::quiesce(
 
         searchStatistics_.tTableHits++;
 
-        // In non-PV nodes: check for TT cut-offs.
-        if (!isPvNode) {
-            // No need to check depth: in qsearch, depth == 0.
-
-            if (ttInfo.scoreType == ScoreType::Exact || ttInfo.scoreType == ScoreType::EGTB) {
-                // Exact value
-                return updateMateDistanceOut(ttInfo.score);
-            } else if (ttInfo.scoreType == ScoreType::LowerBound) {
-                // Can safely raise the lower bound for our search window, because the true value
-                // is guaranteed to be above this bound.
-                alpha = max(alpha, ttInfo.score);
-            } else if (ttInfo.scoreType == ScoreType::UpperBound) {
-                // Can safely lower the upper bound for our search window, because the true value
-                // is guaranteed to be below this bound.
-                beta = min(beta, ttInfo.score);
-            }
-            // Else: score type not set (result from interrupted search).
-
-            // Check if we can return based on tighter bounds from the transposition table.
-            if (alpha >= beta) {
-                // Based on information from the ttable, we now know that the true value is outside
-                // of the feasibility window.
-                // If alpha was raised by the tt entry this is a lower bound and we want to return
-                // that raised alpha (fail-soft: that's the tightest lower bound we have).
-                // If beta was lowered by the tt entry this is an upper bound and we want to return
-                // that lowered beta (fail-soft: that's the tightest upper bound we have).
-                // So either way we return the tt entry score.
-                return updateMateDistanceOut(ttInfo.score);
-            }
+        // No need to check depth: in qsearch, depth == 0.
+        if (ttInfo.scoreType == ScoreType::EGTB) {
+            // Exact value
+            return updateMateDistanceOut(ttInfo.score);
+        } else if (
+                ttInfo.scoreType == ScoreType::Exact
+                && (!isPvNode || ttInfo.score < alphaOrig || ttInfo.score >= beta)) {
+            // Exact value
+            return updateMateDistanceOut(ttInfo.score);
+        } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta && !isPvNode) {
+            // Lower bound
+            return updateMateDistanceOut(ttInfo.score);
+        } else if (ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha && !isPvNode) {
+            // Upper bound
+            return updateMateDistanceOut(ttInfo.score);
         }
 
         hashMove = getTTableMove(ttInfo, gameState);
@@ -1345,6 +1336,8 @@ EvalT MoveSearcher::Impl::quiesce(
             bestMove = move;
 
             if (alpha >= beta) {
+                pvTable_.clearPv(ply);
+
                 break;
             }
 
@@ -1494,6 +1487,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
             bestMove = move;
 
             if (score >= beta) {
+                pvTable_.clearPv(ply);
+
                 moveScorer_.reportCutoff(move, gameState, moveType, lastMove, ply, depth);
 
                 // Fail high; score is a lower bound.
