@@ -789,8 +789,8 @@ EvalT MoveSearcher::Impl::search(
         int depth,
         const int ply,
         EvalT alpha,
-        EvalT beta,
-        Move lastMove,
+        const EvalT beta,
+        const Move lastMove,
         const int lastNullMovePly,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
@@ -901,7 +901,7 @@ EvalT MoveSearcher::Impl::search(
         //    PV nodes, so we don't want to use those values.
         if (ttInfo.depth >= depth) {
             if (ttInfo.scoreType == ScoreType::Exact
-                && (!isPvNode || ttInfo.score < alpha || ttInfo.score >= beta)) {
+                && (!isPvNode || ttInfo.score < alphaOrig || ttInfo.score >= beta)) {
                 // Exact value
                 return updateMateDistanceOut(ttInfo.score);
             } else if (
@@ -1157,7 +1157,7 @@ EvalT MoveSearcher::Impl::search(
 EvalT MoveSearcher::Impl::quiesce(
         GameState& gameState,
         EvalT alpha,
-        EvalT beta,
+        const EvalT beta,
         const int ply,
         const NodeType nodeType,
         StackOfVectors<Move>& stack) {
@@ -1247,7 +1247,7 @@ EvalT MoveSearcher::Impl::quiesce(
             return updateMateDistanceOut(ttInfo.score);
         } else if (
                 ttInfo.scoreType == ScoreType::Exact
-                && (!isPvNode || ttInfo.score < alpha || ttInfo.score >= beta)) {
+                && (!isPvNode || ttInfo.score < alphaOrig || ttInfo.score >= beta)) {
             // Exact value
             return updateMateDistanceOut(ttInfo.score);
         } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta && !isPvNode) {
