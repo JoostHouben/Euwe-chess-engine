@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "pv-table-extract-only");
+            UciFrontEnd uciFrontEnd(engine, "more-tt-pv-cutoffs");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
