@@ -1336,6 +1336,8 @@ EvalT MoveSearcher::Impl::quiesce(
             bestMove = move;
 
             if (alpha >= beta) {
+                pvTable_.clearPv(ply);
+
                 break;
             }
 
@@ -1485,6 +1487,8 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
             bestMove = move;
 
             if (score >= beta) {
+                pvTable_.clearPv(ply);
+
                 moveScorer_.reportCutoff(move, gameState, moveType, lastMove, ply, depth);
 
                 // Fail high; score is a lower bound.
