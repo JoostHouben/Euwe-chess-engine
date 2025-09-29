@@ -56,5 +56,5 @@ inline constexpr EvalT kMateEval     = (EvalT)30'000;
 }
 
 [[nodiscard]] FORCE_INLINE constexpr EvalT clampNonMateEval(const int eval) {
-    return (EvalT)clamp((int)eval, -kMateEval + 1'000, kMateEval - 1'000);
+    return (EvalT)clamp(eval, -kMateEval + 1'000, kMateEval - 1'000);
 }
