@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <cassert>
@@ -13,11 +12,17 @@
 #define ENSURE_ASSERT_BREAKS (void)0
 #endif
 
-#define ASSUME(condition)       \
-    do {                        \
-        if (!(condition)) {     \
-            std::unreachable(); \
-        }                       \
+#define ASSUME(condition)                                                   \
+    do {                                                                    \
+        if consteval {                                                      \
+            if (!(condition)) {                                             \
+                throw std::runtime_error("Assumption failed: " #condition); \
+            }                                                               \
+        } else {                                                            \
+            if (!(condition)) {                                             \
+                std::unreachable();                                         \
+            }                                                               \
+        }                                                                   \
     } while (0)
 
 #ifndef NDEBUG
