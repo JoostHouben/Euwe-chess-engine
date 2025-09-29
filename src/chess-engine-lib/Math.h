@@ -7,6 +7,11 @@ FORCE_INLINE constexpr int signum(const int x) {
 }
 
 template <typename T>
+FORCE_INLINE constexpr T abs(const T x) {
+    return x < 0 ? -x : x;
+}
+
+template <typename T>
 FORCE_INLINE constexpr T clamp(const T x, const T min, const T max) {
     return x < min ? min : x > max ? max : x;
 }
