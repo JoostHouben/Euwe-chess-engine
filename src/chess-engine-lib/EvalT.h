@@ -1,5 +1,11 @@
 #pragma once
 
+#include "EvalT.h"
+
+#include "Macros.h"
+#include "Math.h"
+#include "MyAssert.h"
+
 #include <limits>
 
 #include <cstdint>
@@ -17,15 +23,38 @@ enum class ScoreType : std::uint8_t {
 inline constexpr EvalT kInfiniteEval = std::numeric_limits<EvalT>::max();
 inline constexpr EvalT kMateEval     = (EvalT)30'000;
 
-[[nodiscard]] bool isMate(EvalT eval);
-[[nodiscard]] bool isValid(EvalT eval);
+[[nodiscard]] FORCE_INLINE constexpr bool isMate(const EvalT eval) {
+    return abs(eval) > kMateEval - 1000;
+}
 
-[[nodiscard]] int getMateDistanceInPly(EvalT eval);
+[[nodiscard]] FORCE_INLINE constexpr bool isValid(const EvalT eval) {
+    return -kMateEval <= eval && eval <= kMateEval;
+}
 
-[[nodiscard]] EvalT mateDistancePlus1(EvalT eval);
+[[nodiscard]] FORCE_INLINE constexpr int getMateDistanceInPly(const EvalT eval) {
+    MY_ASSERT(isMate(eval));
 
-[[nodiscard]] EvalT mateDistanceMinus1(EvalT eval);
+    return kMateEval - abs(eval);
+}
 
-[[nodiscard]] EvalT mateIn(int mateDistance);
+[[nodiscard]] FORCE_INLINE constexpr EvalT mateDistancePlus1(const EvalT eval) {
+    MY_ASSERT(isMate(eval));
 
-[[nodiscard]] EvalT clampNonMateEval(int eval);
+    return (EvalT)(eval - signum(eval));
+}
+
+[[nodiscard]] FORCE_INLINE constexpr EvalT mateDistanceMinus1(const EvalT eval) {
+    MY_ASSERT(isMate(eval));
+
+    return (EvalT)(eval + signum(eval));
+}
+
+[[nodiscard]] FORCE_INLINE constexpr EvalT mateIn(const int mateDistance) {
+    MY_ASSERT(mateDistance >= 0);
+
+    return (EvalT)(kMateEval - mateDistance);
+}
+
+[[nodiscard]] FORCE_INLINE constexpr EvalT clampNonMateEval(const int eval) {
+    return (EvalT)clamp((int)eval, -kMateEval + 1'000, kMateEval - 1'000);
+}

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdexcept>
+#include <type_traits>
 #include <utility>
 
 #include <cassert>
@@ -19,10 +21,16 @@
     } while (0)
 
 #ifndef NDEBUG
-#define MY_ASSERT(condition)  \
-    do {                      \
-        ENSURE_ASSERT_BREAKS; \
-        assert(condition);    \
+#define MY_ASSERT(condition)                                               \
+    do {                                                                   \
+        if consteval {                                                     \
+            if (!(condition)) {                                            \
+                throw std::runtime_error("Assertion failed: " #condition); \
+            }                                                              \
+        } else {                                                           \
+            ENSURE_ASSERT_BREAKS;                                          \
+            assert(condition);                                             \
+        }                                                                  \
     } while (0)
 #else
 #define MY_ASSERT(condition) ASSUME(condition)
