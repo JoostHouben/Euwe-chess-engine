@@ -164,17 +164,20 @@ TEST(FenParsing, HalfMoveClock) {
 }
 
 TEST(FenParsing, ImplicitMoveClocks) {
-    const std::string withMoveClocks    = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - 0 1";
-    const std::string withoutMoveClocks = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - -";
-    const std::string onlyCaptureClock  = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - 0";
+    const std::string withMoveClocks             = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - 0 1";
+    const std::string withoutMoveClocks          = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - -";
+    const std::string withoutMoveClocksWithSpace = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - ";
+    const std::string onlyCaptureClock           = "8/4npk1/5p1p/1Q5P/1p4P1/4r3/7q/3K1R2 b - - 0";
 
     EXPECT_EQ(GameState::fromFen(withoutMoveClocks).toFen(), withMoveClocks);
+    EXPECT_EQ(GameState::fromFen(withoutMoveClocksWithSpace).toFen(), withMoveClocks);
     EXPECT_EQ(GameState::fromFen(onlyCaptureClock).toFen(), withMoveClocks);
 }
 
 TEST(FenParsing, ErrorHandling) {
     // string too short
     EXPECT_THROW((void)GameState::fromFen(""), std::invalid_argument);
+    EXPECT_THROW((void)GameState::fromFen("rnbqkbnr"), std::invalid_argument);
     EXPECT_THROW(
             (void)GameState::fromFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP"), std::invalid_argument);
     EXPECT_THROW(
