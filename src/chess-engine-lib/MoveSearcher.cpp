@@ -718,7 +718,6 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         const std::optional<BitBoard> enemyPinBitBoard,
         std::optional<GameState::DirectCheckBitBoards>& directCheckBitBoards) {
     const bool isTactical = isCaptureOrQueenPromo(move);
-    MY_ASSERT_DEBUG(!isMate(alpha));
 
     if (moveType == MoveType::HashMove || moveType == MoveType::GoodTactical) {
         // Don't futility prune these important types of moves.
@@ -728,9 +727,14 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         // We will get a fast and accurate value from syzygy probe, so no point pruning this move.
         return {kMateEval, false};
     }
-    if (isMate(eval)) {
+    if (isMate(alpha) && alpha < 0) {
+        // We are trying to avoid getting mated, so we can't reasonably prune any moves.
+        return {kMateEval, false};
+    }
+    if (!isMate(alpha) && isMate(eval)) {
         if (eval > 0) {
-            // Eval (from TT) indicates a winning mate position, so we can't reasonably prune any moves.
+            // Eval (from TT) indicates a winning mate position (way above alpha), so we can't
+            // reasonably prune any moves.
             return {kMateEval, false};
         } else {
             // Eval (from TT) indicates a losing mate position, let's prune all moves (except
@@ -740,31 +744,44 @@ FORCE_INLINE std::pair<EvalT, bool> MoveSearcher::Impl::getMoveFutilityValue(
         }
     }
 
-    const EvalT futilityMargin = calculateFutilityMargin(reducedDepth, movesSearched, isTactical);
-
-    const int seeThreshold = alpha - (eval + futilityMargin);
-
     EvalT futilityValue{};
-    if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isTactical) {
-        // We know the move is losing, so no need to check whether SEE is above the losing
-        // threshold.
-        // Note that in this case, alpha >= eval + futilityMargin + kCaptureLosingThreshold.
-        // So: futilityValue <= alpha.
-        futilityValue = eval + futilityMargin + MoveOrderer::kCaptureLosingThreshold;
-    } else if (seeThreshold >= 0 && !isCapture(move) && !isPromotion(move)) {
-        // Since the move is not a capture or promotion, its SEE is at best 0. So this move cannot
-        // exceed the SEE threshold, meaning futilityValue <= alpha.
-        futilityValue = eval + futilityMargin;
+    int seeThreshold{};
+
+    if (isMate(alpha)) {
+        // Prune all moves except hash move, winning tactical moves, and checks.
+
+        // Definitely below alpha.
+        futilityValue = clampNonMateEval(kMateEval);
+
+        // Above zero, for voteToSkipQuiets below.
+        seeThreshold = kInfiniteEval;
     } else {
-        // staticExchangeEvaluationBound checks if SEE >= seeThreshold, but we want to know if
-        // SEE > seeThreshold. This is equivalent to checking if SEE >= seeThreshold + 1.
-        const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold + 1);
+        const EvalT futilityMargin =
+                calculateFutilityMargin(reducedDepth, movesSearched, isTactical);
 
-        futilityValue = (EvalT)(eval + futilityMargin + seeBound);
+        seeThreshold = alpha - (eval + futilityMargin);
 
-        if (futilityValue > alpha) {
-            // Early exit to avoid check calculations.
-            return {futilityValue, false};
+        if (seeThreshold >= MoveOrderer::kCaptureLosingThreshold && isTactical) {
+            // We know the move is losing, so no need to check whether SEE is above the losing
+            // threshold.
+            // Note that in this case, alpha >= eval + futilityMargin + kCaptureLosingThreshold.
+            // So: futilityValue <= alpha.
+            futilityValue = eval + futilityMargin + MoveOrderer::kCaptureLosingThreshold;
+        } else if (seeThreshold >= 0 && !isCapture(move) && !isPromotion(move)) {
+            // Since the move is not a capture or promotion, its SEE is at best 0. So this move cannot
+            // exceed the SEE threshold, meaning futilityValue <= alpha.
+            futilityValue = eval + futilityMargin;
+        } else {
+            // staticExchangeEvaluationBound checks if SEE >= seeThreshold, but we want to know if
+            // SEE > seeThreshold. This is equivalent to checking if SEE >= seeThreshold + 1.
+            const int seeBound = staticExchangeEvaluationBound(gameState, move, seeThreshold + 1);
+
+            futilityValue = (EvalT)(eval + futilityMargin + seeBound);
+
+            if (futilityValue > alpha) {
+                // Early exit to avoid check calculations.
+                return {futilityValue, false};
+            }
         }
     }
 
@@ -843,7 +860,8 @@ EvalT MoveSearcher::Impl::search(
     const bool boundsAreMate = isMate(alpha) || isMate(beta);
 
     constexpr int kMaxFutilityPruningDepth = 5;
-    const bool futilityPruningEnabled      = depth <= kMaxFutilityPruningDepth && !boundsAreMate;
+    const bool futilityPruningEnabled =
+            depth <= kMaxFutilityPruningDepth && (!boundsAreMate || alpha > 0);
 
     constexpr int kMaxReverseFutilityPruningDepth = 5;
     const bool reverseFutilityPruningEnabled =
