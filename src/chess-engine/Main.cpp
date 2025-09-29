@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "slightly-better-mdp");
+            UciFrontEnd uciFrontEnd(engine, "mate-futility-pruning");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
