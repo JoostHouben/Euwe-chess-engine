@@ -6,7 +6,6 @@ set(
     "Engine.cpp"
     "Eval.cpp"
     "EvalParams.cpp"
-    "EvalT.cpp"
     "FrontEndOption.cpp"
     "GameState.cpp"
     "GameStateStringOps.cpp"
