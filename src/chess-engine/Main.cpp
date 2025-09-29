@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "more-tt-pv-cutoffs-alpha-orig");
+            UciFrontEnd uciFrontEnd(engine, "nmp-when-mated");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

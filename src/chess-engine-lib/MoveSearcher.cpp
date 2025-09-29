@@ -310,8 +310,8 @@ namespace {
         const int depth,
         const int ply,
         const int lastNullMovePly) {
-    const bool basicConditions = !isPvNode && !isInCheck && !isMate(beta) && ply > 0 && depth >= 3
-                              && ply != lastNullMovePly + 2;
+    const bool basicConditions = !isPvNode && !isInCheck && (!isMate(beta) || beta < 0) && ply > 0
+                              && depth >= 3 && ply != lastNullMovePly + 2;
     if (!basicConditions) {
         return false;
     }
