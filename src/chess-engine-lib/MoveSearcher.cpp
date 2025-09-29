@@ -817,8 +817,9 @@ EvalT MoveSearcher::Impl::search(
     const bool isInCheck            = gameState.isInCheck(boardControl);
 
     // Mate distance pruning: check for impossible mate
-    if (kMateEval < alpha) {
-        return updateMateDistanceOut(kMateEval);
+    static constexpr EvalT kBestCaseMate = mateIn(1);
+    if (kBestCaseMate < alpha) {
+        return updateMateDistanceOut(kBestCaseMate);
     }
     const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
     if (worstCaseMate > beta) {
@@ -1175,8 +1176,9 @@ EvalT MoveSearcher::Impl::quiesce(
     const bool isInCheck            = gameState.isInCheck(boardControl);
 
     // Mate distance pruning: check for impossible mate
-    if (kMateEval < alpha) {
-        return updateMateDistanceOut(kMateEval);
+    static constexpr EvalT kBestCaseMate = mateIn(1);
+    if (kBestCaseMate < alpha) {
+        return updateMateDistanceOut(kBestCaseMate);
     }
     const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
     if (worstCaseMate > beta) {
