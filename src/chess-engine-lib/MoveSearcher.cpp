@@ -914,10 +914,6 @@ EvalT MoveSearcher::Impl::search(
         }
 
         // See if we can return a value from the TT directly.
-        // We skip this step in PV nodes because:
-        //  - We want to get a full PV.
-        //  - The stored values may be heuristic bounds from pruning techniques that we disallow in
-        //    PV nodes, so we don't want to use those values.
         if (ttInfo.depth >= depth) {
             if (ttInfo.scoreType == ScoreType::Exact
                 && (!isPvNode || ttInfo.score < alphaOrig || ttInfo.score >= beta)) {
@@ -929,7 +925,7 @@ EvalT MoveSearcher::Impl::search(
                 // Lower bound
                 return updateMateDistanceOut(ttInfo.score);
             } else if (
-                    ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha
+                    ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alphaOrig
                     && !isPvNode) {
                 // Upper bound
                 return updateMateDistanceOut(ttInfo.score);
@@ -1273,7 +1269,9 @@ EvalT MoveSearcher::Impl::quiesce(
         } else if (ttInfo.scoreType == ScoreType::LowerBound && ttInfo.score >= beta && !isPvNode) {
             // Lower bound
             return updateMateDistanceOut(ttInfo.score);
-        } else if (ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alpha && !isPvNode) {
+        } else if (
+                ttInfo.scoreType == ScoreType::UpperBound && ttInfo.score < alphaOrig
+                && !isPvNode) {
             // Upper bound
             return updateMateDistanceOut(ttInfo.score);
         }
