@@ -835,11 +835,11 @@ EvalT MoveSearcher::Impl::search(
 
     // Mate distance pruning: check for impossible mate
     static constexpr EvalT kBestCaseMate = mateIn(1);
-    if (kBestCaseMate < alpha) {
+    if (kBestCaseMate <= alpha) {
         return updateMateDistanceOut(kBestCaseMate);
     }
     const EvalT worstCaseMate = isInCheck ? -kMateEval : -mateIn(2);
-    if (worstCaseMate > beta) {
+    if (worstCaseMate >= beta) {
         return updateMateDistanceOut(worstCaseMate);
     }
 
