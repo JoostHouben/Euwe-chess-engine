@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <cassert>
@@ -13,24 +12,32 @@
 #define ENSURE_ASSERT_BREAKS (void)0
 #endif
 
-#define ASSUME(condition)       \
-    do {                        \
-        if (!(condition)) {     \
-            std::unreachable(); \
-        }                       \
+#define FAIL_IN_CONSTEVAL *static_cast<int*>(nullptr) = 0
+
+#define ASSUME(condition)           \
+    do {                            \
+        if consteval {              \
+            if (!(condition)) {     \
+                FAIL_IN_CONSTEVAL;  \
+            }                       \
+        } else {                    \
+            if (!(condition)) {     \
+                std::unreachable(); \
+            }                       \
+        }                           \
     } while (0)
 
 #ifndef NDEBUG
-#define MY_ASSERT(condition)                                               \
-    do {                                                                   \
-        if consteval {                                                     \
-            if (!(condition)) {                                            \
-                throw std::runtime_error("Assertion failed: " #condition); \
-            }                                                              \
-        } else {                                                           \
-            ENSURE_ASSERT_BREAKS;                                          \
-            assert(condition);                                             \
-        }                                                                  \
+#define MY_ASSERT(condition)       \
+    do {                           \
+        if consteval {             \
+            if (!(condition)) {    \
+                FAIL_IN_CONSTEVAL; \
+            }                      \
+        } else {                   \
+            ENSURE_ASSERT_BREAKS;  \
+            assert(condition);     \
+        }                          \
     } while (0)
 #else
 #define MY_ASSERT(condition) ASSUME(condition)
