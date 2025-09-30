@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "mdp-equal");
+            UciFrontEnd uciFrontEnd(engine, "no-fp-contract");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

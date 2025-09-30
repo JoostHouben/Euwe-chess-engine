@@ -37,7 +37,7 @@ endif()
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /fp:precise")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2 -ffp-contract=off")
 endif()
 
 # Set warnings, and treat them as errors
@@ -58,7 +58,9 @@ if (MSVC)
 
         # Explicitly enable exceptions support for clang-cl (it's only enabled by CMake when targeting the Windows-MSVC platform,
         # see https://github.com/danvratil/qcoro/issues/90 for details)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+        # Also explicitly disable floating point contraction (fused multiply-add), since clang-cl's default behavior here differs
+        # from MSVC.
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /clang:-ffp-contract=off")
 
         # CMake doesn't seem to set optimization flags correctly for clang-cl, so we set them manually.
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
