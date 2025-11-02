@@ -8,6 +8,7 @@
 #include "PieceControl.h"
 
 #include <array>
+#include <cmath>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -134,8 +135,8 @@ FORCE_INLINE void updateTaperedTerm(
         const TaperedTerm& term,
         TaperedEvaluation<CalcJacobians>& eval,
         const EvalCalcT weight) {
-    eval.early.value += term.early * weight;
-    eval.late.value += term.late * weight;
+    eval.early.value = std::fma(term.early, weight, eval.early.value);
+    eval.late.value  = std::fma(term.late, weight, eval.late.value);
 
     if constexpr (CalcJacobians) {
         eval.early.grad[params.getParamIndex(term.early)] += weight;
@@ -149,8 +150,8 @@ FORCE_INLINE void updateTaperedProductTerm(
         const TaperedTerm& factor1,
         const TaperedTerm& factor2,
         TaperedEvaluation<CalcJacobians>& eval) {
-    eval.early.value += factor1.early * factor2.early;
-    eval.late.value += factor1.late * factor2.late;
+    eval.early.value = std::fma(factor1.early, factor2.early, eval.early.value);
+    eval.late.value  = std::fma(factor1.late, factor2.late, eval.late.value);
 
     if constexpr (CalcJacobians) {
         eval.early.grad[params.getParamIndex(factor1.early)] += factor2.early;
@@ -1422,7 +1423,7 @@ FORCE_INLINE void evaluatePawnKingOrRetrieve(
         const EvalCalcT lateValue,
         const EvalCalcT earlyFactor,
         const EvalCalcT lateFactor) {
-    return earlyValue * earlyFactor + lateValue * lateFactor;
+    return std::fma(earlyValue, earlyFactor, lateValue * lateFactor);
 }
 
 [[nodiscard]] ParamGradient<true> calcTaperedGradient(

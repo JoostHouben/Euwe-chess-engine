@@ -37,7 +37,7 @@ endif()
 if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /fp:precise")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2 -ffp-contract=off")
 endif()
 
 # Set warnings, and treat them as errors
@@ -54,11 +54,20 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob2 /DNDEBUG")
     
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        message("Detected clang-cl")
+        message("Detected clang-cl version ${CMAKE_CXX_COMPILER_VERSION}")
 
-        # Explicitly enable exceptions support for clang-cl (it's only enabled by CMake when targeting the Windows-MSVC platform,
-        # see https://github.com/danvratil/qcoro/issues/90 for details)
+        # Explicitly enable exceptions support for clang-cl (it's only enabled by CMake when
+        # targeting the Windows-MSVC platform, see https://github.com/danvratil/qcoro/issues/90 for
+        # details)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+
+        if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "20.0.0")
+            message("Disabling floating-point contractions for clang-cl < 20.0.0")
+            # /fp:precise implies disabling floating-point contractions (like fused multiply-add),
+            # but prior to clang-cl version 20, clang-cl did not respect /fp:precise for that purpose.
+            # So we need to explicitly disable floating-point contractions.
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:-ffp-contract=off")
+        endif()
 
         # CMake doesn't seem to set optimization flags correctly for clang-cl, so we set them manually.
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /DNDEBUG")
