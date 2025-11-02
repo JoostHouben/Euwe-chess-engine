@@ -53,20 +53,29 @@ std::expected<int, std::string> stringViewToInt(std::string_view valueString) {
 
 }  // namespace
 
-FrontEndOption FrontEndOption::createAction(std::string name, std::function<void()> onTrigger) {
+FrontEndOption FrontEndOption::createAction(
+        std::string name, std::function<std::expected<void, std::string>()> onTrigger) {
     FrontEndOption option;
     option.name_  = std::move(name);
     option.type_  = Type::Action;
-    option.onSet_ = [onTrigger = std::move(onTrigger)](
-                            std::string_view) -> std::expected<void, std::string> {
-        onTrigger();
-        return {};
+    option.onSet_ = [onTrigger = std::move(onTrigger)](std::string_view) {
+        return onTrigger();
     };
     return option;
 }
 
+FrontEndOption FrontEndOption::createActionNonFailing(
+        std::string name, std::function<void()> onTrigger) {
+    return createAction(std::move(name), [onTrigger = std::move(onTrigger)]() {
+        onTrigger();
+        return std::expected<void, std::string>{};
+    });
+}
+
 FrontEndOption FrontEndOption::createBoolean(
-        std::string name, const bool defaultValue, std::function<void(bool)> onSet) {
+        std::string name,
+        const bool defaultValue,
+        std::function<std::expected<void, std::string>(bool)> onSet) {
     std::ostringstream sstream;
     sstream << std::boolalpha << defaultValue;
 
@@ -74,19 +83,25 @@ FrontEndOption FrontEndOption::createBoolean(
     option.name_         = std::move(name);
     option.type_         = Type::Boolean;
     option.defaultValue_ = sstream.str();
-    option.onSet_        = [onSet = std::move(onSet)](
-                            std::string_view valueString) -> std::expected<void, std::string> {
-        auto r = stringViewToBool(valueString);
-        if (!r)
-            return std::unexpected(r.error());
-        onSet(*r);
-        return {};
+    option.onSet_        = [onSet = std::move(onSet)](std::string_view valueString) {
+        return stringViewToBool(valueString).and_then(onSet);
     };
     return option;
 }
 
+FrontEndOption FrontEndOption::createBooleanNonFailing(
+        std::string name, const bool defaultValue, std::function<void(bool)> onSet) {
+    return createBoolean(std::move(name), defaultValue, [onSet = std::move(onSet)](const bool b) {
+        onSet(b);
+        return std::expected<void, std::string>{};
+    });
+}
+
 FrontEndOption FrontEndOption::createBoolean(std::string name, bool& value) {
-    return createBoolean(std::move(name), value, [&](bool v) { value = v; });
+    return createBoolean(std::move(name), value, [&](bool v) {
+        value = v;
+        return std::expected<void, std::string>{};
+    });
 }
 
 FrontEndOption FrontEndOption::createString(
@@ -99,12 +114,22 @@ FrontEndOption FrontEndOption::createString(
     return option;
 }
 
-FrontEndOption FrontEndOption::createString(std::string name, std::string& value) {
+FrontEndOption FrontEndOption::createStringNonFailing(
+        std::string name, std::string defaultValue, OnSetNonFailing onSet) {
     return createString(
-            std::move(name), value, [&](std::string_view v) -> std::expected<void, std::string> {
-                value = v;
-                return {};
+            std::move(name),
+            std::string(defaultValue),
+            [onSet = std::move(onSet)](std::string_view sv) {
+                onSet(sv);
+                return std::expected<void, std::string>{};
             });
+}
+
+FrontEndOption FrontEndOption::createString(std::string name, std::string& value) {
+    return createString(std::move(name), value, [&](std::string_view v) {
+        value = v;
+        return std::expected<void, std::string>{};
+    });
 }
 
 FrontEndOption FrontEndOption::createInteger(
@@ -112,7 +137,7 @@ FrontEndOption FrontEndOption::createInteger(
         const int defaultValue,
         const int minValue,
         const int maxValue,
-        std::function<void(int)> onSet) {
+        std::function<std::expected<void, std::string>(int)> onSet) {
     FrontEndOption option;
     option.name_         = std::move(name);
     option.type_         = Type::Integer;
@@ -121,25 +146,42 @@ FrontEndOption FrontEndOption::createInteger(
     option.maxValue_     = maxValue;
     option.onSet_        = [=, onSet = std::move(onSet)](
                             std::string_view valueString) -> std::expected<void, std::string> {
-        auto r = stringViewToInt(valueString);
-        if (!r)
-            return std::unexpected(r.error());
-        const int value = *r;
+        return stringViewToInt(valueString)
+                .and_then([=](const int value) -> std::expected<int, std::string> {
+                    if (value < minValue || value > maxValue) {
+                        return std::unexpected(std::format(
+                                "Value out of range: expected [{}, {}], got {}",
+                                minValue,
+                                maxValue,
+                                value));
+                    }
 
-        if (value < minValue || value > maxValue) {
-            return std::unexpected(std::format(
-                    "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
-        }
-
-        onSet(value);
-        return {};
+                    return value;
+                })
+                .and_then(onSet);
     };
     return option;
 }
 
+FrontEndOption FrontEndOption::createIntegerNonFailing(
+        std::string name,
+        const int defaultValue,
+        const int minValue,
+        const int maxValue,
+        std::function<void(int)> onSet) {
+    return createInteger(
+            std::move(name), defaultValue, minValue, maxValue, [onSet = std::move(onSet)](int v) {
+                onSet(v);
+                return std::expected<void, std::string>{};
+            });
+}
+
 FrontEndOption FrontEndOption::createInteger(
         std::string name, int& value, const int minValue, const int maxValue) {
-    return createInteger(std::move(name), value, minValue, maxValue, [&](int v) { value = v; });
+    return createInteger(std::move(name), value, minValue, maxValue, [&](int v) {
+        value = v;
+        return std::expected<void, std::string>{};
+    });
 }
 
 FrontEndOption FrontEndOption::createAlternative(
@@ -164,6 +206,21 @@ FrontEndOption FrontEndOption::createAlternative(
         return onSet(valueString);
     };
     return option;
+}
+
+FrontEndOption FrontEndOption::createAlternativeNonFailing(
+        std::string name,
+        std::string defaultValue,
+        std::vector<std::string> validValues,
+        OnSetNonFailing onSet) {
+    return createAlternative(
+            std::move(name),
+            std::string(defaultValue),
+            std::move(validValues),
+            [onSet = std::move(onSet)](std::string_view v) {
+                onSet(v);
+                return std::expected<void, std::string>{};
+            });
 }
 
 FrontEndOption FrontEndOption::createAlternative(

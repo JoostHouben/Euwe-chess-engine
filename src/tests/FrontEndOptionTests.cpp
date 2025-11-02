@@ -10,7 +10,8 @@ TEST(FrontEndOptionTests, TestAction) {
     bool triggered         = false;
     const std::string name = "action";
 
-    FrontEndOption action = FrontEndOption::createAction(name, [&]() { triggered = true; });
+    FrontEndOption action =
+            FrontEndOption::createActionNonFailing(name, [&]() { triggered = true; });
 
     EXPECT_EQ(action.getName(), name);
 

@@ -31,7 +31,7 @@ TimeManager::TimeManager() : moveOverhead_(std::chrono::milliseconds(20)) {}
 void TimeManager::setFrontEnd(IFrontEnd* frontEnd) {
     frontEnd_ = frontEnd;
 
-    frontEnd_->addOption(FrontEndOption::createInteger(
+    frontEnd_->addOption(FrontEndOption::createIntegerNonFailing(
             "move_overhead_ms", (int)moveOverhead_.count(), 0, 10'000, [this](int v) {
                 moveOverhead_ = std::chrono::milliseconds(v);
             }));

@@ -72,9 +72,7 @@ void Engine::Impl::setFrontEnd(IFrontEnd* frontEnd) {
     moveSearcher_.setFrontEnd(frontEnd);
 
     frontEnd_->addOption(FrontEndOption::createString(
-            "SyzygyPath", "", [this](const std::string_view v) -> std::expected<void, std::string> {
-                return initializeSyzygy(v);
-            }));
+            "SyzygyPath", "", [this](const std::string_view v) { return initializeSyzygy(v); }));
 }
 
 void Engine::Impl::newGame() {

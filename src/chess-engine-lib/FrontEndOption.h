@@ -9,7 +9,8 @@
 
 class FrontEndOption {
   public:
-    using OnSet = std::function<std::expected<void, std::string>(std::string_view)>;
+    using OnSet           = std::function<std::expected<void, std::string>(std::string_view)>;
+    using OnSetNonFailing = std::function<void(std::string_view)>;
 
     enum class Type {
         Action,
@@ -19,16 +20,30 @@ class FrontEndOption {
         Alternative,
     };
 
-    static FrontEndOption createAction(std::string name, std::function<void()> onTrigger);
+    static FrontEndOption createAction(
+            std::string name, std::function<std::expected<void, std::string>()> onTrigger);
+    static FrontEndOption createActionNonFailing(std::string name, std::function<void()> onTrigger);
 
     static FrontEndOption createBoolean(
+            std::string name,
+            bool defaultValue,
+            std::function<std::expected<void, std::string>(bool)> onSet);
+    static FrontEndOption createBooleanNonFailing(
             std::string name, bool defaultValue, std::function<void(bool)> onSet);
     static FrontEndOption createBoolean(std::string name, bool& value);
 
     static FrontEndOption createString(std::string name, std::string defaultValue, OnSet onSet);
+    static FrontEndOption createStringNonFailing(
+            std::string name, std::string defaultValue, OnSetNonFailing onSet);
     static FrontEndOption createString(std::string name, std::string& value);
 
     static FrontEndOption createInteger(
+            std::string name,
+            int defaultValue,
+            int minValue,
+            int maxValue,
+            std::function<std::expected<void, std::string>(int)> onSet);
+    static FrontEndOption createIntegerNonFailing(
             std::string name,
             int defaultValue,
             int minValue,
@@ -41,6 +56,11 @@ class FrontEndOption {
             std::string defaultValue,
             std::vector<std::string> validValues,
             OnSet onSet);
+    static FrontEndOption createAlternativeNonFailing(
+            std::string name,
+            std::string defaultValue,
+            std::vector<std::string> validValues,
+            OnSetNonFailing onSet);
     static FrontEndOption createAlternative(
             std::string name, std::string& value, std::vector<std::string> validValues);
 

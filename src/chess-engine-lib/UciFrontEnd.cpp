@@ -161,7 +161,7 @@ UciFrontEnd::Impl::Impl(
     engine_.setFrontEnd(this);
 
     // Add UCI hard-coded options
-    addOption(FrontEndOption::createInteger(
+    addOption(FrontEndOption::createIntegerNonFailing(
             "Hash",
             engine_.getDefaultTTableSizeInMb(),
             0,
