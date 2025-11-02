@@ -444,8 +444,8 @@ FORCE_INLINE std::optional<Move> getTTableMove(
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForcedEndState(
-        const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
+        const GameState& gameState, const bool isPvNode, StackOfVectors<Move>& stack) {
+    if (gameState.isRepetition(/*repetitionThreshold =*/isPvNode ? 3 : 2)) {
         return (EvalT)0;
     }
 
@@ -824,7 +824,7 @@ EvalT MoveSearcher::Impl::search(
     }
 
     if (ply > 0) {
-        if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
+        if (const auto endStateValue = checkForcedEndState(gameState, isPvNode, stack)) {
             // Exact value
             return updateMateDistanceOut(*endStateValue);
         }
@@ -1105,7 +1105,6 @@ EvalT MoveSearcher::Impl::search(
 
     if (bestScore == -kInfiniteEval && !wasInterrupted_ && anyLegalMoves) {
         MY_ASSERT_DEBUG(movesSearched == 0);
-        MY_ASSERT_DEBUG(!boundsAreMate);
         // All moves were pruned away.
         // Raise bestScore to avoid returning -kInfiniteEval.
         // If we have an eval (either static or from TTable), use that; but clamp it to a non-mate
@@ -1113,8 +1112,6 @@ EvalT MoveSearcher::Impl::search(
         // If we don't have an eval, return fail-hard alpha.
         bestScore = eval != -kInfiniteEval ? clampNonMateEval(eval) : alpha;
     } else if (prunedAnyMoves && isMate(bestScore) && bestScore < 0) {
-        MY_ASSERT_DEBUG(!boundsAreMate);
-
         // We found we're getting mated, but we didn't try all moves (because of futility pruning).
         // So we can't say that the score is an upper bound on the mate distance.
         // To avoid returning and storing bad mate bounds, we clamp the score to a non-mate value.
@@ -1182,7 +1179,7 @@ EvalT MoveSearcher::Impl::quiesce(
         return -kInfiniteEval;
     }
 
-    if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
+    if (const auto endStateValue = checkForcedEndState(gameState, isPvNode, stack)) {
         return updateMateDistanceOut(*endStateValue);
     }
 

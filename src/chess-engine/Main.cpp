@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "explicit-fma");
+            UciFrontEnd uciFrontEnd(engine, "3-fold-rep-in-pv-node");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
