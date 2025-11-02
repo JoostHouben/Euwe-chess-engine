@@ -390,12 +390,12 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
         }
         fen.pop_back();  // remove trailing space
 
-        try {
+        /*try*/ {
             gameState_ = GameState::fromFen(fen);
-        } catch (const std::exception& e) {
+        } /*catch (const std::exception& e) {
             reportError("Failed to parse FEN: {}", e.what());
             return;
-        }
+        }*/
     }
 
     // Allow for the 'moves' token to be omitted at the end of the line.
@@ -414,15 +414,15 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
             break;
         }
 
-        try {
+        /*try*/ {
             const Move move = Move::fromUci(moveString, gameState_);
             doBasicSanityChecks(move, gameState_);
 
             (void)gameState_.makeMove(move);
-        } catch (const std::exception& e) {
+        } /*catch (const std::exception& e) {
             reportError("Failed to parse or apply move '{}': {}", moveString, e.what());
             return;
-        }
+        }*/
     }
 
     if (debugMode_) {
@@ -509,15 +509,15 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
                     break;
                 }
 
-                try {
+                /*try*/ {
                     const Move move = Move::fromUci(token, gameState_);
                     doBasicSanityChecks(move, gameState_);
 
                     searchMoves.push_back(move);
-                } catch (const std::exception& e) {
+                } /*catch (const std::exception& e) {
                     reportError("Failed to parse search move '{}': {}", token, e.what());
                     return;
-                }
+                }*/
             }
         }
     }
@@ -549,16 +549,16 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
     searchHasStarted_ = false;
 
     goFuture_ = std::async(std::launch::async, [searchMoves, this] {
-        try {
+        /*try*/ {
             const auto searchInfo = engine_.findMove(gameState_, searchMoves);
 
             MY_ASSERT(!searchInfo.result.principalVariation.empty());
 
             writeUci("bestmove {}", searchInfo.result.principalVariation[0].toUci());
             std::flush(out_);
-        } catch (const std::exception& e) {
+        } /*catch (const std::exception& e) {
             reportError(e.what());
-        }
+        }*/
     });
 
     // Wait until the search has started before processing any further commands, to prevent race
@@ -618,12 +618,12 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
                     *optionParseResult->optionValue);
         }
 
-        try {
+        /*try*/ {
             option.trigger();
             writeUci("info string Action option '{}' was triggered.", option.getName());
-        } catch (const std::exception& e) {
+        } /*catch (const std::exception& e) {
             reportError("Failed to trigger action option '{}': {}", option.getName(), e.what());
-        }
+        }*/
         return;
     }
 
@@ -648,29 +648,29 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
             return;
         }
 
-        try {
+        /*try*/ {
             option.set("");
             writeUci("info string Option '{}' was set to empty string.", option.getName());
-        } catch (const std::exception& e) {
+        } /*catch (const std::exception& e) {
             reportError(
                     "Failed to set option '{}' to empty string: {}", option.getName(), e.what());
-        }
+        }*/
         return;
     }
 
-    try {
+    /*try*/ {
         option.set(*optionParseResult->optionValue);
         writeUci(
                 "info string Option '{}' was set to '{}'.",
                 option.getName(),
                 *optionParseResult->optionValue);
-    } catch (const std::exception& e) {
+    } /*catch (const std::exception& e) {
         reportError(
                 "Failed to set option '{}' to '{}': {}",
                 option.getName(),
                 *optionParseResult->optionValue,
                 e.what());
-    }
+    }*/
 }
 
 void UciFrontEnd::Impl::handleEval() const {

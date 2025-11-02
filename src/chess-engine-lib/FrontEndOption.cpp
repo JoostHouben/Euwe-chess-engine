@@ -18,7 +18,7 @@ bool stringViewToBool(std::string_view valueString) {
     sstream >> std::boolalpha >> value;
 
     if (!sstream) {
-        throw std::invalid_argument(std::format("Invalid boolean value: '{}'", valueString));
+        //throw std::invalid_argument(std::format("Invalid boolean value: '{}'", valueString));
     }
 
     return value;
@@ -32,21 +32,21 @@ int stringViewToInt(std::string_view valueString) {
     if (result.ec != std::errc{}) {
         switch (result.ec) {
             case std::errc::invalid_argument:
-                throw std::invalid_argument(
-                        std::format("Invalid integer value: '{}'", valueString));
+                //throw std::invalid_argument(
+                //        std::format("Invalid integer value: '{}'", valueString));
             case std::errc::result_out_of_range:
-                throw std::out_of_range(
-                        std::format("Integer value out of range: '{}'", valueString));
+                //throw std::out_of_range(
+                //        std::format("Integer value out of range: '{}'", valueString));
             default: {
-                const auto error_code = std::make_error_code(result.ec);
-                throw std::system_error(
-                        error_code,
-                        std::format(
-                                "Unknown error while parsing integer value '{}': error code {}: "
-                                "{} ",
-                                valueString,
-                                error_code.value(),
-                                error_code.message()));
+                //const auto error_code = std::make_error_code(result.ec);
+                //throw std::system_error(
+                //        error_code,
+                //        std::format(
+                //                "Unknown error while parsing integer value '{}': error code {}: "
+                //                "{} ",
+                //                valueString,
+                //                error_code.value(),
+                //                error_code.message()));
             }
         }
     }
@@ -115,8 +115,8 @@ FrontEndOption FrontEndOption::createInteger(
         const int value = stringViewToInt(valueString);
 
         if (value < minValue || value > maxValue) {
-            throw std::invalid_argument(std::format(
-                    "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
+            //throw std::invalid_argument(std::format(
+            //        "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
         }
 
         onSet(value);
@@ -143,9 +143,9 @@ FrontEndOption FrontEndOption::createAlternative(
                      validValues = *option.validValues_](std::string_view valueString) {
         const auto it = std::find(validValues.begin(), validValues.end(), valueString);
         if (it == validValues.end()) {
-            const std::string validValuesString = validValues | joinToString(", ");
-            throw std::invalid_argument(std::format(
-                    "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
+            //const std::string validValuesString = validValues | joinToString(", ");
+            //throw std::invalid_argument(std::format(
+            //        "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
         }
         onSet(valueString);
     };
@@ -188,7 +188,7 @@ void FrontEndOption::set(std::string_view valueString) {
 
 void FrontEndOption::trigger() {
     if (type_ != Type::Action) {
-        throw std::logic_error("Cannot set value for action option");
+        //throw std::logic_error("Cannot set value for action option");
     }
 
     onSet_("");

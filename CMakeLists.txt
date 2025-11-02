@@ -35,9 +35,10 @@ endif()
 
 # Set the architecture to AVX2 (and BMI2)
 if (MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /fp:precise")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2 /fp:precise /D_HAS_EXCEPTIONS=0")
+    string(REPLACE "/EHsc" "/EHs-c-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2 -ffp-contract=off")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx2 -mbmi2 -ffp-contract=off -fno-exceptions")
 endif()
 
 # Set warnings, and treat them as errors
@@ -59,7 +60,7 @@ if (MSVC)
         # Explicitly enable exceptions support for clang-cl (it's only enabled by CMake when
         # targeting the Windows-MSVC platform, see https://github.com/danvratil/qcoro/issues/90 for
         # details)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:-fno-exceptions")
 
         if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "20.0.0")
             message("Disabling floating-point contractions for clang-cl < 20.0.0")

@@ -27,7 +27,8 @@ Piece pieceFromFenChar(const char c) {
         case 'K':
             return Piece::King;
         default:
-            throw std::invalid_argument(std::format("Invalid FEN piece character: {}", c));
+            //throw std::invalid_argument(std::format("Invalid FEN piece character: {}", c));
+            UNREACHABLE;
     }
 }
 

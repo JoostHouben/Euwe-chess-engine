@@ -22,21 +22,21 @@ bool safeAdvance(IteratorT& it, const EndIteratorT end) {
 template <typename IteratorT, typename EndIteratorT>
 void tryAdvance(IteratorT& it, const EndIteratorT end) {
     if (!safeAdvance(it, end)) {
-        throw std::range_error("Unexpected end of input");
+        //throw std::range_error("Unexpected end of input");
     }
 }
 
 template <typename IteratorT, typename EndIteratorT>
 void checkStrItValid(const IteratorT it, const EndIteratorT end) {
     if (it == end) {
-        throw std::invalid_argument("Unexpected end of input");
+        //throw std::invalid_argument("Unexpected end of input");
     }
 }
 
 [[nodiscard]] std::optional<int> parseIntInFenString(
         std::string_view::const_iterator& strIt,
         const std::string_view::const_iterator endIt,
-        std::string_view valueDescription) {
+        std::string_view /*valueDescription*/) {
     if (strIt == endIt) {
         return std::nullopt;
     }
@@ -50,10 +50,10 @@ void checkStrItValid(const IteratorT it, const EndIteratorT end) {
     const auto result = std::from_chars(strStart, strStart + distanceToEnd, value);
 
     if (result.ec != std::errc{}) {
-        throw std::invalid_argument(std::format(
-                "Invalid {} in FEN string: unable to parse integer from: {}",
-                valueDescription,
-                std::string_view(strIt, endIt)));
+        //throw std::invalid_argument(std::format(
+        //        "Invalid {} in FEN string: unable to parse integer from: {}",
+        //        valueDescription,
+        //        std::string_view(strIt, endIt)));
     }
 
     const std::size_t charsRead = result.ptr - &*strIt;
@@ -85,7 +85,7 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(
             if (isNumber(*strIt)) {
                 file += (*strIt - '0');
                 if (file > 8) {
-                    throw std::invalid_argument("Invalid FEN string: too many pieces in rank");
+                    //throw std::invalid_argument("Invalid FEN string: too many pieces in rank");
                 }
                 continue;
             }
@@ -105,10 +105,10 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(
                             || (rank == 0 && (strIt == endIt || *strIt == ' '));
         if (!validChar) {
             checkStrItValid(strIt, endIt);
-            throw std::invalid_argument(std::format(
-                    "Unexpected character {} in FEN string, starting at: {}",
-                    *strIt,
-                    std::string_view(strIt, endIt)));
+            //throw std::invalid_argument(std::format(
+            //        "Unexpected character {} in FEN string, starting at: {}",
+            //        *strIt,
+            //        std::string_view(strIt, endIt)));
         }
 
         if (rank > 0) {
@@ -131,7 +131,8 @@ Side parseSideToMoveFromFen(
         case 'b':
             return Side::Black;
         default:
-            throw std::invalid_argument(std::format("Invalid side to move in FEN string: {}", c));
+            //throw std::invalid_argument(std::format("Invalid side to move in FEN string: {}", c));
+            UNREACHABLE;
     }
 }
 
@@ -159,8 +160,9 @@ void parseCastlingRightsFromFen(
                 bit = (int)GameState::CastlingRights::QueenSide << ((int)side * 2);
                 break;
             default:
-                throw std::invalid_argument(
-                        std::format("Invalid character for castling rights: {}", *strIt));
+                //throw std::invalid_argument(
+                //        std::format("Invalid character for castling rights: {}", *strIt));
+                break;
         }
 
         castlingRights = (GameState::CastlingRights)((int)castlingRights | bit);
@@ -178,7 +180,7 @@ BoardPosition parseEnPassantTargetFromFen(
 
     const std::size_t charsRemaining = endIt - strIt;
     if (charsRemaining < 2) {
-        throw std::invalid_argument("Unexpected end of FEN string.");
+        //throw std::invalid_argument("Unexpected end of FEN string.");
     }
 
     const BoardPosition enPassantTarget = positionFromAlgebraic({strIt, strIt + 2});
@@ -334,7 +336,7 @@ HashT computePawnKingHash(const GameState& gameState) {
 
 GameState GameState::fromFen(std::string_view fenString) {
     if (fenString.empty()) {
-        throw std::invalid_argument("FEN string invalid: empty");
+        //throw std::invalid_argument("FEN string invalid: empty");
     }
 
     GameState gameState{};
@@ -343,14 +345,14 @@ GameState GameState::fromFen(std::string_view fenString) {
     const auto endIt = fenString.end();
 
     const auto advanceWordEnd = [&](const bool allowEnd = false) {
-        const std::size_t position = (strIt - fenString.begin()) + 1;
+        //const std::size_t position = (strIt - fenString.begin()) + 1;
         if ((strIt != endIt) && *strIt != ' ') {
-            throw std::invalid_argument(
-                    std::format("Invalid FEN string: expected space at character #{}", position));
+            //throw std::invalid_argument(
+            //        std::format("Invalid FEN string: expected space at character #{}", position));
         }
         if (!safeAdvance(strIt, endIt) && !allowEnd) {
-            throw std::invalid_argument(std::format(
-                    "Invalid FEN string: unexpected end of string at character #{}", position));
+            //throw std::invalid_argument(std::format(
+            //        "Invalid FEN string: unexpected end of string at character #{}", position));
         }
     };
 
@@ -374,9 +376,9 @@ GameState GameState::fromFen(std::string_view fenString) {
     gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt, endIt);
 
     if (strIt != endIt) {
-        throw std::invalid_argument(std::format(
-                "Invalid FEN string: unexpected characters at end of string: {}",
-                std::string_view(strIt, endIt)));
+        //throw std::invalid_argument(std::format(
+        //        "Invalid FEN string: unexpected characters at end of string: {}",
+        //        std::string_view(strIt, endIt)));
     }
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig);

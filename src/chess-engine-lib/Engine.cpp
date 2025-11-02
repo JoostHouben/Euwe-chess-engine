@@ -87,7 +87,7 @@ SearchInfo Engine::Impl::findMove(
     const auto allLegalMoves = gameState.generateMoves(moveStack_);
 
     if (allLegalMoves.empty()) {
-        throw std::invalid_argument("No legal moves available in the current position.");
+        //throw std::invalid_argument("No legal moves available in the current position.");
     }
 
     for (const auto& move : searchMoves) {
@@ -100,8 +100,8 @@ SearchInfo Engine::Impl::findMove(
         }
 
         if (!isLegal) {
-            throw std::invalid_argument(
-                    "Requested move to search is not legal: " + move.toExtendedString());
+            //throw std::invalid_argument(
+            //        "Requested move to search is not legal: " + move.toExtendedString());
         }
     }
 
@@ -259,9 +259,9 @@ EvalT Engine::Impl::evaluate(const GameState& gameState) const {
 
 void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
     if (!syzygyPathIsValid(syzygyDir)) {
-        throw std::invalid_argument(std::format(
-                "invalid syzygy path. Must be a {}-separated list of directories.",
-                getSyzygyPathSeparator()));
+        //throw std::invalid_argument(std::format(
+        //        "invalid syzygy path. Must be a {}-separated list of directories.",
+        //        getSyzygyPathSeparator()));
     }
 
     if (hasSyzygy_) {
@@ -273,7 +273,7 @@ void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
         const int tbPieces = initSyzygy(std::string(syzygyDir));
 
         if (tbPieces == 0) {
-            throw std::invalid_argument("Failed to initialize Syzygy tablebases.");
+            //throw std::invalid_argument("Failed to initialize Syzygy tablebases.");
         }
 
         frontEnd_->reportString(
