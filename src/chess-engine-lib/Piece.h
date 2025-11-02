@@ -4,6 +4,7 @@
 #include "Side.h"
 
 #include <array>
+#include <expected>
 #include <string>
 
 #include <cstdint>
@@ -41,7 +42,7 @@ inline constexpr std::array kPromotionPieces = {
     return piece == Piece::Bishop || piece == Piece::Rook || piece == Piece::Queen;
 }
 
-[[nodiscard]] Piece pieceFromFenChar(char c);
+[[nodiscard]] std::expected<Piece, std::string> pieceFromFenChar(char c);
 [[nodiscard]] char toFenChar(Piece piece);
 [[nodiscard]] char toLowerCaseFenChar(Piece piece);
 
@@ -76,5 +77,5 @@ enum class ColoredPiece : std::uint8_t {
     return static_cast<Side>((std::uint8_t)coloredPiece >> 3);
 }
 
-[[nodiscard]] ColoredPiece coloredPieceFromFenChar(char c);
+[[nodiscard]] std::expected<ColoredPiece, std::string> coloredPieceFromFenChar(char c);
 [[nodiscard]] char toFenChar(ColoredPiece coloredPiece);

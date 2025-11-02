@@ -109,14 +109,14 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** ar
         std::exit(1);
     }
 
-    /*try*/ {
+    {
         std::vector<std::pair<std::filesystem::path, int>> args;
         for (int i = 1; i + 1 < argc;) {
             const std::filesystem::path dataPath = argv[i++];
 
             if (!std::filesystem::exists(dataPath)) {
-                //throw std::invalid_argument(
-                //        std::format("Path '{}' does not exist", dataPath.string()));
+                std::println("Path '{}' does not exist", dataPath.string());
+                std::exit(1);
             }
 
             const int dropoutRate = std::stoi(argv[i++]);
@@ -125,16 +125,13 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** ar
         }
 
         return args;
-    } /*catch (const std::exception& e) {
-        std::println("Error: {}", e.what());
-        std::exit(1);
-    }*/
+    }
 }
 // NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 }  // namespace
 
-int main(int argc, char** argv) /*try*/ {
+int main(int argc, char** argv) {
     static constexpr bool kFixScale             = true;
     static constexpr bool kFixPhaseValues       = true;
     static constexpr int kAdditionalDropOutRate = kFixPhaseValues ? 1 : 2;
@@ -163,7 +160,4 @@ int main(int argc, char** argv) /*try*/ {
     const std::filesystem::path outputPath = "optimized_params.txt";
     saveResults(paramsDouble, outputPath);
     std::println("Saved optimized params to '{}'", outputPath.string());
-} /*catch (const std::exception& e) {
-    std::println("Uncaught exception of type {}: {}", typeid(e).name(), e.what());
-    return 1;
-}*/
+}

@@ -53,7 +53,7 @@ void testSee(const GameState& gameState, const Move& move, const int expectedSco
 TEST_P(SEETests, TestStaticExchangeEvaluation) {
     const SEETestConfig config = GetParam();
 
-    const GameState gameState = GameState::fromFen(config.fen);
+    const GameState gameState = GameState::fromFen(config.fen).value();
 
     testSee(gameState, config.move, config.expectedScore);
 }
@@ -66,7 +66,7 @@ TEST_P(SEETests, TestStaticExchangeEvaluationWithoutVictim) {
         return;
     }
 
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
 
     const Piece victim             = getPiece(gameState.getPieceOnSquare(config.move.to));
     int expectedScoreWithoutVictim = config.expectedScore - getStaticPieceValue(victim);

@@ -4,7 +4,9 @@
 #include "MyAssert.h"
 
 #include <algorithm>
+#include <expected>
 #include <format>
+#include <numeric>
 
 namespace {
 
@@ -166,17 +168,35 @@ FORCE_INLINE CompactMove Move::toCompact() const {
     return CompactMove(*this);
 }
 
-Move Move::fromUci(std::string_view uciString, const GameState& gameState) {
+std::expected<Move, std::string> Move::fromUci(
+        std::string_view uciString, const GameState& gameState) {
     if (uciString.size() != 4 && uciString.size() != 5) [[unlikely]] {
-        //throw std::invalid_argument(std::format("Invalid UCI string: {}", uciString));
+        return std::unexpected(
+                std::format("Invalid UCI string length: {}", std::string(uciString)));
     }
 
-    const BoardPosition from = positionFromAlgebraic(uciString.substr(0, 2));
-    const BoardPosition to   = positionFromAlgebraic(uciString.substr(2, 2));
+    auto fromRes = positionFromAlgebraic(uciString.substr(0, 2));
+    if (!fromRes) {
+        return std::unexpected(fromRes.error());
+    }
+    const BoardPosition from = fromRes.value();
+
+    auto toRes = positionFromAlgebraic(uciString.substr(2, 2));
+    if (!toRes) {
+        return std::unexpected(toRes.error());
+    }
+    const BoardPosition to = toRes.value();
 
     Piece promotionPiece = Piece::Pawn;
     if (uciString.length() == 5) {
-        promotionPiece = pieceFromFenChar(uciString[4]);
+        auto pieceRes = pieceFromFenChar(uciString[4]);
+        if (!pieceRes) {
+            return std::unexpected(std::format(
+                    "Invalid promotion piece in UCI string '{}': {}",
+                    std::string(uciString),
+                    pieceRes.error()));
+        }
+        promotionPiece = pieceRes.value();
     }
 
     const Piece pieceToMove = getPiece(gameState.getPieceOnSquare(from));
@@ -201,7 +221,8 @@ Move Move::fromUci(std::string_view uciString, const GameState& gameState) {
     return Move{.pieceToMove = pieceToMove, .from = from, .to = to, .flags = moveFlags};
 }
 
-Move Move::fromAlgebraic(std::string_view algebraic, const GameState& gameState) {
+std::expected<Move, std::string> Move::fromAlgebraic(
+        std::string_view algebraic, const GameState& gameState) {
     StackOfVectors<Move> stack;
 
     const StackVector<Move> moves = gameState.generateMoves(stack);
@@ -210,30 +231,29 @@ Move Move::fromAlgebraic(std::string_view algebraic, const GameState& gameState)
             return move;
         }
     }
-    //throw std::invalid_argument(
-    //        std::format("Move {} is not a legal move in this position.", algebraic));
-    UNREACHABLE;
+    return std::unexpected(
+            std::format("Move '{}' is not a legal move in this position.", std::string(algebraic)));
 }
 
-void doBasicSanityChecks(const Move& move, const GameState& gameState) {
+std::expected<void, std::string> doBasicSanityChecks(const Move& move, const GameState& gameState) {
     if (move.pieceToMove == Piece::Invalid) [[unlikely]] {
-        //throw std::invalid_argument("Invalid piece to move.");
+        return std::unexpected(std::string("Invalid piece to move."));
     }
 
     const Side sideToMove = gameState.getSideToMove();
 
     const ColoredPiece coloredPieceToMove = gameState.getPieceOnSquare(move.from);
     if (getSide(coloredPieceToMove) != sideToMove) [[unlikely]] {
-        //throw std::invalid_argument("Piece to move is of the wrong side.");
+        return std::unexpected(std::string("Piece to move is of the wrong side."));
     }
 
     if (isCapture(move)) {
         if (isEnPassant(move)) {
             if (move.pieceToMove != Piece::Pawn) [[unlikely]] {
-                //throw std::invalid_argument("Only pawns can capture en passant.");
+                return std::unexpected(std::string("Only pawns can capture en passant."));
             }
             if (move.to != gameState.getEnPassantTarget()) [[unlikely]] {
-                //throw std::invalid_argument("En passant target square is incorrect.");
+                return std::unexpected(std::string("En passant target square is incorrect."));
             }
         }
 
@@ -242,28 +262,30 @@ void doBasicSanityChecks(const Move& move, const GameState& gameState) {
 
         const ColoredPiece capturedPiece = gameState.getPieceOnSquare(captureTarget);
         if (getPiece(capturedPiece) == Piece::Invalid) [[unlikely]] {
-            //throw std::invalid_argument(std::format(
-            //        "No piece to capture on the capture target square {}.",
-            //        algebraicFromPosition(captureTarget)));
+            return std::unexpected(std::format(
+                    "No piece to capture on the capture target square {}.",
+                    algebraicFromPosition(captureTarget)));
         }
         if (getSide(capturedPiece) == sideToMove) [[unlikely]] {
-            //throw std::invalid_argument("Capture target is of own side.");
+            return std::unexpected(std::string("Capture target is of own side."));
         }
     } else {
         const Piece targetPiece = getPiece(gameState.getPieceOnSquare(move.to));
         if (targetPiece != Piece::Invalid) [[unlikely]] {
-            //throw std::invalid_argument("Target square for non-capture is occupied.");
+            return std::unexpected(std::string("Target square for non-capture is occupied."));
         }
     }
 
     if (isPromotion(move)) {
         if (move.pieceToMove != Piece::Pawn) [[unlikely]] {
-            //throw std::invalid_argument("Only pawns can be promoted.");
+            return std::unexpected(std::string("Only pawns can be promoted."));
         }
 
         const int expectedRank = sideToMove == Side::White ? 7 : 0;
         if (rankFromPosition(move.to) != expectedRank) [[unlikely]] {
-            //throw std::invalid_argument("Only pawns on the last rank can be promoted.");
+            return std::unexpected(std::string("Only pawns on the last rank can be promoted."));
         }
     }
+
+    return {};
 }

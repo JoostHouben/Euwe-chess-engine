@@ -4,6 +4,7 @@
 #include "RangePatches.h"
 
 #include <charconv>
+#include <expected>
 #include <format>
 #include <ranges>
 #include <sstream>
@@ -12,19 +13,19 @@
 
 namespace {
 
-bool stringViewToBool(std::string_view valueString) {
+std::expected<bool, std::string> stringViewToBool(std::string_view valueString) {
     std::istringstream sstream{std::string(valueString)};
     bool value{};
     sstream >> std::boolalpha >> value;
 
     if (!sstream) {
-        //throw std::invalid_argument(std::format("Invalid boolean value: '{}'", valueString));
+        return std::unexpected(std::format("Invalid boolean value: '{}'", valueString));
     }
 
     return value;
 }
 
-int stringViewToInt(std::string_view valueString) {
+std::expected<int, std::string> stringViewToInt(std::string_view valueString) {
     int value{};
     const auto result =
             std::from_chars(valueString.data(), valueString.data() + valueString.size(), value);
@@ -32,21 +33,17 @@ int stringViewToInt(std::string_view valueString) {
     if (result.ec != std::errc{}) {
         switch (result.ec) {
             case std::errc::invalid_argument:
-                //throw std::invalid_argument(
-                //        std::format("Invalid integer value: '{}'", valueString));
+                return std::unexpected(std::format("Invalid integer value: '{}'", valueString));
             case std::errc::result_out_of_range:
-                //throw std::out_of_range(
-                //        std::format("Integer value out of range: '{}'", valueString));
+                return std::unexpected(
+                        std::format("Integer value out of range: '{}'", valueString));
             default: {
-                //const auto error_code = std::make_error_code(result.ec);
-                //throw std::system_error(
-                //        error_code,
-                //        std::format(
-                //                "Unknown error while parsing integer value '{}': error code {}: "
-                //                "{} ",
-                //                valueString,
-                //                error_code.value(),
-                //                error_code.message()));
+                const auto error_code = std::make_error_code(result.ec);
+                return std::unexpected(std::format(
+                        "Unknown error while parsing integer value '{}': error code {}: {}",
+                        valueString,
+                        error_code.value(),
+                        error_code.message()));
             }
         }
     }
@@ -60,8 +57,10 @@ FrontEndOption FrontEndOption::createAction(std::string name, std::function<void
     FrontEndOption option;
     option.name_  = std::move(name);
     option.type_  = Type::Action;
-    option.onSet_ = [onTrigger = std::move(onTrigger)](std::string_view) {
+    option.onSet_ = [onTrigger = std::move(onTrigger)](
+                            std::string_view) -> std::expected<void, std::string> {
         onTrigger();
+        return {};
     };
     return option;
 }
@@ -75,8 +74,13 @@ FrontEndOption FrontEndOption::createBoolean(
     option.name_         = std::move(name);
     option.type_         = Type::Boolean;
     option.defaultValue_ = sstream.str();
-    option.onSet_        = [onSet = std::move(onSet)](std::string_view valueString) {
-        onSet(stringViewToBool(valueString));
+    option.onSet_        = [onSet = std::move(onSet)](
+                            std::string_view valueString) -> std::expected<void, std::string> {
+        auto r = stringViewToBool(valueString);
+        if (!r)
+            return std::unexpected(r.error());
+        onSet(*r);
+        return {};
     };
     return option;
 }
@@ -96,7 +100,11 @@ FrontEndOption FrontEndOption::createString(
 }
 
 FrontEndOption FrontEndOption::createString(std::string name, std::string& value) {
-    return createString(std::move(name), value, [&](std::string_view v) { value = v; });
+    return createString(
+            std::move(name), value, [&](std::string_view v) -> std::expected<void, std::string> {
+                value = v;
+                return {};
+            });
 }
 
 FrontEndOption FrontEndOption::createInteger(
@@ -111,15 +119,20 @@ FrontEndOption FrontEndOption::createInteger(
     option.defaultValue_ = std::to_string(defaultValue);
     option.minValue_     = minValue;
     option.maxValue_     = maxValue;
-    option.onSet_        = [=, onSet = std::move(onSet)](std::string_view valueString) {
-        const int value = stringViewToInt(valueString);
+    option.onSet_        = [=, onSet = std::move(onSet)](
+                            std::string_view valueString) -> std::expected<void, std::string> {
+        auto r = stringViewToInt(valueString);
+        if (!r)
+            return std::unexpected(r.error());
+        const int value = *r;
 
         if (value < minValue || value > maxValue) {
-            //throw std::invalid_argument(std::format(
-            //        "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
+            return std::unexpected(std::format(
+                    "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
         }
 
         onSet(value);
+        return {};
     };
     return option;
 }
@@ -139,15 +152,16 @@ FrontEndOption FrontEndOption::createAlternative(
     option.type_         = Type::Alternative;
     option.validValues_  = std::move(validValues);
     option.defaultValue_ = std::move(defaultValue);
-    option.onSet_        = [onSet       = std::move(onSet),
-                     validValues = *option.validValues_](std::string_view valueString) {
+
+    option.onSet_ = [onSet = std::move(onSet), validValues = *option.validValues_](
+                            std::string_view valueString) -> std::expected<void, std::string> {
         const auto it = std::find(validValues.begin(), validValues.end(), valueString);
         if (it == validValues.end()) {
-            //const std::string validValuesString = validValues | joinToString(", ");
-            //throw std::invalid_argument(std::format(
-            //        "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
+            const std::string validValuesString = validValues | joinToString(", ");
+            return std::unexpected(std::format(
+                    "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
         }
-        onSet(valueString);
+        return onSet(valueString);
     };
     return option;
 }
@@ -155,7 +169,10 @@ FrontEndOption FrontEndOption::createAlternative(
 FrontEndOption FrontEndOption::createAlternative(
         std::string name, std::string& value, std::vector<std::string> validValues) {
     return createAlternative(
-            std::move(name), value, std::move(validValues), [&](std::string_view v) { value = v; });
+            std::move(name), value, std::move(validValues), [&](std::string_view v) {
+                value = v;
+                return std::expected<void, std::string>{};
+            });
 }
 
 const std::string& FrontEndOption::retrieveDefaultValue() const {
@@ -182,14 +199,14 @@ const std::vector<std::string>& FrontEndOption::retrieveValidValues() const {
     return *validValues_;
 }
 
-void FrontEndOption::set(std::string_view valueString) {
-    onSet_(valueString);
+std::expected<void, std::string> FrontEndOption::set(std::string_view valueString) {
+    return onSet_(valueString);
 }
 
-void FrontEndOption::trigger() {
+std::expected<void, std::string> FrontEndOption::trigger() {
     if (type_ != Type::Action) {
-        //throw std::logic_error("Cannot set value for action option");
+        return std::unexpected(std::string("Cannot set value for action option"));
     }
 
-    onSet_("");
+    return onSet_("");
 }

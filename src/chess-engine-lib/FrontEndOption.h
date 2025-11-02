@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <functional>
 #include <optional>
 #include <string>
@@ -8,7 +9,7 @@
 
 class FrontEndOption {
   public:
-    using OnSet = std::function<void(std::string_view)>;
+    using OnSet = std::function<std::expected<void, std::string>(std::string_view)>;
 
     enum class Type {
         Action,
@@ -56,10 +57,10 @@ class FrontEndOption {
 
     Type getType() const { return type_; }
 
-    void set(std::string_view value);
+    std::expected<void, std::string> set(std::string_view value);
 
     // Only valid for Action type options.
-    void trigger();
+    std::expected<void, std::string> trigger();
 
   private:
     FrontEndOption() = default;

@@ -11,6 +11,7 @@
 #include "StackOfVectors.h"
 
 #include <array>
+#include <expected>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -86,7 +87,7 @@ class GameState {
 
     using DirectCheckBitBoards = std::array<BitBoard, kNumPieceTypes - 1>;
 
-    [[nodiscard]] static GameState fromFen(std::string_view fenString);
+    [[nodiscard]] static std::expected<GameState, std::string> fromFen(std::string_view fenString);
     [[nodiscard]] static GameState startingPosition();
 
     [[nodiscard]] std::string toFen() const;

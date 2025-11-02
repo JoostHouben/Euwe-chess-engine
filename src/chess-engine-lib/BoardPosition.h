@@ -5,6 +5,8 @@
 #include "Piece.h"
 #include "Side.h"
 
+#include <expected>
+#include <format>
 #include <stdexcept>
 #include <string>
 
@@ -48,12 +50,18 @@ enum class BoardPosition : std::uint8_t {
     return positionFromFileRank(enPassantFile, enPassantPieceRank);
 }
 
-[[nodiscard]] constexpr BoardPosition positionFromAlgebraic(std::string_view algebraic) {
+[[nodiscard]] inline std::expected<BoardPosition, std::string> positionFromAlgebraic(
+        std::string_view algebraic) {
+    if (algebraic.size() != 2) {
+        return std::unexpected(std::string("Invalid algebraic position: incorrect length"));
+    }
+
     const int file = algebraic[0] - 'a';
     const int rank = algebraic[1] - '1';
 
     if (file < 0 || file > 7 || rank < 0 || rank > 7) [[unlikely]] {
-        //throw std::invalid_argument("Invalid algebraic position: " + std::string(algebraic));
+        return std::unexpected(
+                std::format("Invalid algebraic position: {}", std::string(algebraic)));
     }
 
     return positionFromFileRank(file, rank);

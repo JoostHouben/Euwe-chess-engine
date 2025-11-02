@@ -3,7 +3,6 @@
 #include "MyAssert.h"
 
 #include <format>
-#include <stdexcept>
 
 namespace {
 
@@ -11,7 +10,7 @@ constexpr char kLowerCaseBit = 1 << 5;
 
 }  // namespace
 
-Piece pieceFromFenChar(const char c) {
+std::expected<Piece, std::string> pieceFromFenChar(const char c) {
     const char upperCase = (char)(c & ~kLowerCaseBit);
     switch (upperCase) {
         case 'P':
@@ -27,13 +26,16 @@ Piece pieceFromFenChar(const char c) {
         case 'K':
             return Piece::King;
         default:
-            //throw std::invalid_argument(std::format("Invalid FEN piece character: {}", c));
-            UNREACHABLE;
+            return std::unexpected(std::format("Invalid FEN piece character: {}", c));
     }
 }
 
-ColoredPiece coloredPieceFromFenChar(const char c) {
-    return getColoredPiece(pieceFromFenChar(c), sideFromFenChar(c));
+std::expected<ColoredPiece, std::string> coloredPieceFromFenChar(const char c) {
+    auto pieceRes = pieceFromFenChar(c);
+    if (!pieceRes) {
+        return std::unexpected(pieceRes.error());
+    }
+    return getColoredPiece(*pieceRes, sideFromFenChar(c));
 }
 
 char toFenChar(const Piece piece) {

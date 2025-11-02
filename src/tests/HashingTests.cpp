@@ -137,7 +137,7 @@ class HashCollisionTests : public ::testing::TestWithParam<HashCollisionTestConf
 TEST_P(HashCollisionTests, FindHashCollisions) {
     const HashCollisionTestConfig config = GetParam();
 
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
     StackOfVectors<Move> stack;
     findHashCollisions(gameState, config.depth, stack);
 }
@@ -146,7 +146,7 @@ TEST_P(HashCollisionTests, FindHashCollisions) {
 TEST_P(HashCollisionTests, FindPawnKingHashCollisions) {
     const HashCollisionTestConfig config = GetParam();
 
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
     StackOfVectors<Move> stack;
     findPawnKingHashCollisions(gameState, config.depth, stack);
 }
@@ -202,17 +202,18 @@ INSTANTIATE_TEST_SUITE_P(HashCollisionTestsSlow, HashCollisionTests, testCasesSl
 
 TEST(HashingTests, NullMoveEnPassantHashing) {
     const HashT withEnPassantTarget =
-            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - c3 0 1").getBoardHash();
+            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - c3 0 1").value().getBoardHash();
     const HashT withoutEnPassantTarget =
-            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - - 0 1").getBoardHash();
+            GameState::fromFen("8/8/2n1k3/8/1pPp1BK1/pP1P4/P7/8 b - - 0 1").value().getBoardHash();
 
     EXPECT_NE(withEnPassantTarget, withoutEnPassantTarget);
 
-    GameState gameState = GameState::fromFen("8/5k2/2n1R3/6K1/1p1p1B2/pP1P4/P1P5/8 b - - 0 1");
+    GameState gameState =
+            GameState::fromFen("8/5k2/2n1R3/6K1/1p1p1B2/pP1P4/P1P5/8 b - - 0 1").value();
 
     const HashT startHash = gameState.getBoardHash();
 
-    const Move movef7e6       = Move::fromUci("f7e6", gameState);
+    const Move movef7e6       = Move::fromUci("f7e6", gameState).value();
     const auto movef7e6Unmake = gameState.makeMove(movef7e6);
     const HashT afterf7e6Hash = gameState.getBoardHash();
 
@@ -224,7 +225,7 @@ TEST(HashingTests, NullMoveEnPassantHashing) {
     const auto nullMoveUnmake     = gameState.makeNullMove();
     const HashT afterNullMoveHash = gameState.getBoardHash();
 
-    const Move moveg5g4       = Move::fromUci("g5g4", gameState);
+    const Move moveg5g4       = Move::fromUci("g5g4", gameState).value();
     const auto moveg5gfUnmake = gameState.makeMove(moveg5g4);
     const HashT afterg5g4Hash = gameState.getBoardHash();
 

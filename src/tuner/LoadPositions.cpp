@@ -88,9 +88,20 @@ std::vector<ScoredPosition> loadScoredPositions(
         std::string fen;
         std::getline(lineSStream, fen);
 
-        const GameState gameState = GameState::fromFen(fen);
+        const auto gameState = GameState::fromFen(fen);
+        if (!gameState) {
+            if (logOutput) {
+                std::osyncstream out(*logOutput);
+                std::println(
+                        out,
+                        "Warning: failed to parse FEN from {}: {}",
+                        annotatedFensPath.filename().string(),
+                        gameState.error());
+            }
+            continue;
+        }
 
-        scoredPositions.push_back({gameState, score});
+        scoredPositions.push_back({*gameState, score});
     }
 
     if (logOutput) {

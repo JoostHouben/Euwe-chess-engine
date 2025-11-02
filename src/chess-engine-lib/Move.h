@@ -3,6 +3,7 @@
 #include "BoardPosition.h"
 #include "Piece.h"
 
+#include <expected>
 #include <format>
 
 #include <cstdint>
@@ -113,12 +114,14 @@ struct Move {
 
     [[nodiscard]] CompactMove toCompact() const;
 
-    [[nodiscard]] static Move fromAlgebraic(std::string_view algebraic, const GameState& gameState);
+    [[nodiscard]] static std::expected<Move, std::string> fromAlgebraic(
+            std::string_view algebraic, const GameState& gameState);
 
-    [[nodiscard]] static Move fromUci(std::string_view uci, const GameState& gameState);
+    [[nodiscard]] static std::expected<Move, std::string> fromUci(
+            std::string_view uci, const GameState& gameState);
 };
 
-void doBasicSanityChecks(const Move& move, const GameState& gameState);
+std::expected<void, std::string> doBasicSanityChecks(const Move& move, const GameState& gameState);
 
 [[nodiscard]] constexpr Piece getPromotionPiece(const Move& move) {
     return getPromotionPiece(move.flags);

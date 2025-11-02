@@ -264,7 +264,7 @@ FORCE_INLINE void generateSinglePieceMovesFromControl(
 }  // namespace
 
 GameState GameState::startingPosition() {
-    static const GameState startingPosition = fromFen(getStartingPositionFen());
+    static const GameState startingPosition = *fromFen(getStartingPositionFen());
     return startingPosition;
 }
 

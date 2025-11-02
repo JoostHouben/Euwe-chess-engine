@@ -24,7 +24,7 @@ class Engine::Impl {
 
     void newGame();
 
-    [[nodiscard]] SearchInfo findMove(
+    [[nodiscard]] std::expected<SearchInfo, std::string> findMove(
             const GameState& gameState, const std::vector<Move>& searchMoves);
 
     void interruptSearch();
@@ -35,7 +35,7 @@ class Engine::Impl {
 
     [[nodiscard]] EvalT evaluate(const GameState& gameState) const;
 
-    void initializeSyzygy(std::string_view syzygyDir);
+    std::expected<void, std::string> initializeSyzygy(std::string_view syzygyDir);
 
   private:
     StackOfVectors<Move> moveStack_;
@@ -72,7 +72,9 @@ void Engine::Impl::setFrontEnd(IFrontEnd* frontEnd) {
     moveSearcher_.setFrontEnd(frontEnd);
 
     frontEnd_->addOption(FrontEndOption::createString(
-            "SyzygyPath", "", [this](const std::string_view v) { initializeSyzygy(v); }));
+            "SyzygyPath", "", [this](const std::string_view v) -> std::expected<void, std::string> {
+                return initializeSyzygy(v);
+            }));
 }
 
 void Engine::Impl::newGame() {
@@ -80,14 +82,14 @@ void Engine::Impl::newGame() {
     stopSearch_ = false;
 }
 
-SearchInfo Engine::Impl::findMove(
+std::expected<SearchInfo, std::string> Engine::Impl::findMove(
         const GameState& gameState, const std::vector<Move>& searchMoves) {
     stopSearch_ = false;
 
     const auto allLegalMoves = gameState.generateMoves(moveStack_);
 
     if (allLegalMoves.empty()) {
-        //throw std::invalid_argument("No legal moves available in the current position.");
+        return std::unexpected("No legal moves available in the current position.");
     }
 
     for (const auto& move : searchMoves) {
@@ -100,8 +102,8 @@ SearchInfo Engine::Impl::findMove(
         }
 
         if (!isLegal) {
-            //throw std::invalid_argument(
-            //        "Requested move to search is not legal: " + move.toExtendedString());
+            return std::unexpected(
+                    "Requested move to search is not legal: " + move.toExtendedString());
         }
     }
 
@@ -257,11 +259,11 @@ EvalT Engine::Impl::evaluate(const GameState& gameState) const {
     return evaluator_.evaluate(gameState);
 }
 
-void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
+std::expected<void, std::string> Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
     if (!syzygyPathIsValid(syzygyDir)) {
-        //throw std::invalid_argument(std::format(
-        //        "invalid syzygy path. Must be a {}-separated list of directories.",
-        //        getSyzygyPathSeparator()));
+        return std::unexpected(std::format(
+                "invalid syzygy path. Must be a {}-separated list of directories.",
+                getSyzygyPathSeparator()));
     }
 
     if (hasSyzygy_) {
@@ -273,7 +275,7 @@ void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
         const int tbPieces = initSyzygy(std::string(syzygyDir));
 
         if (tbPieces == 0) {
-            //throw std::invalid_argument("Failed to initialize Syzygy tablebases.");
+            return std::unexpected("Failed to initialize Syzygy tablebases.");
         }
 
         frontEnd_->reportString(
@@ -283,6 +285,8 @@ void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
     }
 
     moveSearcher_.setSyzygyEnabled(hasSyzygy_);
+
+    return {};
 }
 
 // Implementation of interface: forward to implementation
@@ -303,7 +307,8 @@ void Engine::newGame() {
     impl_->newGame();
 }
 
-SearchInfo Engine::findMove(const GameState& gameState, const std::vector<Move>& searchMoves) {
+std::expected<SearchInfo, std::string> Engine::findMove(
+        const GameState& gameState, const std::vector<Move>& searchMoves) {
     return impl_->findMove(gameState, searchMoves);
 }
 

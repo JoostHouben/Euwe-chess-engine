@@ -19,7 +19,7 @@ TEST(FrontEndOptionTests, TestAction) {
     EXPECT_FALSE(action.getMaxValue().has_value());
     EXPECT_FALSE(action.getValidValues().has_value());
 
-    action.trigger();
+    EXPECT_TRUE(action.trigger().has_value());
     EXPECT_TRUE(triggered);
 }
 
@@ -39,15 +39,15 @@ TEST(FrontEndOptionTests, TestBoolean) {
     EXPECT_FALSE(action.getMaxValue().has_value());
     EXPECT_FALSE(action.getValidValues().has_value());
 
-    //EXPECT_THROW(action.trigger(), std::logic_error);
+    EXPECT_FALSE(action.trigger().has_value());
 
-    action.set("true");
+    EXPECT_TRUE(action.set("true").has_value());
     EXPECT_TRUE(value);
 
-    action.set("false");
+    EXPECT_TRUE(action.set("false").has_value());
     EXPECT_FALSE(value);
 
-    //EXPECT_THROW(action.set("invalid"), std::invalid_argument);
+    EXPECT_FALSE(action.set("invalid").has_value());
 }
 
 TEST(FrontEndOptionTests, TestString) {
@@ -66,9 +66,9 @@ TEST(FrontEndOptionTests, TestString) {
     EXPECT_FALSE(action.getMaxValue().has_value());
     EXPECT_FALSE(action.getValidValues().has_value());
 
-    //EXPECT_THROW(action.trigger(), std::logic_error);
+    EXPECT_FALSE(action.trigger().has_value());
 
-    action.set("new value");
+    EXPECT_TRUE(action.set("new value").has_value());
     EXPECT_EQ(value, "new value");
 }
 
@@ -94,13 +94,13 @@ TEST(FrontEndOptionTests, TestInteger) {
 
     EXPECT_FALSE(action.getValidValues().has_value());
 
-    //EXPECT_THROW(action.trigger(), std::logic_error);
+    EXPECT_FALSE(action.trigger().has_value());
 
-    action.set("5");
+    EXPECT_TRUE(action.set("5").has_value());
     EXPECT_EQ(value, 5);
 
-    //EXPECT_THROW(action.set("-11"), std::invalid_argument);
-    //EXPECT_THROW(action.set("11"), std::invalid_argument);
+    EXPECT_FALSE(action.set("-11").has_value());
+    EXPECT_FALSE(action.set("11").has_value());
     EXPECT_EQ(value, 5);
 }
 
@@ -125,12 +125,12 @@ TEST(FrontEndOptionTests, TestAlternative) {
     ENFORCE_TRUE(validValues.has_value());
     EXPECT_EQ(validValues.value(), alternatives);
 
-    //EXPECT_THROW(action.trigger(), std::logic_error);
+    EXPECT_FALSE(action.trigger().has_value());
 
-    action.set("b");
+    EXPECT_TRUE(action.set("b").has_value());
     EXPECT_EQ(value, "b");
 
-    //EXPECT_THROW(action.set("invalid"), std::invalid_argument);
+    EXPECT_FALSE(action.set("invalid").has_value());
     EXPECT_EQ(value, "b");
 }
 

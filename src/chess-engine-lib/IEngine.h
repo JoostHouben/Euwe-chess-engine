@@ -7,6 +7,7 @@
 #include "TimeManager.h"
 
 #include <chrono>
+#include <expected>
 
 class IEngine {
   public:
@@ -19,7 +20,7 @@ class IEngine {
 
     virtual void newGame() = 0;
 
-    [[nodiscard]] virtual SearchInfo findMove(
+    [[nodiscard]] virtual std::expected<SearchInfo, std::string> findMove(
             const GameState& gameState, const std::vector<Move>& searchMoves) = 0;
 
     virtual void interruptSearch() = 0;

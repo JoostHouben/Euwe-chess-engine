@@ -243,7 +243,7 @@ class ValidateMoveStats : public ::testing::TestWithParam<TestStatsConfig> {};
 TEST_P(ValidateMoveStats, TestMoveStats) {
     const TestStatsConfig config = GetParam();
     MoveStatistics statistics{};
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
     StackOfVectors<Move> stack;
     countMoveStatisticsAtPly(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
@@ -254,7 +254,7 @@ class ValidateMoveStatsWithUnmake : public ::testing::TestWithParam<TestStatsCon
 TEST_P(ValidateMoveStatsWithUnmake, TestMoveStats) {
     const TestStatsConfig config = GetParam();
     MoveStatistics statistics{};
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
     StackOfVectors<Move> stack;
     countMoveStatisticsAtPlyWithUnmake(gameState, config.depth, statistics, stack);
     compareStatistics(statistics, config.expectedStats);
@@ -265,7 +265,7 @@ class ValidateMoveStatsWithTTable : public ::testing::TestWithParam<TestStatsCon
 TEST_P(ValidateMoveStatsWithTTable, TestMoveStats) {
     const TestStatsConfig config = GetParam();
 
-    GameState gameState = GameState::fromFen(config.fen);
+    GameState gameState = GameState::fromFen(config.fen).value();
 
     StackOfVectors<Move> stack;
 

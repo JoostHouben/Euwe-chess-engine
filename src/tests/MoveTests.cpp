@@ -59,127 +59,177 @@ TEST(MoveTests, TestMoveToUciString) {
 TEST(MoveTests, TestMoveFromUciString) {
     // Position 5 from https://www.chessprogramming.org/Perft_Results
     const GameState gameState =
-            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8").value();
 
-    const Move parsedPromotionCapture   = Move::fromUci("d7c8q", gameState);
-    const Move expectedPromotionCapture = Move{
-            Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
+    {
+        auto res = Move::fromUci("d7c8q", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move parsedPromotionCapture = res.value();
+        const Move expectedPromotionCapture =
+                Move{Piece::Pawn,
+                     BoardPosition::D7,
+                     BoardPosition::C8,
+                     MoveFlags::IsCapture | Piece::Queen};
 
-    EXPECT_EQ(parsedPromotionCapture, expectedPromotionCapture);
+        EXPECT_EQ(parsedPromotionCapture, expectedPromotionCapture);
+    }
 
-    const Move parsedCastle = Move::fromUci("e1g1", gameState);
-    const Move expectedCastle =
-            Move{Piece::King, BoardPosition::E1, BoardPosition::G1, MoveFlags::IsCastle};
+    {
+        auto res = Move::fromUci("e1g1", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move parsedCastle = res.value();
+        const Move expectedCastle =
+                Move{Piece::King, BoardPosition::E1, BoardPosition::G1, MoveFlags::IsCastle};
 
-    EXPECT_EQ(parsedCastle, expectedCastle);
+        EXPECT_EQ(parsedCastle, expectedCastle);
+    }
 }
 
 TEST(MoveTests, TestMoveFromUciStringErrorHandling) {
-    //const GameState gameState = GameState::startingPosition();
+    const GameState gameState = GameState::startingPosition();
 
-    //// string too short
-    //EXPECT_THROW((void)Move::fromUci("e2", gameState), std::invalid_argument);
+    // string too short
+    EXPECT_FALSE(Move::fromUci("e2", gameState).has_value());
 
-    //// string too long
-    //EXPECT_THROW((void)Move::fromUci("e2e4e4", gameState), std::invalid_argument);
+    // string too long
+    EXPECT_FALSE(Move::fromUci("e2e4e4", gameState).has_value());
 
-    //// invalid square
-    //EXPECT_THROW((void)Move::fromUci("e9e4", gameState), std::invalid_argument);
+    // invalid square
+    EXPECT_FALSE(Move::fromUci("e9e4", gameState).has_value());
 }
 
 TEST(MoveTests, TestBasicSanityChecks) {
-    //GameState gameState = GameState::startingPosition();
+    GameState gameState = GameState::startingPosition();
 
-    //// valid
-    //{
-    //    const Move move = Move::fromUci("e2e4", gameState);
-    //    EXPECT_NO_THROW(doBasicSanityChecks(move, gameState));
-    //}
+    // valid
+    {
+        const auto res = Move::fromUci("e2e4", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move move     = res.value();
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_TRUE(checkRes.has_value());
+    }
 
-    //// no piece on position
-    //{
-    //    const Move move = Move::fromUci("e3e4", gameState);
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // no piece on position
+    {
+        const auto res = Move::fromUci("e3e4", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move move     = res.value();
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// side not to move
-    //{
-    //    const Move move = Move::fromUci("e7e5", gameState);
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // side not to move
+    {
+        const auto res = Move::fromUci("e7e5", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move move     = res.value();
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// trying to capture own piece
-    //{
-    //    const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::IsCapture};
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // trying to capture own piece
+    {
+        const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::IsCapture};
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// blocked by own piece
-    //{
-    //    const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::None};
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // blocked by own piece
+    {
+        const Move move{Piece::King, BoardPosition::E1, BoardPosition::E2, MoveFlags::None};
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// nothing to capture
-    //{
-    //    const Move move{Piece::Pawn, BoardPosition::E2, BoardPosition::D3, MoveFlags::IsCapture};
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // nothing to capture
+    {
+        const Move move{Piece::Pawn, BoardPosition::E2, BoardPosition::D3, MoveFlags::IsCapture};
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// promoting non-pawn
-    //{
-    //    const Move move = Move::fromUci("b2b3q", gameState);
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // promoting non-pawn
+    {
+        const auto res = Move::fromUci("b2b3q", gameState);
+        // fromUci may accept invalid promotion char or return invalid piece; treat as error or invalid check
+        if (res.has_value()) {
+            const Move move     = res.value();
+            const auto checkRes = doBasicSanityChecks(move, gameState);
+            EXPECT_FALSE(checkRes.has_value());
+        } else {
+            SUCCEED();
+        }
+    }
 
-    //// promoting pawn not on last rank
-    //{
-    //    const Move move = Move::fromUci("e2e4q", gameState);
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // promoting pawn not on last rank
+    {
+        const auto res = Move::fromUci("e2e4q", gameState);
+        if (res.has_value()) {
+            const Move move     = res.value();
+            const auto checkRes = doBasicSanityChecks(move, gameState);
+            EXPECT_FALSE(checkRes.has_value());
+        } else {
+            SUCCEED();
+        }
+    }
 
-    //// Valid capture and promotion
-    //{
-    //    // Position 5 from https://www.chessprogramming.org/Perft_Results
-    //    const GameState position5 =
-    //            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
-    //    const Move move = Move::fromUci("d7c8q", position5);
-    //    EXPECT_NO_THROW(doBasicSanityChecks(move, position5));
-    //}
+    // Valid capture and promotion
+    {
+        // Position 5 from https://www.chessprogramming.org/Perft_Results
+        const GameState position5 =
+                GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8")
+                        .value();
+        auto res = Move::fromUci("d7c8q", position5);
+        ASSERT_TRUE(res.has_value());
+        const Move move     = res.value();
+        const auto checkRes = doBasicSanityChecks(move, position5);
+        EXPECT_TRUE(checkRes.has_value());
+    }
 
-    //// Invalid en passant target
-    //{
-    //    const Move move{
-    //            Piece::Pawn,
-    //            BoardPosition::D2,
-    //            BoardPosition::E3,
-    //            MoveFlags::IsEnPassant | MoveFlags::IsCapture};
-    //    EXPECT_THROW(doBasicSanityChecks(move, gameState), std::invalid_argument);
-    //}
+    // Invalid en passant target
+    {
+        const Move move{
+                Piece::Pawn,
+                BoardPosition::D2,
+                BoardPosition::E3,
+                MoveFlags::IsEnPassant | MoveFlags::IsCapture};
+        const auto checkRes = doBasicSanityChecks(move, gameState);
+        EXPECT_FALSE(checkRes.has_value());
+    }
 
-    //// valid en passant
-    //{
-    //    const GameState position = GameState::fromFen(
-    //            "r1b1r1k1/2p2ppp/p7/1pqPp3/PnPp4/3P1N2/1P2QPPP/R1B2RK1 b - c3 0 15");
-    //    const Move move = Move::fromUci("d4c3", position);
-    //    EXPECT_NO_THROW(doBasicSanityChecks(move, position));
-    //}
+    // valid en passant
+    {
+        const GameState position =
+                GameState::fromFen(
+                        "r1b1r1k1/2p2ppp/p7/1pqPp3/PnPp4/3P1N2/1P2QPPP/R1B2RK1 b - c3 0 15")
+                        .value();
+        auto res = Move::fromUci("d4c3", position);
+        ASSERT_TRUE(res.has_value());
+        const Move move     = res.value();
+        const auto checkRes = doBasicSanityChecks(move, position);
+        EXPECT_TRUE(checkRes.has_value());
+    }
 }
 
 TEST(MoveTests, TestMoveFromUciStringEnPassant) {
     // Position 3 from https://www.chessprogramming.org/Perft_Results
-    GameState gameState = GameState::fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    GameState gameState = GameState::fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1").value();
 
     gameState.makeMove({Piece::Pawn, BoardPosition::E2, BoardPosition::E4});
 
-    const Move parsedEnPassantCapture = Move::fromUci("f4e3", gameState);
-    const Move expectedEnPassantCapture =
-            Move{Piece::Pawn,
-                 BoardPosition::F4,
-                 BoardPosition::E3,
-                 MoveFlags::IsCapture | MoveFlags::IsEnPassant};
+    {
+        auto res = Move::fromUci("f4e3", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move parsedEnPassantCapture = res.value();
+        const Move expectedEnPassantCapture =
+                Move{Piece::Pawn,
+                     BoardPosition::F4,
+                     BoardPosition::E3,
+                     MoveFlags::IsCapture | MoveFlags::IsEnPassant};
 
-    EXPECT_EQ(parsedEnPassantCapture, expectedEnPassantCapture);
+        EXPECT_EQ(parsedEnPassantCapture, expectedEnPassantCapture);
+    }
 }
 
 TEST(AlgebraicNotation, TestAlgebraicFromMove) {
@@ -201,7 +251,7 @@ TEST(AlgebraicNotation, TestAlgebraicFromMove) {
 TEST(AlgebraicNotation, TestAlgebraicFromMovePosition5) {
     // Position 5 from https://www.chessprogramming.org/Perft_Results
     const GameState gameState =
-            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8").value();
 
     const Move promotionCapture{
             Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
@@ -223,7 +273,7 @@ TEST(AlgebraicNotation, TestAlgebraicFromMovePosition5) {
 
 TEST(AlgebraicNotation, AlgebraicFromMoveNotAmbiguousBecauseOfPin) {
     // From https://chess.stackexchange.com/questions/1864/is-this-case-considered-an-ambiguity-or-not
-    const GameState gameState = GameState::fromFen("4k3/8/8/8/8/8/8/q2NKN2 w - - 0 1");
+    const GameState gameState = GameState::fromFen("4k3/8/8/8/8/8/8/q2NKN2 w - - 0 1").value();
 
     const Move knightMove{Piece::Knight, BoardPosition::F1, BoardPosition::E3};
     const std::string knightMoveAlgebraic = knightMove.toAlgebraic(gameState);
@@ -232,7 +282,8 @@ TEST(AlgebraicNotation, AlgebraicFromMoveNotAmbiguousBecauseOfPin) {
 
 TEST(AlgebraicNotation, AlgebraicFromMoveAmbiguousEvenWithCheck) {
     // From https://chess.stackexchange.com/questions/2777/parsing-pgn-files-when-can-a-move-be-shortened
-    const GameState gameStateKnights = GameState::fromFen("1q5k/1n6/8/8/1K2n3/8/8/8 b - - 0 1");
+    const GameState gameStateKnights =
+            GameState::fromFen("1q5k/1n6/8/8/1K2n3/8/8/8 b - - 0 1").value();
 
     const Move knightMoveCheck{Piece::Knight, BoardPosition::B7, BoardPosition::C5};
     const std::string knightMoveCheckAlgebraic = knightMoveCheck.toAlgebraic(gameStateKnights);
@@ -245,7 +296,7 @@ TEST(AlgebraicNotation, AlgebraicFromMoveAmbiguousEvenWithCheck) {
 
 TEST(AlgebraicNotation, AlgebraicFromMoveAmbiguousEvenWithCheckMate) {
     // From https://chess.stackexchange.com/questions/2777/parsing-pgn-files-when-can-a-move-be-shortened
-    const GameState gameStateRooks = GameState::fromFen("6r1/7K/q7/8/8/8/8/k5r1 b - - 0 1");
+    const GameState gameStateRooks = GameState::fromFen("6r1/7K/q7/8/8/8/8/k5r1 b - - 0 1").value();
 
     const Move rookMoveCheck{Piece::Rook, BoardPosition::G8, BoardPosition::G7};
     const std::string rookMoveCheckAlgebraic = rookMoveCheck.toAlgebraic(gameStateRooks);
@@ -257,7 +308,7 @@ TEST(AlgebraicNotation, AlgebraicFromMoveAmbiguousEvenWithCheckMate) {
 }
 
 TEST(AlgebraicNotation, AlgebraicFromMoveRankFileAmbiguous) {
-    const GameState gameState = GameState::fromFen("k7/8/8/2Q1Q3/8/2Q1Q3/8/K7 w - - 0 1");
+    const GameState gameState = GameState::fromFen("k7/8/8/2Q1Q3/8/2Q1Q3/8/K7 w - - 0 1").value();
 
     const Move queenMoveC3{Piece::Queen, BoardPosition::C3, BoardPosition::D4};
     const std::string queenMoveC3Algebraic = queenMoveC3.toAlgebraic(gameState);
@@ -279,30 +330,50 @@ TEST(AlgebraicNotation, AlgebraicFromMoveRankFileAmbiguous) {
 TEST(AlgebraicNotation, TestMoveFromAlgebraicPosition5) {
     // Position 5 from https://www.chessprogramming.org/Perft_Results
     const GameState gameState =
-            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
+            GameState::fromFen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8").value();
 
-    const Move promotionCapture = Move::fromAlgebraic("dxc8=Q", gameState);
-    const Move expectedPromotionCapture{
-            Piece::Pawn, BoardPosition::D7, BoardPosition::C8, MoveFlags::IsCapture | Piece::Queen};
+    {
+        auto res = Move::fromAlgebraic("dxc8=Q", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move promotionCapture = res.value();
+        const Move expectedPromotionCapture{
+                Piece::Pawn,
+                BoardPosition::D7,
+                BoardPosition::C8,
+                MoveFlags::IsCapture | Piece::Queen};
 
-    EXPECT_EQ(promotionCapture, expectedPromotionCapture);
+        EXPECT_EQ(promotionCapture, expectedPromotionCapture);
+    }
 
-    const Move castle = Move::fromAlgebraic("O-O", gameState);
-    const Move expectedCastle{
-            Piece::King, BoardPosition::E1, BoardPosition::G1, MoveFlags::IsCastle};
-    EXPECT_EQ(castle, expectedCastle);
+    {
+        auto res = Move::fromAlgebraic("O-O", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move castle = res.value();
+        const Move expectedCastle{
+                Piece::King, BoardPosition::E1, BoardPosition::G1, MoveFlags::IsCastle};
+        EXPECT_EQ(castle, expectedCastle);
+    }
 
-    const Move ambiguousKnightMove = Move::fromAlgebraic("Nbc3", gameState);
-    const Move expectedAmbiguousKnightMove{Piece::Knight, BoardPosition::B1, BoardPosition::C3};
-    EXPECT_EQ(ambiguousKnightMove, expectedAmbiguousKnightMove);
+    {
+        auto res = Move::fromAlgebraic("Nbc3", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move ambiguousKnightMove = res.value();
+        const Move expectedAmbiguousKnightMove{Piece::Knight, BoardPosition::B1, BoardPosition::C3};
+        EXPECT_EQ(ambiguousKnightMove, expectedAmbiguousKnightMove);
+    }
 
-    const Move ambiguousKnightMove2 = Move::fromAlgebraic("Nec3", gameState);
-    const Move expectedAmbiguousKnightMove2{Piece::Knight, BoardPosition::E2, BoardPosition::C3};
-    EXPECT_EQ(ambiguousKnightMove2, expectedAmbiguousKnightMove2);
+    {
+        auto res = Move::fromAlgebraic("Nec3", gameState);
+        ASSERT_TRUE(res.has_value());
+        const Move ambiguousKnightMove2 = res.value();
+        const Move expectedAmbiguousKnightMove2{
+                Piece::Knight, BoardPosition::E2, BoardPosition::C3};
+        EXPECT_EQ(ambiguousKnightMove2, expectedAmbiguousKnightMove2);
+    }
 
-    //// Not a valid move
-    //EXPECT_THROW((void)Move::fromAlgebraic("a5", gameState), std::invalid_argument);
-    //EXPECT_THROW((void)Move::fromAlgebraic("dxc8=Q+", gameState), std::invalid_argument);
+    // Not a valid move
+    EXPECT_FALSE(Move::fromAlgebraic("a5", gameState).has_value());
+    EXPECT_FALSE(Move::fromAlgebraic("dxc8=Q+", gameState).has_value());
 }
 
 }  // namespace MoveTests

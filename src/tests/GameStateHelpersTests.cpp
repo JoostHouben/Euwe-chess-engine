@@ -31,8 +31,10 @@ TEST(GameStateHelpers, TestToVisualString) {
 }
 
 TEST(GameStateHelpers, TestToVisualStringDoublePush) {
-    GameState startingPosition =
+    const auto parseResult =
             GameState::fromFen("rnbqkbnr/ppppp1pp/8/8/5p2/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    ASSERT_TRUE(parseResult.has_value());
+    GameState startingPosition = parseResult.value();
 
     const Move doublePush{
             .pieceToMove = Piece::Pawn, .from = BoardPosition::E2, .to = BoardPosition::E4};
@@ -65,7 +67,9 @@ TEST(GameStateHelpers, TestToVisualStringDoublePush) {
 TEST(GameStateHelpers, TestToVisualStringPosition4) {
     const std::string fen = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1";
 
-    GameState gameState = GameState::fromFen(fen);
+    const auto parseResult = GameState::fromFen(fen);
+    ASSERT_TRUE(parseResult.has_value());
+    GameState gameState = parseResult.value();
 
     const std::string visual = gameState.toVisualString();
     const std::string expectedVisual =
