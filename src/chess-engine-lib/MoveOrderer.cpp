@@ -54,6 +54,21 @@ FORCE_INLINE MoveOrderer::MoveOrderer(
     if (!usingPregeneratedMoves_) {
         moves_.lock();
     }
+
+    if (hashMove_ && usingPregeneratedMoves_) {
+        const bool containsHashMove = ignoreMove(
+                *hashMove_,
+                moves_,
+                currentMoveIdx_,
+                /*ignoredMoveShouldExist*/ false);
+        if (!containsHashMove) {
+            // Hash move is not in the pre-generated moves list, so we should not use it.
+            hashMove_ = std::nullopt;
+        } else {
+            moveScores_.push_back(0);  // Placeholder for unused hash move score.
+        }
+    }
+
     moveScores_.lock();
 }
 
@@ -280,15 +295,6 @@ void MoveOrderer::genTacticals(
         // This should only happen in the root move.
         // If we add specialized root move ordering in the future, this code path can be
         // removed, including partitionTacticalMoves().
-
-        if (hashMove_
-            && ignoreMove(
-                    *hashMove_,
-                    moves_,
-                    currentMoveIdx_,
-                    /*ignoredMoveShouldExist*/ true)) {
-            moveScores_.push_back(0);  // Placeholder for ignored move
-        }
 
         moveScorer_.scoreMoves(
                 moveScores_, moves_, currentMoveIdx_, gameState, boardControl, lastMove, ply);
