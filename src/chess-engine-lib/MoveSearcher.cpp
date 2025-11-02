@@ -444,8 +444,8 @@ FORCE_INLINE std::optional<Move> getTTableMove(
 }
 
 [[nodiscard]] FORCE_INLINE std::optional<EvalT> checkForcedEndState(
-        const GameState& gameState, StackOfVectors<Move>& stack) {
-    if (gameState.isRepetition(/*repetitionThreshold =*/2)) {
+        const GameState& gameState, const bool isPvNode, StackOfVectors<Move>& stack) {
+    if (gameState.isRepetition(/*repetitionThreshold =*/isPvNode ? 3 : 2)) {
         return (EvalT)0;
     }
 
@@ -824,7 +824,7 @@ EvalT MoveSearcher::Impl::search(
     }
 
     if (ply > 0) {
-        if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
+        if (const auto endStateValue = checkForcedEndState(gameState, isPvNode, stack)) {
             // Exact value
             return updateMateDistanceOut(*endStateValue);
         }
@@ -1182,7 +1182,7 @@ EvalT MoveSearcher::Impl::quiesce(
         return -kInfiniteEval;
     }
 
-    if (const auto endStateValue = checkForcedEndState(gameState, stack)) {
+    if (const auto endStateValue = checkForcedEndState(gameState, isPvNode, stack)) {
         return updateMateDistanceOut(*endStateValue);
     }
 
