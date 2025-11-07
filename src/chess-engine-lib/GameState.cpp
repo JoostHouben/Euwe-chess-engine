@@ -318,18 +318,12 @@ void GameState::generateMoves(
         return getKingRayBitBoard(position, ownKingPosition);
     };
 
-    const bool enPassantCheck =
-            enPassantTarget_ != BoardPosition::Invalid && enPassantWillPutUsInCheck();
-
-    const BoardPosition enPassantTarget =
-            enPassantCheck ? BoardPosition::Invalid : enPassantTarget_;
-
     // Generate moves for pawns
     generatePawnMoves(
             getPieceBitBoard(sideToMove_, Piece::Pawn),
             sideToMove_,
             occupancy_,
-            enPassantTarget,
+            enPassantTarget_,
             pinBitBoard,
             ownKingPosition,
             moves,
@@ -472,19 +466,9 @@ void GameState::generateMovesInCheck(
 
     const BitBoard pinBitBoard = getPinBitBoard(sideToMove_, kingPosition);
 
-    bool canTakeCheckingPieceEnPassant = false;
-    if (enPassantTarget_ != BoardPosition::Invalid) {
-        const BoardPosition enPassantPiecePosition =
-                getEnPassantPiecePosition(enPassantTarget_, sideToMove_);
-
-        canTakeCheckingPieceEnPassant = enPassantPiecePosition == checkingPieceId.position;
-        MY_ASSERT(IMPLIES(canTakeCheckingPieceEnPassant, checkingPieceId.piece == Piece::Pawn));
-    }
-    const BoardPosition enPassantTarget =
-            canTakeCheckingPieceEnPassant ? enPassantTarget_ : BoardPosition::Invalid;
     BitBoard pawnBlockOrCaptureBitBoard = blockOrCaptureBitBoard;
-    if (canTakeCheckingPieceEnPassant) {
-        pawnBlockOrCaptureBitBoard |= enPassantTarget;
+    if (enPassantTarget_ != BoardPosition::Invalid) {
+        pawnBlockOrCaptureBitBoard |= enPassantTarget_;
     }
 
     // Generate pawn moves that either capture the checking piece or block
@@ -493,7 +477,7 @@ void GameState::generateMovesInCheck(
             nonPinnedPawns,
             sideToMove_,
             occupancy_,
-            enPassantTarget,
+            enPassantTarget_,
             /*pinBitBoard*/ BitBoard::Empty,
             kingPosition,
             moves,
@@ -916,21 +900,55 @@ void GameState::handlePawnMove(const Move& move) {
 
     // Double pawn push
     if (std::abs(fromRank - toRank) == 2) {
-        const std::uint64_t toMask = (std::uint64_t)1 << (int)move.to;
-        const std::uint64_t neighborMask =
-                (toMask & kNotWestFileMask) >> 1 | (toMask & kNotEastFileMask) << 1;
-
-        const BitBoard& opponentPawns = getPieceBitBoard(nextSide(sideToMove_), Piece::Pawn);
-
-        const bool pawnCanCaptureEnPassant =
-                (opponentPawns & (BitBoard)neighborMask) != BitBoard::Empty;
-
-        if (pawnCanCaptureEnPassant) {
-            enPassantTarget_ = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
-
-            updateHashForEnPassantFile(fromFile, boardHash_);
-        }
+        setEnPassantTarget(move);
     }
+}
+
+FORCE_INLINE void GameState::setEnPassantTarget(const Move& move) {
+    const std::uint64_t toMask = (std::uint64_t)1 << (int)move.to;
+    const std::uint64_t neighborMask =
+            (toMask & kNotWestFileMask) >> 1 | (toMask & kNotEastFileMask) << 1;
+
+    const BitBoard& opponentPawns = getPieceBitBoard(nextSide(sideToMove_), Piece::Pawn);
+
+    const bool pawnAttacksEnPassantSquare =
+            (opponentPawns & (BitBoard)neighborMask) != BitBoard::Empty;
+
+    if (!pawnAttacksEnPassantSquare) {
+        return;
+    }
+
+    const auto [fromFile, fromRank] = fileRankFromPosition(move.from);
+    const auto [_, toRank]          = fileRankFromPosition(move.to);
+
+    const BoardPosition enPassantTarget = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
+
+    if (enPassantWillPutUsInCheck(enPassantTarget, nextSide(sideToMove_))) {
+        return;
+    }
+
+    const BitBoard kingBitBoard = getPieceBitBoard(nextSide(sideToMove_), Piece::King);
+
+    const BitBoard rookAttacksFromKing =
+            getRookAttack(getFirstSetPosition(kingBitBoard), getAnyOccupancy());
+    const BitBoard bishopAttacksFromKing =
+            getBishopAttack(getFirstSetPosition(kingBitBoard), getAnyOccupancy());
+    const BitBoard checkingSideRooksOrQueens = getPieceBitBoard(sideToMove_, Piece::Rook)
+                                             | getPieceBitBoard(sideToMove_, Piece::Queen);
+    const BitBoard checkingSideBishopsOrQueens = getPieceBitBoard(sideToMove_, Piece::Bishop)
+                                               | getPieceBitBoard(sideToMove_, Piece::Queen);
+    const bool doublePushUncoveredCheck =
+            ((rookAttacksFromKing & checkingSideRooksOrQueens) != BitBoard::Empty)
+            || ((bishopAttacksFromKing & checkingSideBishopsOrQueens) != BitBoard::Empty);
+
+    if (doublePushUncoveredCheck) {
+        // If the double push uncovered a check, the check can't be evaded by capturing the pawn en
+        // passant, so the en passant capture is invalid.
+        return;
+    }
+
+    enPassantTarget_ = enPassantTarget;
+    updateHashForEnPassantFile(fromFile, boardHash_);
 }
 
 void GameState::handleNormalKingMove(const Move& move) {
@@ -1052,11 +1070,11 @@ FORCE_INLINE GameState::DirectCheckBitBoards GameState::getDirectCheckBitBoards(
             directQueenChecks};
 }
 
-bool GameState::enPassantWillPutUsInCheck() const {
-    MY_ASSERT(enPassantTarget_ != BoardPosition::Invalid);
+FORCE_INLINE bool GameState::enPassantWillPutUsInCheck(
+        const BoardPosition target, const Side side) const {
+    MY_ASSERT(target != BoardPosition::Invalid);
 
-    const BoardPosition enPassantPiecePosition =
-            getEnPassantPiecePosition(enPassantTarget_, sideToMove_);
+    const BoardPosition enPassantPiecePosition = getEnPassantPiecePosition(target, side);
     const auto [enPassantTargetFile, enPassantOriginRank] =
             fileRankFromPosition(enPassantPiecePosition);
 
@@ -1069,7 +1087,7 @@ bool GameState::enPassantWillPutUsInCheck() const {
         nextToEnPassantOriginMask |=
                 positionFromFileRank(enPassantTargetFile + 1, enPassantOriginRank);
     }
-    const BitBoard& ownPawnBitBoard = getPieceBitBoard(sideToMove_, Piece::Pawn);
+    const BitBoard& ownPawnBitBoard = getPieceBitBoard(side, Piece::Pawn);
     BitBoard neighboringPawns       = ownPawnBitBoard & nextToEnPassantOriginMask;
     const int numOwnPawns           = std::popcount((std::uint64_t)neighboringPawns);
 
@@ -1089,21 +1107,20 @@ bool GameState::enPassantWillPutUsInCheck() const {
     BitBoard occupancyAfterEnPassant = getAnyOccupancy();
     occupancyAfterEnPassant &= ~neighboringPawns;
     occupancyAfterEnPassant &= ~enPassantPiecePosition;
-    occupancyAfterEnPassant |= enPassantTarget_;
+    occupancyAfterEnPassant |= target;
 
-    const BoardPosition kingPosition =
-            getFirstSetPosition(getPieceBitBoard(sideToMove_, Piece::King));
-    const BitBoard enemyQueens = getPieceBitBoard(nextSide(sideToMove_), Piece::Queen);
+    const BoardPosition kingPosition = getFirstSetPosition(getPieceBitBoard(side, Piece::King));
+    const BitBoard enemyQueens       = getPieceBitBoard(nextSide(side), Piece::Queen);
 
     const BitBoard bishopAttackFromKing = getBishopAttack(kingPosition, occupancyAfterEnPassant);
-    const BitBoard enemyBishops         = getPieceBitBoard(nextSide(sideToMove_), Piece::Bishop);
+    const BitBoard enemyBishops         = getPieceBitBoard(nextSide(side), Piece::Bishop);
     const BitBoard enemyDiagonalMovers  = enemyBishops | enemyQueens;
     if ((bishopAttackFromKing & enemyDiagonalMovers) != BitBoard::Empty) {
         return true;
     }
 
     const BitBoard rookAttackFromKing  = getRookAttack(kingPosition, occupancyAfterEnPassant);
-    const BitBoard enemyRooks          = getPieceBitBoard(nextSide(sideToMove_), Piece::Rook);
+    const BitBoard enemyRooks          = getPieceBitBoard(nextSide(side), Piece::Rook);
     const BitBoard enemyStraightMovers = enemyRooks | enemyQueens;
     if ((rookAttackFromKing & enemyStraightMovers) != BitBoard::Empty) {
         return true;

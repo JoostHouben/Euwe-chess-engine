@@ -167,8 +167,7 @@ TEST(MoveTests, TestBasicSanityChecks) {
 }
 
 TEST(MoveTests, TestMoveFromUciStringEnPassant) {
-    // Position 3 from https://www.chessprogramming.org/Perft_Results
-    GameState gameState = GameState::fromFen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
+    GameState gameState = GameState::fromFen("8/2p5/3p4/KP5r/5p1k/1R6/4P1P1/8 w - - 0 1");
 
     gameState.makeMove({Piece::Pawn, BoardPosition::E2, BoardPosition::E4});
 

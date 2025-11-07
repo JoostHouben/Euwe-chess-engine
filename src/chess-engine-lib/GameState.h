@@ -238,7 +238,7 @@ class GameState {
             const BoardControl& boardControl,
             MoveCategories moveCategories) const;
 
-    [[nodiscard]] bool enPassantWillPutUsInCheck() const;
+    [[nodiscard]] bool enPassantWillPutUsInCheck(BoardPosition target, Side side) const;
 
     [[nodiscard]] CheckInformation getCheckInformation() const;
 
@@ -249,6 +249,7 @@ class GameState {
     void makeCastleMove(const Move& move, bool reverse = false);
     [[nodiscard]] Piece makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move);
+    void setEnPassantTarget(const Move& move);
     void handleNormalKingMove(const Move& move);
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
