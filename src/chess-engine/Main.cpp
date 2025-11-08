@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "param-retune");
+            UciFrontEnd uciFrontEnd(engine, "eval-scale-50-move-rule");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

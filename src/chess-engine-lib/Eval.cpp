@@ -945,6 +945,9 @@ void correctForDrawish(
         const GameState& gameState,
         const Evaluator::EvalCalcParams& params,
         TermWithGradient<CalcJacobians>& whiteEval) {
+    const float fiftyMoveRuleFactor = 1.0f - (float)gameState.getPlySinceCaptureOrPawn() / 100.f;
+    modifyForFactor<CalcJacobians>(params, EvalCalcT(fiftyMoveRuleFactor), whiteEval);
+
     if (correctForOppositeColoredBishops<CalcJacobians>(gameState, params, whiteEval)) {
         return;
     }
