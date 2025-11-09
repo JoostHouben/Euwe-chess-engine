@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "fix-en-passant-target");
+            UciFrontEnd uciFrontEnd(engine, "param-retune");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
