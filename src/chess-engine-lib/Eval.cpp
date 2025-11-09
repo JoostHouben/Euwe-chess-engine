@@ -880,6 +880,16 @@ FORCE_INLINE void evaluateTarraschRule(
 }
 
 template <bool CalcJacobians>
+FORCE_INLINE void modifyForConstantFactor(
+        EvalCalcT factor, TermWithGradient<CalcJacobians>& whiteEval) {
+    if constexpr (CalcJacobians) {
+        whiteEval.grad *= factor;
+    }
+
+    whiteEval.value *= factor;
+}
+
+template <bool CalcJacobians>
 FORCE_INLINE void modifyForFactor(
         const Evaluator::EvalCalcParams& params,
         const EvalCalcT& factor,
@@ -946,7 +956,7 @@ void correctForDrawish(
         const Evaluator::EvalCalcParams& params,
         TermWithGradient<CalcJacobians>& whiteEval) {
     const float fiftyMoveRuleFactor = 1.0f - (float)gameState.getPlySinceCaptureOrPawn() / 100.f;
-    modifyForFactor<CalcJacobians>(params, EvalCalcT(fiftyMoveRuleFactor), whiteEval);
+    modifyForConstantFactor<CalcJacobians>(EvalCalcT(fiftyMoveRuleFactor), whiteEval);
 
     if (correctForOppositeColoredBishops<CalcJacobians>(gameState, params, whiteEval)) {
         return;
