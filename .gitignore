@@ -3,7 +3,7 @@
 Archive/
 ideas.txt
 run-tournament.ps1
-tuner/invocation.txt
+src/tuner/invocation.txt
 optimized_params.txt
 
 ## Build output
