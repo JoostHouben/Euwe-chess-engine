@@ -123,20 +123,22 @@ std::pair<EvalT, GameState> quiesce(
 
 }  // namespace
 
-void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
+std::vector<ScoredPosition> quiescePositions(
+        const std::vector<AnnotatedPosition>& annotatedPositions) {
     const Evaluator evaluator(EvalParams::getDefaultParams());
 
-    std::vector<std::optional<ScoredPosition>> maybeQuiescedPositions(scoredPositions.size());
+    std::vector<std::optional<ScoredPosition>> maybeQuiescedPositions(annotatedPositions.size());
 
     std::transform(
             std::execution::par_unseq,
-            scoredPositions.begin(),
-            scoredPositions.end(),
+            annotatedPositions.begin(),
+            annotatedPositions.end(),
             maybeQuiescedPositions.begin(),
-            [&evaluator](ScoredPosition& scoredPosition) -> std::optional<ScoredPosition> {
+            [&evaluator](
+                    const AnnotatedPosition& annotatedPosition) -> std::optional<ScoredPosition> {
                 const EvalT evalThreshold = 500;
 
-                const EvalT baseEval = evaluator.evaluate(scoredPosition.gameState);
+                const EvalT baseEval = evaluator.evaluate(annotatedPosition.gameState);
                 if (std::abs(baseEval) >= evalThreshold) {
                     return std::nullopt;
                 }
@@ -147,16 +149,17 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
 
                 StackOfVectors<Move> moveStack;
                 MoveScorer moveScorer(evaluator);
-                auto [score, state] = quiesce(
-                        scoredPosition.gameState, alpha, beta, moveStack, moveScorer, evaluator);
+                GameState gameState(annotatedPosition.gameState);
+                auto [score, state] =
+                        quiesce(gameState, alpha, beta, moveStack, moveScorer, evaluator);
 
                 const EvalT evalDelta = (EvalT)std::abs(baseEval - score);
                 if (evalDelta >= deltaThreshold || std::abs(score) >= evalThreshold) {
                     return std::nullopt;
                 }
 
-                double scoreToUse = scoredPosition.score;
-                if (state.getSideToMove() != scoredPosition.gameState.getSideToMove()) {
+                double scoreToUse = annotatedPosition.finalScore;
+                if (state.getSideToMove() != annotatedPosition.gameState.getSideToMove()) {
                     scoreToUse = 1 - scoreToUse;
                 }
 
@@ -175,5 +178,5 @@ void quiescePositions(std::vector<ScoredPosition>& scoredPositions) {
 
     std::println("Obtained {} quiesced positions", quiescedPositions.size());
 
-    std::swap(scoredPositions, quiescedPositions);
+    return quiescedPositions;
 }

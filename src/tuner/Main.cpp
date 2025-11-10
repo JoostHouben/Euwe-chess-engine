@@ -43,20 +43,21 @@ std::array<double, kNumPieceTypes - 1> getAveragePieceValues(
 
     const Evaluator evaluator(params);
 
-    for (const auto& [gameState, _] : positions) {
-        const EvalCalcT referenceEval = evaluator.evaluateRaw(gameState);
+    for (const auto& scoredPosition : positions) {
+        const EvalCalcT referenceEval = evaluator.evaluateRaw(scoredPosition.gameState);
 
         for (int sideIdx = 0; sideIdx < kNumSides; ++sideIdx) {
             const Side side         = (Side)sideIdx;
-            const double sideFactor = side == gameState.getSideToMove() ? 1.0 : -1.0;
+            const double sideFactor = side == scoredPosition.gameState.getSideToMove() ? 1.0 : -1.0;
 
             for (int pieceIdx = 0; pieceIdx < kNumPieceTypes - 1; ++pieceIdx) {
-                BitBoard pieceBitBoard = gameState.getPieceBitBoard(side, (Piece)pieceIdx);
+                BitBoard pieceBitBoard =
+                        scoredPosition.gameState.getPieceBitBoard(side, (Piece)pieceIdx);
 
                 while (pieceBitBoard != BitBoard::Empty) {
                     const BoardPosition position = popFirstSetPosition(pieceBitBoard);
 
-                    GameState copyState = gameState;
+                    GameState copyState = scoredPosition.gameState;
                     copyState.removePiece(position);
 
                     const EvalCalcT eval    = evaluator.evaluateRaw(copyState);
@@ -102,7 +103,8 @@ void saveResults(
 }
 
 // NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** argv) {
+std::vector<std::pair<std::filesystem::path, int>> parseArgs(
+        int argc, char const* const* const argv) {
     if (argc < 3) {
         std::println(
                 "Usage: {} <dataPath1> <dropoutRate1> [<dataPath2> <dropoutRate2> ...]", argv[0]);
@@ -135,8 +137,9 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(int argc, char** ar
 }  // namespace
 
 int main(int argc, char** argv) try {
-    static constexpr bool kFixScale             = true;
-    static constexpr bool kFixPhaseValues       = true;
+    static constexpr bool kFixPhaseValues = true;
+    static constexpr bool kFixScale       = true;
+
     static constexpr int kAdditionalDropOutRate = kFixPhaseValues ? 1 : 2;
 
     std::srand(42);
@@ -146,11 +149,11 @@ int main(int argc, char** argv) try {
     std::array<double, kNumEvalParams> paramsDouble = getInitialParams();
 
     std::println("Loading positions...");
-    std::vector<ScoredPosition> scoredPositions =
-            loadScoredPositions(pathsAndDropOutRates, kAdditionalDropOutRate, &std::cout);
+    const std::vector<AnnotatedPosition> annotatedPositions =
+            loadPositions(pathsAndDropOutRates, kAdditionalDropOutRate, &std::cout);
 
     std::println("Quiescing positions...");
-    quiescePositions(scoredPositions);
+    const std::vector<ScoredPosition> scoredPositions = quiescePositions(annotatedPositions);
 
     std::println("Optimizing...");
     optimize(paramsDouble, scoredPositions, kFixPhaseValues, kFixScale);
