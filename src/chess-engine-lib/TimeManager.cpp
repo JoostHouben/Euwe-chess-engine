@@ -125,15 +125,29 @@ void TimeManager::configureForTimeControl(
         const GameState& gameState) {
     startNewSession();
 
-    const int expectedGameLength = 40;
+    const bool isSuddenDeath = movesToGo > 40 && increment == std::chrono::milliseconds(0);
+
+    const int expectedGameLength   = isSuddenDeath ? 60 : 40;
+    const int minExpectedMovesLeft = isSuddenDeath ? 30 : 10;
     const int expectedMovesLeft =
-            max(10, expectedGameLength - (int)gameState.getHalfMoveClock() / 2);
+            max(minExpectedMovesLeft, expectedGameLength - (int)gameState.getHalfMoveClock() / 2);
     const int expectedMovesToGo = min(expectedMovesLeft, movesToGo);
 
     // timeLeft includes the increment for the current move.
-    const std::chrono::milliseconds totalTime  = timeLeft + increment * (expectedMovesToGo - 1);
-    const std::chrono::milliseconds maxTime    = timeLeft * 8 / 10 - moveOverhead_;
-    const std::chrono::milliseconds timeTarget = totalTime / expectedMovesToGo - moveOverhead_;
+    const std::chrono::milliseconds totalTime = timeLeft + increment * (expectedMovesToGo - 1);
+
+    std::chrono::milliseconds maxTime{};
+    std::chrono::milliseconds timeTarget{};
+
+    if (isSuddenDeath) {
+        const std::chrono::milliseconds margin = std::max(
+                totalTime - moveOverhead_ * expectedMovesToGo, std::chrono::milliseconds(0));
+        maxTime    = margin / 3;
+        timeTarget = margin / expectedMovesToGo;
+    } else {
+        maxTime    = timeLeft * 8 / 10 - moveOverhead_;
+        timeTarget = totalTime / expectedMovesToGo - moveOverhead_;
+    }
 
     const std::chrono::milliseconds extendedTimeBudget = std::min(maxTime, timeTarget * 3);
     const std::chrono::milliseconds hardTimeBudget     = std::min(maxTime, timeTarget * 4 / 3);

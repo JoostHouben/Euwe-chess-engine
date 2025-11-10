@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "eval-scale-50-move-rule-retuned");
+            UciFrontEnd uciFrontEnd(engine, "sudden-death-time-control");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
