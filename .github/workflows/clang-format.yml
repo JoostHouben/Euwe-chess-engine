@@ -30,5 +30,5 @@ jobs:
       - name: Run clang-format style check for C/C++/Protobuf programs.
         uses: jidicula/clang-format-action@4726374d1aa3c6aecf132e5197e498979588ebc8
         with:
-          clang-format-version: '19'
+          clang-format-version: '20'
           exclude-regex: '.*/Pyrrhic/.*'

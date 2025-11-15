@@ -23,7 +23,7 @@ int main() try {
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "sudden-death-time-control");
+            UciFrontEnd uciFrontEnd(engine, "vs-2026");
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {

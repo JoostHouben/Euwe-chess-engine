@@ -222,7 +222,7 @@ want to build the engine, modify `TARGETS_TO_BUILD` in the CMakePresets.json fil
    `cmake --preset linux-clang-release -DTARGETS_TO_BUILD="engine"` to build in release mode.
  - Run `cmake --build` on the output directory. E.g., `cmake --build out/build/linux-clang-release/`.
 
-The project is tested in CI with clang 19, but should also work with clang 20 and gcc 14.
+The project is tested in CI with clang 20, but should also work with clang 21 and gcc 14.
 
 The above instructions will only compile the engine. To also compile the tests and/or the tuner, add
 the appropriate target to the `TARGETS_TO_BUILD` option. So to configure for building all 3 targets,
