@@ -71,8 +71,9 @@ void Engine::Impl::setFrontEnd(IFrontEnd* frontEnd) {
     timeManager_.setFrontEnd(frontEnd);
     moveSearcher_.setFrontEnd(frontEnd);
 
-    frontEnd_->addOption(FrontEndOption::createString(
-            "SyzygyPath", "", [this](const std::string_view v) { initializeSyzygy(v); }));
+    frontEnd_->addOption(
+            FrontEndOption::createString(
+                    "SyzygyPath", "", [this](const std::string_view v) { initializeSyzygy(v); }));
 }
 
 void Engine::Impl::newGame() {
@@ -259,9 +260,10 @@ EvalT Engine::Impl::evaluate(const GameState& gameState) const {
 
 void Engine::Impl::initializeSyzygy(std::string_view syzygyDir) {
     if (!syzygyPathIsValid(syzygyDir)) {
-        throw std::invalid_argument(std::format(
-                "invalid syzygy path. Must be a {}-separated list of directories.",
-                getSyzygyPathSeparator()));
+        throw std::invalid_argument(
+                std::format(
+                        "invalid syzygy path. Must be a {}-separated list of directories.",
+                        getSyzygyPathSeparator()));
     }
 
     if (hasSyzygy_) {
