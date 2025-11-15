@@ -241,9 +241,10 @@ void doBasicSanityChecks(const Move& move, const GameState& gameState) {
 
         const ColoredPiece capturedPiece = gameState.getPieceOnSquare(captureTarget);
         if (getPiece(capturedPiece) == Piece::Invalid) [[unlikely]] {
-            throw std::invalid_argument(std::format(
-                    "No piece to capture on the capture target square {}.",
-                    algebraicFromPosition(captureTarget)));
+            throw std::invalid_argument(
+                    std::format(
+                            "No piece to capture on the capture target square {}.",
+                            algebraicFromPosition(captureTarget)));
         }
         if (getSide(capturedPiece) == sideToMove) [[unlikely]] {
             throw std::invalid_argument("Capture target is of own side.");

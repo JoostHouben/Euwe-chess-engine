@@ -50,10 +50,11 @@ void checkStrItValid(const IteratorT it, const EndIteratorT end) {
     const auto result = std::from_chars(strStart, strStart + distanceToEnd, value);
 
     if (result.ec != std::errc{}) {
-        throw std::invalid_argument(std::format(
-                "Invalid {} in FEN string: unable to parse integer from: {}",
-                valueDescription,
-                std::string_view(strIt, endIt)));
+        throw std::invalid_argument(
+                std::format(
+                        "Invalid {} in FEN string: unable to parse integer from: {}",
+                        valueDescription,
+                        std::string_view(strIt, endIt)));
     }
 
     const std::size_t charsRead = result.ptr - &*strIt;
@@ -105,10 +106,11 @@ BoardConfigurationInfo parseBoardConfigurationFromFen(
                             || (rank == 0 && (strIt == endIt || *strIt == ' '));
         if (!validChar) {
             checkStrItValid(strIt, endIt);
-            throw std::invalid_argument(std::format(
-                    "Unexpected character {} in FEN string, starting at: {}",
-                    *strIt,
-                    std::string_view(strIt, endIt)));
+            throw std::invalid_argument(
+                    std::format(
+                            "Unexpected character {} in FEN string, starting at: {}",
+                            *strIt,
+                            std::string_view(strIt, endIt)));
         }
 
         if (rank > 0) {
@@ -349,8 +351,10 @@ GameState GameState::fromFen(std::string_view fenString) {
                     std::format("Invalid FEN string: expected space at character #{}", position));
         }
         if (!safeAdvance(strIt, endIt) && !allowEnd) {
-            throw std::invalid_argument(std::format(
-                    "Invalid FEN string: unexpected end of string at character #{}", position));
+            throw std::invalid_argument(
+                    std::format(
+                            "Invalid FEN string: unexpected end of string at character #{}",
+                            position));
         }
     };
 
@@ -374,9 +378,10 @@ GameState GameState::fromFen(std::string_view fenString) {
     gameState.halfMoveClock_ = parseHalfMoveClockFromFen(strIt, endIt);
 
     if (strIt != endIt) {
-        throw std::invalid_argument(std::format(
-                "Invalid FEN string: unexpected characters at end of string: {}",
-                std::string_view(strIt, endIt)));
+        throw std::invalid_argument(
+                std::format(
+                        "Invalid FEN string: unexpected characters at end of string: {}",
+                        std::string_view(strIt, endIt)));
     }
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig);

@@ -31,10 +31,11 @@ TimeManager::TimeManager() : moveOverhead_(std::chrono::milliseconds(20)) {}
 void TimeManager::setFrontEnd(IFrontEnd* frontEnd) {
     frontEnd_ = frontEnd;
 
-    frontEnd_->addOption(FrontEndOption::createInteger(
-            "move_overhead_ms", (int)moveOverhead_.count(), 0, 10'000, [this](int v) {
-                moveOverhead_ = std::chrono::milliseconds(v);
-            }));
+    frontEnd_->addOption(
+            FrontEndOption::createInteger(
+                    "move_overhead_ms", (int)moveOverhead_.count(), 0, 10'000, [this](int v) {
+                        moveOverhead_ = std::chrono::milliseconds(v);
+                    }));
 }
 
 bool TimeManager::shouldInterruptSearch(const std::uint64_t nodesSearched) const {
@@ -154,11 +155,12 @@ void TimeManager::configureForTimeControl(
     const std::chrono::milliseconds softTimeBudget     = hardTimeBudget / 2;
 
     if (frontEnd_) {
-        frontEnd_->reportDebugString(std::format(
-                "Time budget: soft {} ms / hard {} ms / extended {} ms",
-                softTimeBudget.count(),
-                hardTimeBudget.count(),
-                extendedTimeBudget.count()));
+        frontEnd_->reportDebugString(
+                std::format(
+                        "Time budget: soft {} ms / hard {} ms / extended {} ms",
+                        softTimeBudget.count(),
+                        hardTimeBudget.count(),
+                        extendedTimeBudget.count()));
     }
 
     mode_              = TimeManagementMode::TimeControl;

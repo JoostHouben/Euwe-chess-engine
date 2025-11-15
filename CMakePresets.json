@@ -74,8 +74,8 @@
       "hidden": true,
       "inherits": "linux-base",
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-19",
-        "CMAKE_CXX_COMPILER": "clang++-19"
+        "CMAKE_C_COMPILER": "clang-20",
+        "CMAKE_CXX_COMPILER": "clang++-20"
       }
     },
     {

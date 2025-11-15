@@ -65,7 +65,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "vcpkg-cache-key=vcpkg-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg-cache-key=vcpkg-rev1-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore cached VCPKG binaries
         id: cache-vcpkg-binaries
@@ -79,8 +79,13 @@ jobs:
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
           configurePreset: ${{ matrix.config.preset }}
-          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON']"
+          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_C_COMPILER=clang-19', '-DCMAKE_CXX_COMPILER=clang++-19']"
 
       - name: Run clang-tidy script
         run: |
           bash ci/clang-tidy-parallel.sh
+
+      - name: Run clang-tidy serially to show errors
+        if: ${{ failure() }}
+        run: |
+          bash ci/clang-tidy-serial.sh

@@ -115,8 +115,12 @@ FrontEndOption FrontEndOption::createInteger(
         const int value = stringViewToInt(valueString);
 
         if (value < minValue || value > maxValue) {
-            throw std::invalid_argument(std::format(
-                    "Value out of range: expected [{}, {}], got {}", minValue, maxValue, value));
+            throw std::invalid_argument(
+                    std::format(
+                            "Value out of range: expected [{}, {}], got {}",
+                            minValue,
+                            maxValue,
+                            value));
         }
 
         onSet(value);
@@ -144,8 +148,11 @@ FrontEndOption FrontEndOption::createAlternative(
         const auto it = std::find(validValues.begin(), validValues.end(), valueString);
         if (it == validValues.end()) {
             const std::string validValuesString = validValues | joinToString(", ");
-            throw std::invalid_argument(std::format(
-                    "Invalid value '{}'. Expected one of: [{}]", valueString, validValuesString));
+            throw std::invalid_argument(
+                    std::format(
+                            "Invalid value '{}'. Expected one of: [{}]",
+                            valueString,
+                            validValuesString));
         }
         onSet(valueString);
     };

@@ -52,14 +52,14 @@ jobs:
         if: steps.cache-msan-libcxx.outputs.cache-hit != 'true'
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-19
+          packages: clang-20
           version: 1
 
       - name: Install llvm-dev packages
         if: steps.cache-msan-libcxx.outputs.cache-hit != 'true'
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: libclang-19-dev llvm-19-dev
+          packages: libclang-20-dev llvm-20-dev
           version: 1
 
       - name: Build MSan libc++
@@ -105,7 +105,7 @@ jobs:
         id: strings
         shell: bash
         run: |
-          echo "vcpkg-cache-key=vcpkg-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
+          echo "vcpkg-cache-key=vcpkg-rev1-${{ matrix.config.vcpkg_cache_triplet }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}" >> "$GITHUB_OUTPUT"
 
       - name: Cache VCPKG binaries
         id: cache-vcpkg-binaries
@@ -119,7 +119,7 @@ jobs:
         if: ${{ runner.os == 'Linux' && steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' }}
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-19
+          packages: clang-20
           version: 1
 
       - name: Get CMake
@@ -144,7 +144,7 @@ jobs:
         if: ${{ steps.cache-vcpkg-binaries.outputs.cache-hit != 'true' && matrix.config.preset == 'linux-msan' && steps.cache-msan-libcxx.outputs.cache-hit != 'true' }}
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: libclang-19-dev llvm-19-dev
+          packages: libclang-20-dev llvm-20-dev
           version: 1
 
       - name: Build MSan libc++
@@ -168,13 +168,13 @@ jobs:
       - name: Install clang
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-19
+          packages: clang-20
           version: 1
 
       - name: Install llvm-dev packages
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: libclang-19-dev llvm-19-dev
+          packages: libclang-20-dev llvm-20-dev
           version: 1
 
       - name: Install Valgrind
@@ -186,5 +186,5 @@ jobs:
       - name: Install clang-tidy
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-tidy-19
+          packages: clang-tidy-19 clang-19
           version: 1
