@@ -84,3 +84,8 @@ jobs:
       - name: Run clang-tidy script
         run: |
           bash ci/clang-tidy-parallel.sh
+
+      - name: Run clang-tidy serially to show errors
+        if: ${{ failure() }}
+        run: |
+          bash ci/clang-tidy-serial.sh
