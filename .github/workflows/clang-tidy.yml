@@ -79,7 +79,7 @@ jobs:
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
           configurePreset: ${{ matrix.config.preset }}
-          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON']"
+          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_C_COMPILER=clang-19', '-DCMAKE_CXX_COMPILER=clang++-19']"
 
       - name: Run clang-tidy script
         run: |
