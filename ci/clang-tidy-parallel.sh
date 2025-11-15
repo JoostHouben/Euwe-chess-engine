@@ -13,7 +13,7 @@ length=$(wc -w <<< "$file_list")
 echo Running clang-tidy on $length files
 
 echo "$file_list" |
-  parallel --bar "clang-tidy-20 {} -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet 2>/dev/null" \
+  parallel --bar "clang-tidy-19 {} -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet 2>/dev/null" \
   2> >(
     perl -pe 'BEGIN{$/="\r";$|=1};s/\r/\n/g' |
     grep '%' |
