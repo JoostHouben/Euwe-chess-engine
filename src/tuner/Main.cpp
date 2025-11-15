@@ -102,7 +102,6 @@ void saveResults(
     out << getParamsString(paramsDouble);
 }
 
-// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 std::vector<std::pair<std::filesystem::path, int>> parseArgs(
         int argc, char const* const* const argv) {
     if (argc < 3) {
@@ -132,7 +131,6 @@ std::vector<std::pair<std::filesystem::path, int>> parseArgs(
         std::exit(1);
     }
 }
-// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 
 }  // namespace
 
