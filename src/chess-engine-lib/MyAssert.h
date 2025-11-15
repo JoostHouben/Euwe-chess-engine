@@ -12,6 +12,7 @@
 #define ENSURE_ASSERT_BREAKS (void)0
 #endif
 
+// NOLINTNEXTLINE(clang-analyzer-core.NullDereference)
 #define FAIL_IN_CONSTEVAL *static_cast<int*>(nullptr) = 0
 
 #define ASSUME(condition)           \
@@ -37,6 +38,9 @@
         } else {                   \
             ENSURE_ASSERT_BREAKS;  \
             assert(condition);     \
+        }                          \
+        if (!(condition)) {        \
+            std::abort();          \
         }                          \
     } while (0)
 #else

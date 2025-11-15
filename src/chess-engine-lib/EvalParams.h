@@ -7,7 +7,7 @@
 #include <array>
 #include <string>
 
-#include <cstddef>
+#include <cstdint>
 
 using EvalCalcT = float;
 
@@ -111,9 +111,9 @@ struct EvalParams {
     TaperedTerm knightOnOutpostAdjustment;
 
     [[nodiscard]] FORCE_INLINE std::size_t getParamIndex(const EvalCalcT& param) const {
-        const std::byte* thisByte   = reinterpret_cast<const std::byte*>(this);
-        const std::byte* paramByte  = reinterpret_cast<const std::byte*>(&param);
-        const std::ptrdiff_t offset = paramByte - thisByte;
+        const auto thisByte  = reinterpret_cast<std::uintptr_t>(this);
+        const auto paramByte = reinterpret_cast<std::uintptr_t>(&param);
+        const auto offset    = paramByte - thisByte;
 
         MY_ASSERT(offset >= 0 && (std::size_t)offset < sizeof(*this));
         MY_ASSERT(offset % sizeof(EvalCalcT) == 0);

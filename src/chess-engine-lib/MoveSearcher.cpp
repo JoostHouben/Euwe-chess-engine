@@ -21,11 +21,15 @@
 
 namespace {
 
-enum NodeType {
+enum class NodeType {
     PvNode  = 0,
     CutNode = 1,
     AllNode = -1,
 };
+
+constexpr NodeType operator-(const NodeType nodeType) {
+    return (NodeType)(-(int)nodeType);
+}
 
 class PvTable {
   public:
@@ -1333,7 +1337,7 @@ EvalT MoveSearcher::Impl::quiesce(
                 updateMateDistanceIn(-beta),
                 updateMateDistanceIn(-alpha),
                 ply + 1,
-                (NodeType)-nodeType,
+                -nodeType,
                 stack);
 
         gameState.unmakeMove(move, unmakeInfo);
@@ -1482,7 +1486,7 @@ FORCE_INLINE MoveSearcher::Impl::SearchMoveOutcome MoveSearcher::Impl::searchMov
                         updateMateDistanceIn(-alpha),
                         move,
                         lastNullMovePly,
-                        (NodeType)-currentNodeType,
+                        -currentNodeType,
                         stack);
     }
 
