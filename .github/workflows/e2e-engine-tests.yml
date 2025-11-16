@@ -33,15 +33,19 @@ jobs:
         config:
           # Windows MSVC
           - {
-             os: windows-2025,
-             preset: windows-msvc-debug
-           }
+              os: windows-2025,
+              preset: windows-msvc-debug
+            }
 
           # Windows clang-cl
           - {
-             os: windows-2025,
-             preset: windows-clang-cl-release
-           }
+              os: windows-2025,
+              preset: windows-clang-cl-release
+            }
+          - {
+              os: windows-2025,
+              preset: windows-clang-cl-pgo
+            }
 
           # Linux clang
           - {
@@ -51,6 +55,10 @@ jobs:
           - {
               os: ubuntu-latest,
               preset: linux-clang-release
+            }
+          - {
+              os: ubuntu-latest,
+              preset: linux-clang-pgo
             }
 
           # Linux sanitizers

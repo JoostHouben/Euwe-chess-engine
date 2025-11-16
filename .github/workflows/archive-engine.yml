@@ -20,12 +20,12 @@ jobs:
         config:
           - {
               os: windows-2025,
-              preset: windows-clang-cl-release,
+              preset: windows-clang-cl-pgo,
               os-name: windows
             }
           - {
               os: ubuntu-latest,
-              preset: linux-clang-release,
+              preset: linux-clang-pgo,
               os-name: linux
             }
 

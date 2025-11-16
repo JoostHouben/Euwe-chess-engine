@@ -24,22 +24,47 @@ project ("Euwe")
 
 # Detect compiler
 if (MSVC)
-    # MSVC or clang-cl
     set(MSVC_LIKE TRUE)
     set(GCC_LIKE FALSE)
+    set(GCC_ACTUAL FALSE)
+    set(CLANG_ACTUAL FALSE)
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Clang-cl
         message("Detected clang-cl version ${CMAKE_CXX_COMPILER_VERSION}")
-
+        
+        set(MSVC_ACTUAL FALSE)
         set(CLANG_CL TRUE)
     else()
+        # Actual MSVC    
+        message("Detected MSVC version ${CMAKE_CXX_COMPILER_VERSION}")
+        
+        set(MSVC_ACTUAL TRUE)
         set(CLANG_CL FALSE)
     endif()
 else()
-    # GCC or Clang (not clang-cl)
     set(MSVC_LIKE FALSE)
-    set(GCC_LIKE TRUE)
+    set(MSVC_ACTUAL FALSE)
     set(CLANG_CL FALSE)
+    set(GCC_LIKE TRUE)
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # GCC
+        message("Detected GCC version ${CMAKE_CXX_COMPILER_VERSION}")
+
+        set(GCC_ACTUAL TRUE)
+        set(CLANG_ACTUAL FALSE)
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Clang (not clang-cl)
+        message("Detected Clang version ${CMAKE_CXX_COMPILER_VERSION}")
+
+        set(GCC_ACTUAL FALSE)
+        set(CLANG_ACTUAL TRUE)
+    endif()
+endif()
+
+if (USE_PGO AND NOT (CLANG_CL OR CLANG_ACTUAL))
+    message(FATAL_ERROR "PGO is only supported with Clang / clang-cl compilers")
 endif()
 
 # Set warnings, and treat them as errors
@@ -49,6 +74,10 @@ if (MSVC)
     add_compile_options(/wd4714)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+if (GCC_ACTUAL)
+    # Disable spurious warning: ‘always_inline’ function might not be inlinable unless also declared ‘inline’ [-Wattributes]
+    add_compile_options(-Wno-attributes)
 endif()
 
 # Enable exceptions support.
@@ -80,10 +109,11 @@ endif()
 # Set the architecture to AVX2 (and BMI2).
 # This is needed for instructions like PDEP/PEXT, popcount, tzcount, etc., all of which are used
 # heavily in core logic.
+# Also allow FMA instructions, since those are used explicitly in evaluation.
 if (MSVC_LIKE)
     add_compile_options(/arch:AVX2)
 else() # GCC_LIKE
-    add_compile_options(-mavx2 -mbmi2)
+    add_compile_options(-mavx2 -mbmi2 -mfma)
 endif()
 
 # Enable Interprocedural Optimization (Link-time optimization / whole program optimization), if supported.

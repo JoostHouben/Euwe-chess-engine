@@ -115,8 +115,17 @@ struct EvalParams {
         const auto paramByte = reinterpret_cast<std::uintptr_t>(&param);
         const auto offset    = paramByte - thisByte;
 
+        // With -Wtype-limits, GCC complains that the asserted conditions are always true, in
+        // certain contexts. Suppress the warning so that we can keep the asserts.
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
         MY_ASSERT(offset >= 0 && (std::size_t)offset < sizeof(*this));
         MY_ASSERT(offset % sizeof(EvalCalcT) == 0);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
         return (std::size_t)(offset / sizeof(EvalCalcT));
     }

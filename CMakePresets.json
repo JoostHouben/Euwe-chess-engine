@@ -4,24 +4,33 @@
   "configurePresets": [
 
     {
-      "name": "windows-base",
+      "name": "base",
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "installDir": "${sourceDir}/out/install/${presetName}",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      },
       "architecture": {
         "value": "x64",
         "strategy": "external"
       },
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_TARGET_TRIPLET": "x64-windows",
-        "TARGETS_TO_BUILD": "engine;tests;tuner"
+        "TARGETS_TO_BUILD": "engine;tests;tuner",
+        "USE_PGO": "FALSE"
+      }
+    },
+
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "cacheVariables": {
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -52,21 +61,11 @@
     {
       "name": "linux-base",
       "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
+      "inherits": "base",
       "condition": {
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Linux"
-      },
-      "architecture": {
-        "value": "x64",
-        "strategy": "external"
-      },
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "TARGETS_TO_BUILD": "engine;tests;tuner"
       }
     },
     {
@@ -121,6 +120,15 @@
         "CMAKE_BUILD_TYPE": "Release"
       }
     },
+    {
+      "name": "windows-clang-cl-pgo",
+      "displayName": "Windows clang-cl PGO",
+      "inherits": "windows-clang-cl-release",
+      "cacheVariables": {
+        "USE_PGO": "TRUE",
+        "PROFDATA_CMD": "llvm-profdata.exe"
+      }
+    },
 
     {
       "name": "linux-clang-debug",
@@ -136,6 +144,15 @@
       "inherits": "linux-clang-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-clang-pgo",
+      "displayName": "Linux clang PGO",
+      "inherits": "linux-clang-release",
+      "cacheVariables": {
+        "USE_PGO": "TRUE",
+        "PROFDATA_CMD": "llvm-profdata-20"
       }
     },
 
@@ -187,46 +204,66 @@
   "buildPresets": [
     {
       "name": "windows-msvc-debug",
+      "displayName": "Windows MSVC Debug",
       "configurePreset": "windows-msvc-debug"
     },
     {
       "name": "windows-msvc-release-debug",
+      "displayName": "Windows MSVC Release w/ Debug info",
       "configurePreset": "windows-msvc-release-debug"
     },
     {
       "name": "windows-msvc-release",
+      "displayName": "Windows MSVC Release",
       "configurePreset": "windows-msvc-release"
     },
 
     {
       "name": "windows-clang-cl-release",
+      "displayName": "Windows clang-cl Release",
       "configurePreset": "windows-clang-cl-release"
+    },
+    {
+      "name": "windows-clang-cl-pgo",
+      "displayName": "Windows clang-cl PGO",
+      "configurePreset": "windows-clang-cl-pgo"
     },
 
     {
       "name": "linux-clang-debug",
+      "displayName": "Linux clang Debug",
       "configurePreset": "linux-clang-debug"
     },
     {
       "name": "linux-clang-release",
+      "displayName": "Linux clang Release",
       "configurePreset": "linux-clang-release"
+    },
+    {
+      "name": "linux-clang-pgo",
+      "displayName": "Linux clang PGO",
+      "configurePreset": "linux-clang-pgo"
     },
 
     {
       "name": "linux-gcc-release",
+      "displayName": "Linux GCC Release",
       "configurePreset": "linux-gcc-release"
     },
 
     {
       "name": "linux-asan-ubsan",
+      "displayName": "Linux ASAN/UBSAN",
       "configurePreset": "linux-asan-ubsan"
     },
     {
       "name": "linux-tsan",
+      "displayName": "Linux TSAN",
       "configurePreset": "linux-tsan"
     },
     {
       "name": "linux-msan",
+      "displayName": "Linux MSAN",
       "configurePreset": "linux-msan"
     }
   ]
