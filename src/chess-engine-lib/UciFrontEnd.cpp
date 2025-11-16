@@ -159,7 +159,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     // This should only be done if the user has triggered a non-standard command.
     // In console mode, the output will be colored as debug output.
     template <typename... Args>
-    void writeNonUci(std::format_string<Args...> fmt, Args&&... args) const;
+    void writeUciExtension(std::format_string<Args...> fmt, Args&&... args) const;
 
     // Write a debug message. If UCI debug mode is on, the message is sent over the UCI protocol.
     // Otherwise, it is written to the debug output stream.
@@ -746,24 +746,24 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 void UciFrontEnd::Impl::handleEval() const {
     StackOfVectors<Move> stack;
     const EvalT eval = engine_.evaluate(gameState_);
-    writeNonUci("Eval: {:+} ({})", (float)eval / 100, scoreToString(eval));
+    writeUciExtension("Eval: {:+} ({})", (float)eval / 100, scoreToString(eval));
 }
 
 void UciFrontEnd::Impl::handleListMoves() const {
     StackOfVectors<Move> stack;
     const auto moves = gameState_.generateMoves(stack);
     std::vector<Move> movesVector(moves.begin(), moves.end());
-    writeNonUci("Moves: {}", moveListToString(movesVector));
+    writeUciExtension("Moves: {}", moveListToString(movesVector));
 }
 
 void UciFrontEnd::Impl::handleHash() const {
     const auto hash = gameState_.getBoardHash();
-    writeNonUci("Hash: 0x{:016x}", hash);
+    writeUciExtension("Hash: 0x{:016x}", hash);
 }
 
 void UciFrontEnd::Impl::handleFen() const {
     const std::string fen = gameState_.toFen();
-    writeNonUci("FEN: {}", fen);
+    writeUciExtension("FEN: {}", fen);
 }
 
 void UciFrontEnd::Impl::handleStartBench() {
@@ -786,7 +786,7 @@ void UciFrontEnd::Impl::handleStopBench() {
                                 : nps > 1e3 ? std::format("{:.2f} kn/s", nps / 1e3)
                                             : std::format("{:.0f} n/s", nps);
 
-    writeNonUci(
+    writeUciExtension(
             "== Benchmark finished ==\n"
             "Total nodes searched: {}\n"
             "Time elapsed: {:%T}\n"
@@ -942,7 +942,8 @@ void UciFrontEnd::Impl::writeUci(const std::format_string<Args...> fmt, Args&&..
 }
 
 template <typename... Args>
-void UciFrontEnd::Impl::writeNonUci(const std::format_string<Args...> fmt, Args&&... args) const {
+void UciFrontEnd::Impl::writeUciExtension(
+        const std::format_string<Args...> fmt, Args&&... args) const {
     // Color as debug output.
     ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, out_);
 
