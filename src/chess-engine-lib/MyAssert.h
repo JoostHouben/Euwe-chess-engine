@@ -6,12 +6,6 @@
 #include <cassert>
 #include <cstdlib>
 
-#ifdef _MSC_VER
-#define ENSURE_ASSERT_BREAKS _set_error_mode(_OUT_TO_MSGBOX)
-#else
-#define ENSURE_ASSERT_BREAKS (void)0
-#endif
-
 #define ASSUME(condition)           \
     do {                            \
         if consteval {              \
@@ -26,16 +20,15 @@
     } while (0)
 
 #ifndef NDEBUG
-#define MY_ASSERT(condition)      \
-    do {                          \
-        if consteval {            \
-            if (!(condition)) {   \
-                std::abort();     \
-            }                     \
-        } else {                  \
-            ENSURE_ASSERT_BREAKS; \
-            assert(condition);    \
-        }                         \
+#define MY_ASSERT(condition)    \
+    do {                        \
+        if consteval {          \
+            if (!(condition)) { \
+                std::abort();   \
+            }                   \
+        } else {                \
+            assert(condition);  \
+        }                       \
     } while (0)
 #else
 #define MY_ASSERT(condition) ASSUME(condition)
