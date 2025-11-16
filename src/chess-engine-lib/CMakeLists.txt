@@ -72,6 +72,7 @@ if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 
     # == Library for profile use ==
     add_library(chess-engine-lib-pgo STATIC ${CHESS_ENGINE_LIB_SOURCES})
+	add_dependencies(chess-engine-lib-pgo Euwe-PGO-Merge)
     target_include_directories(chess-engine-lib-pgo PUBLIC ${PARENT_DIR})
     set_property(TARGET chess-engine-lib-pgo PROPERTY CXX_STANDARD 23)
     if (CLANG_CL)

@@ -23,9 +23,26 @@ if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 
 	target_compile_options(Euwe-ProfileGen PRIVATE -fprofile-generate)
 
+	# == Profile data collection target ==
+
+	add_custom_target(Euwe-PGO-Collect
+		COMMAND ${CMAKE_COMMAND} -E env LLVM_PROFILE_FILE=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profraw
+			$<TARGET_FILE:Euwe-ProfileGen> uci "setoption name hash value 512" "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" "go depth 17" isready quit
+		COMMENT "Running Euwe-ProfileGen to collect PGO data"
+	)
+
+	# == Profile data merge target ==
+
+	add_custom_target(Euwe-PGO-Merge
+		COMMAND llvm-profdata merge -output=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata $<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profraw
+		DEPENDS Euwe-PGO-Collect
+		COMMENT "Merging PGO data into euwe.profdata"
+	)
+
 	# == Profile use target ==
 
 	add_executable(Euwe-PGO "Main.cpp")
+	add_dependencies(Euwe-PGO Euwe-PGO-Merge)
 	# C++23 standard
 	set_property(TARGET Euwe-PGO PROPERTY CXX_STANDARD 23)
 	# Statically link the runtime libraries.
