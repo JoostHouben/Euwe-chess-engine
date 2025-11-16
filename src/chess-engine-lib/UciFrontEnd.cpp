@@ -767,6 +767,8 @@ void UciFrontEnd::Impl::handleFen() const {
 }
 
 void UciFrontEnd::Impl::handleStartBench() {
+    waitForGoToComplete();
+
     benchmarkStatistics_ = SearchStatistics{};
 }
 
