@@ -105,10 +105,11 @@ endif()
 # Set the architecture to AVX2 (and BMI2).
 # This is needed for instructions like PDEP/PEXT, popcount, tzcount, etc., all of which are used
 # heavily in core logic.
+# Also allow FMA instructions, since those are used explicitly in evaluation.
 if (MSVC_LIKE)
     add_compile_options(/arch:AVX2)
 else() # GCC_LIKE
-    add_compile_options(-mavx2 -mbmi2)
+    add_compile_options(-mavx2 -mbmi2 -mfma)
 endif()
 
 # Enable Interprocedural Optimization (Link-time optimization / whole program optimization), if supported.
