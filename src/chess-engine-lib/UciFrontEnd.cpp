@@ -244,6 +244,7 @@ void UciFrontEnd::Impl::run() {
         // Not implemented:
         //  ponderhit
 
+        // Official UCI commands
         if (command == "uci") {
             handleUci();
         } else if (command == "isready") {
@@ -264,7 +265,9 @@ void UciFrontEnd::Impl::run() {
             handleRegister();
         } else if (command == "setoption") {
             handleSetOption(inputLine);
-        } else if (command == "eval") {
+        }
+        // UCI extensions
+        else if (command == "eval") {
             handleEval();
         } else if (command == "listmoves") {
             handleListMoves();
@@ -278,7 +281,9 @@ void UciFrontEnd::Impl::run() {
             handleStopBench();
         } else if (command == "bench") {
             handleBench();
-        } else if (command.empty()) {
+        }
+        // Edge cases
+        else if (command.empty()) {
             continue;
         } else {
             writeDebug("Warning: Ignoring unknown command: '{}'", command);
@@ -780,6 +785,9 @@ void UciFrontEnd::Impl::handleStopBench() {
         return;
     }
 
+    const std::uint64_t totalNodes =
+            benchmarkStatistics_->normalNodesSearched + benchmarkStatistics_->qNodesSearched;
+
     const float nps             = benchmarkStatistics_->nodesPerSecond;
     const std::string npsString = nps > 1e9 ? std::format("{:.2f} Gn/s", nps / 1e9)
                                 : nps > 1e6 ? std::format("{:.2f} Mn/s", nps / 1e6)
@@ -791,7 +799,7 @@ void UciFrontEnd::Impl::handleStopBench() {
             "Total nodes searched: {}\n"
             "Time elapsed: {:%T}\n"
             "Search speed: {}",
-            benchmarkStatistics_->normalNodesSearched + benchmarkStatistics_->qNodesSearched,
+            totalNodes,
             benchmarkStatistics_->timeElapsed,
             npsString);
 
@@ -808,6 +816,7 @@ void UciFrontEnd::Impl::handleBench() {
             "startbench",
 
             "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+            "fen",
             "go depth 15",
 
             "stopbench",
