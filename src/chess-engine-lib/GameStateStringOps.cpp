@@ -494,7 +494,8 @@ std::string GameState::toVisualString() const {
             ss << '|';
         }
 
-        if (rank == 0) {
+        if ((rank == 0 && sideToMove_ == Side::White)
+            || (rank == 7 && sideToMove_ == Side::Black)) {
             ss << " " << toFenChar(sideToMove_);
         }
 

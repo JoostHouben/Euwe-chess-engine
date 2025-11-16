@@ -41,7 +41,7 @@ TEST(GameStateHelpers, TestToVisualStringDoublePush) {
     const std::string visual = startingPosition.toVisualString();
     const std::string expectedVisual =
             "  .-------------------------------.\n"
-            "8 | r*| n | b | q | k | b | n | r*|\n"
+            "8 | r*| n | b | q | k | b | n | r*| b\n"
             "  |---+---+---+---+---+---+---+---|\n"
             "7 | p | p | p | p | p |   | p | p |\n"
             "  |---+---+---+---+---+---+---+---|\n"
@@ -55,7 +55,7 @@ TEST(GameStateHelpers, TestToVisualStringDoublePush) {
             "  |---+---+---+---+---+---+---+---|\n"
             "2 | P | P | P | P |   | P | P | P |\n"
             "  |---+---+---+---+---+---+---+---|\n"
-            "1 | R*| N | B | Q | K | B | N | R*| b\n"
+            "1 | R*| N | B | Q | K | B | N | R*|\n"
             "  '-------------------------------'\n"
             "    a   b   c   d   e   f   g   h\n";
 
