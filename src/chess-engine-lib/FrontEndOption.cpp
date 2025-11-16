@@ -3,12 +3,17 @@
 #include "MyAssert.h"
 #include "RangePatches.h"
 
+#include <algorithm>
 #include <charconv>
 #include <format>
-#include <ranges>
+#include <functional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 namespace {
 

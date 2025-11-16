@@ -1,21 +1,42 @@
 #include "UciFrontEnd.h"
 
 #include "ConsoleColor.h"
-#include "Eval.h"
+#include "EvalT.h"
+#include "FrontEndOption.h"
 #include "GameState.h"
-#include "Math.h"
+#include "IEngine.h"
+#include "IFrontEnd.h"
+#include "Move.h"
 #include "MyAssert.h"
 #include "RangePatches.h"
+#include "SearchInfo.h"
+#include "SearchStatistics.h"
+#include "Side.h"
+#include "StackOfVectors.h"
+#include "TimeManager.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <exception>
+#include <format>
+#include <functional>
 #include <future>
-#include <iostream>
+#include <istream>
+#include <limits>
 #include <map>
+#include <memory>
 #include <optional>
-#include <print>
+#include <ostream>
 #include <ranges>
 #include <sstream>
+#include <stack>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include <cctype>
 #include <cmath>
@@ -67,6 +88,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     Impl& operator=(Impl&&) = delete;
 
     void run() override;
+
+    void pushProgrammaticCommand(std::string_view command) override;
 
     void reportSearchHasStarted() override;
 
@@ -139,6 +162,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     std::ostream& out_;
     std::ostream& debug_;
 
+    std::stack<std::string> programmaticLines_;
+
     GameState gameState_;
 
     bool debugMode_ = false;
@@ -181,9 +206,17 @@ UciFrontEnd::Impl::~Impl() {
 void UciFrontEnd::Impl::run() {
     handleUci();
 
-    while (in_.good()) {
+    while (true) {
         std::string inputLine;
-        std::getline(in_, inputLine);
+
+        if (!programmaticLines_.empty()) {
+            inputLine = programmaticLines_.top();
+            programmaticLines_.pop();
+        } else if (in_.good()) {
+            std::getline(in_, inputLine);
+        } else {
+            break;
+        }
 
         std::stringstream lineSStream(inputLine);
 
@@ -227,6 +260,10 @@ void UciFrontEnd::Impl::run() {
     }
 
     stopSearchIfNeeded();
+}
+
+void UciFrontEnd::Impl::pushProgrammaticCommand(std::string_view command) {
+    programmaticLines_.emplace(command);
 }
 
 void UciFrontEnd::Impl::reportSearchHasStarted() {
@@ -846,6 +883,10 @@ UciFrontEnd::~UciFrontEnd() = default;
 
 void UciFrontEnd::run() {
     impl_->run();
+}
+
+void UciFrontEnd::pushProgrammaticCommand(std::string_view command) {
+    impl_->pushProgrammaticCommand(command);
 }
 
 void UciFrontEnd::reportSearchHasStarted() {

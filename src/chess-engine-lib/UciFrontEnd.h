@@ -29,6 +29,8 @@ class UciFrontEnd final : public IFrontEnd {
 
     void run() override;
 
+    void pushProgrammaticCommand(std::string_view command) override;
+
     void reportSearchHasStarted() override;
 
     void reportFullSearch(const SearchInfo& searchInfo) const override;

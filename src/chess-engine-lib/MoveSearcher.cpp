@@ -1,21 +1,41 @@
 #include "MoveSearcher.h"
 
+#include "BitBoard.h"
+#include "BoardConstants.h"
+#include "BoardHash.h"
+#include "BoardPosition.h"
 #include "Eval.h"
-#include "Math.h"
+#include "EvalT.h"
+#include "FrontEndOption.h"
+#include "GameState.h"
+#include "IFrontEnd.h"
+#include "Macros.h"
+#include "Move.h"
 #include "MoveOrderer.h"
 #include "MoveScorer.h"
+#include "MyAssert.h"
+#include "Piece.h"
 #include "SEE.h"
 #include "SearchConstants.h"
+#include "SearchInfo.h"
+#include "SearchStatistics.h"
+#include "Side.h"
+#include "StackOfVectors.h"
 #include "Syzygy.h"
 #include "TTable.h"
+#include "TimeManager.h"
 
 #include <algorithm>
 #include <array>
 #include <atomic>
-#include <bit>
-#include <limits>
-#include <sstream>
+#include <chrono>
+#include <memory>
+#include <optional>
+#include <utility>
+#include <vector>
 
+#include <climits>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 
