@@ -125,7 +125,8 @@
       "displayName": "Windows clang-cl PGO",
       "inherits": "windows-clang-cl-release",
       "cacheVariables": {
-        "ENABLE_PGO": "TRUE"
+        "ENABLE_PGO": "TRUE",
+        "PROFDATA_CMD": "llvm-profdata.exe"
       }
     },
 
@@ -143,6 +144,15 @@
       "inherits": "linux-clang-base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "linux-clang-pgo",
+      "displayName": "Linux clang PGO",
+      "inherits": "linux-clang-release",
+      "cacheVariables": {
+        "ENABLE_PGO": "TRUE",
+        "PROFDATA_CMD": "llvm-profdata-20"
       }
     },
 
@@ -228,6 +238,11 @@
       "name": "linux-clang-release",
       "displayName": "Linux clang Release",
       "configurePreset": "linux-clang-release"
+    },
+    {
+      "name": "linux-clang-pgo",
+      "displayName": "Linux clang PGO",
+      "configurePreset": "linux-clang-pgo"
     },
 
     {

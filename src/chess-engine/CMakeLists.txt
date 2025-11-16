@@ -22,6 +22,7 @@ if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 	target_link_libraries(Euwe-ProfileGen chess-engine-lib-pgo-gen)
 
 	target_compile_options(Euwe-ProfileGen PRIVATE -fprofile-generate)
+	target_link_options(Euwe-ProfileGen PRIVATE -fprofile-generate)
 
 	# == Profile data collection target ==
 
@@ -34,7 +35,7 @@ if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 	# == Profile data merge target ==
 
 	add_custom_target(Euwe-PGO-Merge
-		COMMAND llvm-profdata merge -output=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata $<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profraw
+		COMMAND ${PROFDATA_CMD} merge -output=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata $<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profraw
 		DEPENDS Euwe-PGO-Collect
 		COMMENT "Merging PGO data into euwe.profdata"
 	)

@@ -24,28 +24,43 @@ project ("Euwe")
 
 # Detect compiler
 if (MSVC)
+    set(MSVC_LIKE TRUE)
+    set(GCC_LIKE FALSE)
+    set(GCC_ACTUAL FALSE)
+    set(CLANG_ACTUAL FALSE)
+
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         # Clang-cl
         message("Detected clang-cl version ${CMAKE_CXX_COMPILER_VERSION}")
         
-        set(MSVC_LIKE TRUE)
         set(MSVC_ACTUAL FALSE)
         set(CLANG_CL TRUE)
-        set(GCC_LIKE FALSE)
     else()
         # Actual MSVC    
+        message("Detected MSVC version ${CMAKE_CXX_COMPILER_VERSION}")
         
-        set(MSVC_LIKE TRUE)
         set(MSVC_ACTUAL TRUE)
         set(CLANG_CL FALSE)
-        set(GCC_LIKE FALSE)
     endif()
 else()
-    # GCC or Clang (not clang-cl)
     set(MSVC_LIKE FALSE)
     set(MSVC_ACTUAL FALSE)
     set(CLANG_CL FALSE)
     set(GCC_LIKE TRUE)
+
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # GCC
+        message("Detected GCC version ${CMAKE_CXX_COMPILER_VERSION}")
+
+        set(GCC_ACTUAL TRUE)
+        set(CLANG_ACTUAL FALSE)
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Clang (not clang-cl)
+        message("Detected Clang version ${CMAKE_CXX_COMPILER_VERSION}")
+
+        set(GCC_ACTUAL FALSE)
+        set(CLANG_ACTUAL TRUE)
+    endif()
 endif()
 
 # Set warnings, and treat them as errors
@@ -55,6 +70,10 @@ if (MSVC)
     add_compile_options(/wd4714)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+if (GCC_ACTUAL)
+    # Disable spurious warning: ‘always_inline’ function might not be inlinable unless also declared ‘inline’ [-Wattributes]
+    add_compile_options(-Wno-attributes)
 endif()
 
 # Enable exceptions support.
@@ -112,9 +131,6 @@ if (MSVC)
     # Options to ensure that RelWithDebInfo builds are optimized.
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob2 /DNDEBUG")
 endif()
-
-#add_compile_options(-fprofile-generate)
-#add_compile_options(-fprofile-use=C:/Git/Euwe-chess-engine/euwe.profdata)
 
 enable_testing()
 

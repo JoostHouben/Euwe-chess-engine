@@ -15,33 +15,39 @@
 // NOLINTNEXTLINE(clang-analyzer-core.NullDereference)
 #define FAIL_IN_CONSTEVAL *static_cast<int*>(nullptr) = 0
 
-#define ASSUME(condition)           \
-    do {                            \
-        if consteval {              \
-            if (!(condition)) {     \
-                FAIL_IN_CONSTEVAL;  \
-            }                       \
-        } else {                    \
-            if (!(condition)) {     \
-                std::unreachable(); \
-            }                       \
-        }                           \
+#define ASSUME(condition)                                    \
+    do {                                                     \
+        _Pragma("GCC diagnostic push");                      \
+        _Pragma("GCC diagnostic ignored \"-Wtype-limits\""); \
+        if consteval {                                       \
+            if (!(condition)) {                              \
+                FAIL_IN_CONSTEVAL;                           \
+            }                                                \
+        } else {                                             \
+            if (!(condition)) {                              \
+                std::unreachable();                          \
+            }                                                \
+        }                                                    \
+        _Pragma("GCC diagnostic pop");                       \
     } while (0)
 
 #ifndef NDEBUG
-#define MY_ASSERT(condition)       \
-    do {                           \
-        if consteval {             \
-            if (!(condition)) {    \
-                FAIL_IN_CONSTEVAL; \
-            }                      \
-        } else {                   \
-            ENSURE_ASSERT_BREAKS;  \
-            assert(condition);     \
-        }                          \
-        if (!(condition)) {        \
-            std::abort();          \
-        }                          \
+#define MY_ASSERT(condition)                                 \
+    do {                                                     \
+        _Pragma("GCC diagnostic push");                      \
+        _Pragma("GCC diagnostic ignored \"-Wtype-limits\""); \
+        if consteval {                                       \
+            if (!(condition)) {                              \
+                FAIL_IN_CONSTEVAL;                           \
+            }                                                \
+        } else {                                             \
+            ENSURE_ASSERT_BREAKS;                            \
+            assert(condition);                               \
+        }                                                    \
+        if (!(condition)) {                                  \
+            std::abort();                                    \
+        }                                                    \
+        _Pragma("GCC diagnostic pop");                       \
     } while (0)
 #else
 #define MY_ASSERT(condition) ASSUME(condition)
