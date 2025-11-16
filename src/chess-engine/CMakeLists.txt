@@ -10,7 +10,7 @@ set_property(TARGET Euwe PROPERTY
 target_link_libraries(Euwe chess-engine-lib-stat-crt)
 
 ## == PGO targets ==
-if (GCC_LIKE OR CLANG_CL)
+if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 	# == Profile generation target ==
 
 	add_executable(Euwe-ProfileGen "Main.cpp")
@@ -33,5 +33,6 @@ if (GCC_LIKE OR CLANG_CL)
 	  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	target_link_libraries(Euwe-PGO chess-engine-lib-pgo)
 
-	target_compile_options(Euwe-PGO PRIVATE -fprofile-use=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata)
+	target_compile_options(Euwe-PGO
+		PRIVATE -fprofile-use=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata)
 endif()

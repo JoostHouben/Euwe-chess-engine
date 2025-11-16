@@ -24,22 +24,28 @@ project ("Euwe")
 
 # Detect compiler
 if (MSVC)
-    # MSVC or clang-cl
-    set(MSVC_LIKE TRUE)
-    set(GCC_LIKE FALSE)
-
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # Clang-cl
         message("Detected clang-cl version ${CMAKE_CXX_COMPILER_VERSION}")
-
+        
+        set(MSVC_LIKE TRUE)
+        set(MSVC_ACTUAL FALSE)
         set(CLANG_CL TRUE)
+        set(GCC_LIKE FALSE)
     else()
+        # Actual MSVC    
+        
+        set(MSVC_LIKE TRUE)
+        set(MSVC_ACTUAL TRUE)
         set(CLANG_CL FALSE)
+        set(GCC_LIKE FALSE)
     endif()
 else()
     # GCC or Clang (not clang-cl)
     set(MSVC_LIKE FALSE)
-    set(GCC_LIKE TRUE)
+    set(MSVC_ACTUAL FALSE)
     set(CLANG_CL FALSE)
+    set(GCC_LIKE TRUE)
 endif()
 
 # Set warnings, and treat them as errors

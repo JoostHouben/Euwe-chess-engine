@@ -59,24 +59,25 @@ else()
 endif()
 
 ## == PGO targets ==
-if (GCC_LIKE OR CLANG_CL)
+if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
     # == Library for profile generation ==
     add_library(chess-engine-lib-pgo-gen STATIC ${CHESS_ENGINE_LIB_SOURCES})
     target_include_directories(chess-engine-lib-pgo-gen PUBLIC ${PARENT_DIR})
     set_property(TARGET chess-engine-lib-pgo-gen PROPERTY CXX_STANDARD 23)
+    if (CLANG_CL)
+        set_property(TARGET chess-engine-lib-pgo-gen PROPERTY
+          MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
     target_compile_options(chess-engine-lib-pgo-gen PRIVATE -fprofile-generate)
 
     # == Library for profile use ==
     add_library(chess-engine-lib-pgo STATIC ${CHESS_ENGINE_LIB_SOURCES})
     target_include_directories(chess-engine-lib-pgo PUBLIC ${PARENT_DIR})
     set_property(TARGET chess-engine-lib-pgo PROPERTY CXX_STANDARD 23)
-    target_compile_options(chess-engine-lib-pgo PRIVATE -fprofile-use=$<TARGET_FILE_DIR:chess-engine-lib-pgo-gen>/../euwe.profdata)
-
-    # On windows, statically link the runtime libraries.
     if (CLANG_CL)
-        set_property(TARGET chess-engine-lib-pgo-gen PROPERTY
-          MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         set_property(TARGET chess-engine-lib-pgo PROPERTY
           MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
+    target_compile_options(chess-engine-lib-pgo
+        PRIVATE -fprofile-use=$<TARGET_FILE_DIR:chess-engine-lib-pgo-gen>/../euwe.profdata)
 endif()
