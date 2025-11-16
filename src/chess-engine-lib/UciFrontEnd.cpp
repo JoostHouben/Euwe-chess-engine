@@ -780,14 +780,20 @@ void UciFrontEnd::Impl::handleStopBench() {
         return;
     }
 
+    const float nps             = benchmarkStatistics_->nodesPerSecond;
+    const std::string npsString = nps > 1e9 ? std::format("{:.2f} Gn/s", nps / 1e9)
+                                : nps > 1e6 ? std::format("{:.2f} Mn/s", nps / 1e6)
+                                : nps > 1e3 ? std::format("{:.2f} kn/s", nps / 1e3)
+                                            : std::format("{:.0f} n/s", nps);
+
     writeNonUci(
             "== Benchmark finished ==\n"
             "Total nodes searched: {}\n"
             "Time elapsed: {:%T}\n"
-            "Nodes per second: {}",
+            "Search speed: {}",
             benchmarkStatistics_->normalNodesSearched + benchmarkStatistics_->qNodesSearched,
             benchmarkStatistics_->timeElapsed,
-            (int)std::round(benchmarkStatistics_->nodesPerSecond));
+            npsString);
 
     benchmarkStatistics_ = std::nullopt;
 }
