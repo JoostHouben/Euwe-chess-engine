@@ -107,6 +107,9 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/O2 /Ob2 /DNDEBUG")
 endif()
 
+#add_compile_options(-fprofile-generate)
+#add_compile_options(-fprofile-use=C:/Git/Euwe-chess-engine/euwe.profdata)
+
 enable_testing()
 
 # Include sub-projects.
