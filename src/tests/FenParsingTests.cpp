@@ -148,9 +148,16 @@ TEST(FenParsing, CastlingRights) {
 }
 
 TEST(FenParsing, EnPassantTarget) {
-    std::string enPassantFen = "rnbqkbnr/1ppppppp/8/p7/8/8/PPPPPPPP/RNBQKBNR w KQkq a3 0 1";
-    GameState gameState      = GameState::fromFen(enPassantFen);
-    EXPECT_EQ(gameState.getEnPassantTarget(), BoardPosition::A3);
+    {
+        std::string invalidEnPassantFen = "1qr3k1/6p1/p3p3/3nPp1Q/P6R/7P/3B2PK/8 w - f6 0 32";
+        GameState gameState             = GameState::fromFen(invalidEnPassantFen);
+        EXPECT_EQ(gameState.getEnPassantTarget(), BoardPosition::Invalid);
+    }
+    {
+        std::string enPassantFen = "rnbqkbnr/1ppppppp/8/pP6/8/8/P1PPPPPP/RNBQKBNR w KQkq a6 0 1";
+        GameState gameState      = GameState::fromFen(enPassantFen);
+        EXPECT_EQ(gameState.getEnPassantTarget(), BoardPosition::A6);
+    }
 }
 
 TEST(FenParsing, HalfMoveClock) {
