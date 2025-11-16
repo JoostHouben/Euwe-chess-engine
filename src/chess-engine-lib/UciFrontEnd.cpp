@@ -134,6 +134,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleFen() const;
     void handleStartBench();
     void handleStopBench();
+    void handleBench();
 
     void stopSearchIfNeeded();
 
@@ -275,6 +276,8 @@ void UciFrontEnd::Impl::run() {
             handleStartBench();
         } else if (command == "stopbench") {
             handleStopBench();
+        } else if (command == "bench") {
+            handleBench();
         } else if (command.empty()) {
             continue;
         } else {
@@ -785,6 +788,26 @@ void UciFrontEnd::Impl::handleStopBench() {
             (int)std::round(benchmarkStatistics_->nodesPerSecond));
 
     benchmarkStatistics_ = std::nullopt;
+}
+
+void UciFrontEnd::Impl::handleBench() {
+    // TODO: add sub-commands for:
+    //  - a 'small' bench; useful for slow debug builds
+    //  - a timed bench, using time management instead of fixed depth/nodes
+
+    // TODO: find a good set of positions and depths for the bench.
+    std::array benchCommands = {
+            "startbench",
+
+            "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+            "go depth 15",
+
+            "stopbench",
+    };
+
+    for (const auto& benchCommand : benchCommands | std::views::reverse) {
+        pushProgrammaticCommand(benchCommand);
+    }
 }
 
 void UciFrontEnd::Impl::stopSearchIfNeeded() {
