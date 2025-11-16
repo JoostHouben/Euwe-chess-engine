@@ -12,14 +12,11 @@
 #define ENSURE_ASSERT_BREAKS (void)0
 #endif
 
-// NOLINTNEXTLINE(clang-analyzer-core.NullDereference)
-#define FAIL_IN_CONSTEVAL *static_cast<int*>(nullptr) = 0
-
 #define ASSUME(condition)           \
     do {                            \
         if consteval {              \
             if (!(condition)) {     \
-                FAIL_IN_CONSTEVAL;  \
+                std::abort();       \
             }                       \
         } else {                    \
             if (!(condition)) {     \
@@ -29,19 +26,16 @@
     } while (0)
 
 #ifndef NDEBUG
-#define MY_ASSERT(condition)       \
-    do {                           \
-        if consteval {             \
-            if (!(condition)) {    \
-                FAIL_IN_CONSTEVAL; \
-            }                      \
-        } else {                   \
-            ENSURE_ASSERT_BREAKS;  \
-            assert(condition);     \
-        }                          \
-        if (!(condition)) {        \
-            std::abort();          \
-        }                          \
+#define MY_ASSERT(condition)      \
+    do {                          \
+        if consteval {            \
+            if (!(condition)) {   \
+                std::abort();     \
+            }                     \
+        } else {                  \
+            ENSURE_ASSERT_BREAKS; \
+            assert(condition);    \
+        }                         \
     } while (0)
 #else
 #define MY_ASSERT(condition) ASSUME(condition)
