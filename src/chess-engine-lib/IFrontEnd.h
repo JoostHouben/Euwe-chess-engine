@@ -15,6 +15,13 @@ class IFrontEnd {
     // Run in a loop, handling commands and sending them to the engine.
     virtual void run() = 0;
 
+    // Programmatically add a command to be processed by the front end.
+    // Programmatic commands are processed before any (further) user input is processed.
+    // The command is pushed to the top of the command stack, so it will be processed next.
+    // If you want to add multiple programmatic commands to be processed in order, you need to
+    // push them in reverse order.
+    virtual void pushProgrammaticCommand(std::string_view command) = 0;
+
     // Used by the engine to report to the front end that the search has started and that
     // further commands can now be processed.
     virtual void reportSearchHasStarted() = 0;

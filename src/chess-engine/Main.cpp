@@ -1,11 +1,17 @@
 #include "chess-engine-lib/Engine.h"
-#include "chess-engine-lib/Math.h"
+#include "chess-engine-lib/GameState.h"
 #include "chess-engine-lib/Perft.h"
 #include "chess-engine-lib/UciFrontEnd.h"
 
+#include <deque>
+#include <exception>
 #include <iostream>
+#include <locale>
 #include <print>
+#include <string>
 #include <typeinfo>
+
+namespace {
 
 void runPerft() {
     GameState gameState = GameState::startingPosition();
@@ -14,16 +20,34 @@ void runPerft() {
     perftPrint(gameState, 7, true);
 }
 
-int main() try {
+const std::string kEngineName = "programmatic-command";
+
+}  // namespace
+
+int main(int argc, char** argv) try {
     std::locale::global(std::locale("en_US.UTF-8"));
+
+    std::deque<std::string> extraArgs(argv + 1, argv + argc);
 
     while (true) {
         std::string command;
-        std::cin >> command;
+
+        if (!extraArgs.empty()) {
+            command = extraArgs.front();
+            extraArgs.pop_front();
+        } else {
+            std::cin >> command;
+        }
 
         if (command == "uci") {
             Engine engine;
-            UciFrontEnd uciFrontEnd(engine, "vs-2026");
+            UciFrontEnd uciFrontEnd(engine, kEngineName);
+
+            while (!extraArgs.empty()) {
+                uciFrontEnd.pushProgrammaticCommand(extraArgs.back());
+                extraArgs.pop_back();
+            }
+
             uciFrontEnd.run();
             break;
         } else if (command == "perft") {
