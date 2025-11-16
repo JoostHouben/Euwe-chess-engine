@@ -127,10 +127,11 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleRegister() const;
     void handleSetOption(const std::string& line);
 
-    // Non-UCI commands
+    // Non-standard extensions to UCI
     void handleEval() const;
     void handleListMoves() const;
     void handleHash() const;
+    void handleFen() const;
 
     void stopSearchIfNeeded();
 
@@ -252,6 +253,8 @@ void UciFrontEnd::Impl::run() {
             handleListMoves();
         } else if (command == "hash") {
             handleHash();
+        } else if (command == "fen") {
+            handleFen();
         } else if (command.empty()) {
             continue;
         } else {
@@ -716,7 +719,7 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 void UciFrontEnd::Impl::handleEval() const {
     StackOfVectors<Move> stack;
     const EvalT eval = engine_.evaluate(gameState_);
-    writeDebug("Eval: {:+}", (float)eval / 100);
+    writeDebug("Eval: {:+} ({})", (float)eval / 100, scoreToString(eval));
 }
 
 void UciFrontEnd::Impl::handleListMoves() const {
@@ -728,7 +731,12 @@ void UciFrontEnd::Impl::handleListMoves() const {
 
 void UciFrontEnd::Impl::handleHash() const {
     const auto hash = gameState_.getBoardHash();
-    writeDebug("Hash: {:016x}", hash);
+    writeDebug("Hash: 0x{:016x}", hash);
+}
+
+void UciFrontEnd::Impl::handleFen() const {
+    const std::string fen = gameState_.toFen();
+    writeDebug("FEN: {}", fen);
 }
 
 void UciFrontEnd::Impl::stopSearchIfNeeded() {
