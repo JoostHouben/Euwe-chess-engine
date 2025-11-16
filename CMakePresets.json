@@ -16,7 +16,7 @@
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "TARGETS_TO_BUILD": "engine;tests;tuner",
-        "ENABLE_PGO": "FALSE"
+        "USE_PGO": "FALSE"
       }
     },
 
@@ -125,7 +125,7 @@
       "displayName": "Windows clang-cl PGO",
       "inherits": "windows-clang-cl-release",
       "cacheVariables": {
-        "ENABLE_PGO": "TRUE",
+        "USE_PGO": "TRUE",
         "PROFDATA_CMD": "llvm-profdata.exe"
       }
     },
@@ -151,7 +151,7 @@
       "displayName": "Linux clang PGO",
       "inherits": "linux-clang-release",
       "cacheVariables": {
-        "ENABLE_PGO": "TRUE",
+        "USE_PGO": "TRUE",
         "PROFDATA_CMD": "llvm-profdata-20"
       }
     },

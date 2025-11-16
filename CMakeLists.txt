@@ -63,6 +63,10 @@ else()
     endif()
 endif()
 
+if (USE_PGO AND NOT (CLANG_CL OR CLANG_ACTUAL))
+    message(FATAL_ERROR "PGO is only supported with Clang / clang-cl compilers")
+endif()
+
 # Set warnings, and treat them as errors
 if (MSVC)
     add_compile_options(/W4 /WX)

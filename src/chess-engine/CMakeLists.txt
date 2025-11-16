@@ -1,16 +1,18 @@
-# == Standard target ==
+if (NOT USE_PGO)
 
-add_executable(Euwe "Main.cpp")
-# C++23 standard
-set_property(TARGET Euwe PROPERTY CXX_STANDARD 23)
-# Statically link the runtime libraries.
-set_property(TARGET Euwe PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-# Link the statically linked runtime version of the chess engine library.
-target_link_libraries(Euwe chess-engine-lib-stat-crt)
+	# == Standard target ==
 
-## == PGO targets ==
-if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
+	add_executable(Euwe "Main.cpp")
+	# C++23 standard
+	set_property(TARGET Euwe PROPERTY CXX_STANDARD 23)
+	# Statically link the runtime libraries.
+	set_property(TARGET Euwe PROPERTY
+	  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	# Link the statically linked runtime version of the chess engine library.
+	target_link_libraries(Euwe chess-engine-lib-stat-crt)
+
+else() # USE_PGO
+
 	# == Profile generation target ==
 
 	add_executable(Euwe-ProfileGen "Main.cpp")
@@ -40,17 +42,18 @@ if (ENABLE_PGO AND (GCC_LIKE OR CLANG_CL))
 		COMMENT "Merging PGO data into euwe.profdata"
 	)
 
-	# == Profile use target ==
+	# == PGO-optimized target ==
 
-	add_executable(Euwe-PGO "Main.cpp")
-	add_dependencies(Euwe-PGO Euwe-PGO-Merge)
+	add_executable(Euwe "Main.cpp")
+	add_dependencies(Euwe Euwe-PGO-Merge)
 	# C++23 standard
-	set_property(TARGET Euwe-PGO PROPERTY CXX_STANDARD 23)
+	set_property(TARGET Euwe PROPERTY CXX_STANDARD 23)
 	# Statically link the runtime libraries.
-	set_property(TARGET Euwe-PGO PROPERTY
+	set_property(TARGET Euwe PROPERTY
 	  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-	target_link_libraries(Euwe-PGO chess-engine-lib-pgo)
+	target_link_libraries(Euwe chess-engine-lib-pgo)
 
-	target_compile_options(Euwe-PGO
+	target_compile_options(Euwe
 		PRIVATE -fprofile-use=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profdata)
+
 endif()
