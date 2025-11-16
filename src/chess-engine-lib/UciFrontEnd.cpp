@@ -132,6 +132,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleListMoves() const;
     void handleHash() const;
     void handleFen() const;
+    void handleBoard() const;
     void handleStartBench();
     void handleStopBench();
     void handleBench();
@@ -275,6 +276,8 @@ void UciFrontEnd::Impl::run() {
             handleHash();
         } else if (command == "fen") {
             handleFen();
+        } else if (command == "board") {
+            handleBoard();
         } else if (command == "startbench") {
             handleStartBench();
         } else if (command == "stopbench") {
@@ -498,7 +501,7 @@ void UciFrontEnd::Impl::handlePosition(std::stringstream& lineSStream) {
 
     if (debugMode_) {
         writeDebug("FEN: {}", gameState_.toFen());
-        writeDebugNonUci("Position:\n{}", gameState_.toVisualString());
+        writeDebugNonUci("Board:\n{}", gameState_.toVisualString());
     }
 }
 
@@ -761,13 +764,15 @@ void UciFrontEnd::Impl::handleListMoves() const {
 }
 
 void UciFrontEnd::Impl::handleHash() const {
-    const auto hash = gameState_.getBoardHash();
-    writeUciExtension("Hash: 0x{:016x}", hash);
+    writeUciExtension("Hash: 0x{:016x}", gameState_.getBoardHash());
 }
 
 void UciFrontEnd::Impl::handleFen() const {
-    const std::string fen = gameState_.toFen();
-    writeUciExtension("FEN: {}", fen);
+    writeUciExtension("FEN: {}", gameState_.toFen());
+}
+
+void UciFrontEnd::Impl::handleBoard() const {
+    writeUciExtension("{}", gameState_.toVisualString());
 }
 
 void UciFrontEnd::Impl::handleStartBench() {
