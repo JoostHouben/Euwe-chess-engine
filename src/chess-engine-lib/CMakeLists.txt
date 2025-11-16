@@ -17,6 +17,7 @@ set(
     "Perft.cpp"
     "Piece.cpp"
     "PieceControl.cpp"
+    "SearchStatistics.cpp"
     "SEE.cpp"
     "Side.cpp"
     "Syzygy.cpp"

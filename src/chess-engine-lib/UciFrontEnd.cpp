@@ -132,6 +132,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleListMoves() const;
     void handleHash() const;
     void handleFen() const;
+    void handleStartBench();
+    void handleStopBench();
 
     void stopSearchIfNeeded();
 
@@ -143,15 +145,27 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     void reportSearchInfo(const SearchInfo& searchInfo) const;
 
+    // Report error over UCI protocol.
     template <typename... Args>
     void reportError(std::format_string<Args...> fmt, Args&&... args) const;
 
+    // Write UCI-compliant output.
     template <typename... Args>
     void writeUci(std::format_string<Args...> fmt, Args&&... args) const;
 
+    // Write output that is not UCI-compliant.
+    // The output will be written to the main output stream (same as UCI-compliant output).
+    // This should only be done if the user has triggered a non-standard command.
+    // In console mode, the output will be colored as debug output.
+    template <typename... Args>
+    void writeNonUci(std::format_string<Args...> fmt, Args&&... args) const;
+
+    // Write a debug message. If UCI debug mode is on, the message is sent over the UCI protocol.
+    // Otherwise, it is written to the debug output stream.
     template <typename... Args>
     void writeDebug(std::format_string<Args...> fmt, Args&&... args) const;
 
+    // Write a debug message directly to the debug output stream, bypassing UCI debug mode.
     template <typename... Args>
     void writeDebugNonUci(std::format_string<Args...> fmt, Args&&... args) const;
 
@@ -174,6 +188,8 @@ class UciFrontEnd::Impl final : public IFrontEnd {
 
     std::atomic<bool> searchHasStarted_{false};
     std::future<void> goFuture_;
+
+    std::optional<SearchStatistics> benchmarkStatistics_ = std::nullopt;
 };
 
 UciFrontEnd::Impl::Impl(
@@ -255,6 +271,10 @@ void UciFrontEnd::Impl::run() {
             handleHash();
         } else if (command == "fen") {
             handleFen();
+        } else if (command == "startbench") {
+            handleStartBench();
+        } else if (command == "stopbench") {
+            handleStopBench();
         } else if (command.empty()) {
             continue;
         } else {
@@ -599,6 +619,10 @@ void UciFrontEnd::Impl::handleGo(std::stringstream& lineSStream) {
 
             writeUci("bestmove {}", searchInfo.result.principalVariation[0].toUci());
             std::flush(out_);
+
+            if (benchmarkStatistics_) {
+                *benchmarkStatistics_ += searchInfo.statistics;
+            }
         } catch (const std::exception& e) {
             reportError(e.what());
         }
@@ -719,24 +743,48 @@ void UciFrontEnd::Impl::handleSetOption(const std::string& line) {
 void UciFrontEnd::Impl::handleEval() const {
     StackOfVectors<Move> stack;
     const EvalT eval = engine_.evaluate(gameState_);
-    writeDebug("Eval: {:+} ({})", (float)eval / 100, scoreToString(eval));
+    writeNonUci("Eval: {:+} ({})", (float)eval / 100, scoreToString(eval));
 }
 
 void UciFrontEnd::Impl::handleListMoves() const {
     StackOfVectors<Move> stack;
     const auto moves = gameState_.generateMoves(stack);
     std::vector<Move> movesVector(moves.begin(), moves.end());
-    writeDebug("Moves: {}", moveListToString(movesVector));
+    writeNonUci("Moves: {}", moveListToString(movesVector));
 }
 
 void UciFrontEnd::Impl::handleHash() const {
     const auto hash = gameState_.getBoardHash();
-    writeDebug("Hash: 0x{:016x}", hash);
+    writeNonUci("Hash: 0x{:016x}", hash);
 }
 
 void UciFrontEnd::Impl::handleFen() const {
     const std::string fen = gameState_.toFen();
-    writeDebug("FEN: {}", fen);
+    writeNonUci("FEN: {}", fen);
+}
+
+void UciFrontEnd::Impl::handleStartBench() {
+    benchmarkStatistics_ = SearchStatistics{};
+}
+
+void UciFrontEnd::Impl::handleStopBench() {
+    waitForGoToComplete();
+
+    if (!benchmarkStatistics_.has_value()) {
+        reportError("No benchmark in progress.");
+        return;
+    }
+
+    writeNonUci(
+            "== Benchmark finished ==\n"
+            "Total nodes searched: {}\n"
+            "Time elapsed: {:%T}\n"
+            "Nodes per second: {}",
+            benchmarkStatistics_->normalNodesSearched + benchmarkStatistics_->qNodesSearched,
+            benchmarkStatistics_->timeElapsed,
+            (int)std::round(benchmarkStatistics_->nodesPerSecond));
+
+    benchmarkStatistics_ = std::nullopt;
 }
 
 void UciFrontEnd::Impl::stopSearchIfNeeded() {
@@ -863,12 +911,23 @@ void UciFrontEnd::Impl::writeUci(const std::format_string<Args...> fmt, Args&&..
 }
 
 template <typename... Args>
+void UciFrontEnd::Impl::writeNonUci(const std::format_string<Args...> fmt, Args&&... args) const {
+    // Color as debug output.
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, out_);
+
+    // But write to main output stream.
+    std::println(out_, fmt, std::forward<Args>(args)...);
+}
+
+template <typename... Args>
 void UciFrontEnd::Impl::writeDebug(const std::format_string<Args...> fmt, Args&&... args) const {
+    // Color as debug output regardless of which stream we write to.
+    ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, out_);
     if (debugMode_) {
-        ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, out_);
+        // In debug mode, write over UCI protocol.
         std::println(out_, "info string {}", std::format(fmt, std::forward<Args>(args)...));
     } else {
-        ScopedConsoleColor scopedConsoleColor(ConsoleColor::Yellow, debug_);
+        // Otherwise, write to debug output stream.
         std::println(debug_, "[DEBUG] {}", std::format(fmt, std::forward<Args>(args)...));
     }
 }
