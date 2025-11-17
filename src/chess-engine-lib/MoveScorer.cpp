@@ -145,7 +145,7 @@ void MoveScorer::prepareForNewSearch(const GameState& gameState) {
     const int newHalfMoveClock = gameState.getHalfMoveClock();
     if (newHalfMoveClock < moveClockForKillerMoves_
         || newHalfMoveClock > moveClockForKillerMoves_ + 2) {
-        newGame();
+        killerMoves_             = {};
         moveClockForKillerMoves_ = newHalfMoveClock;
     } else if (newHalfMoveClock != moveClockForKillerMoves_) {
         shiftKillerMoves(newHalfMoveClock);
