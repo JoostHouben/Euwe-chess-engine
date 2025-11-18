@@ -900,16 +900,16 @@ void GameState::handlePawnMove(const Move& move) {
 
     // Double pawn push
     if (std::abs(fromRank - toRank) == 2) {
-        setEnPassantTarget(move);
+        setEnPassantTargetIfValid(move, sideToMove_);
     }
 }
 
-FORCE_INLINE void GameState::setEnPassantTarget(const Move& move) {
+FORCE_INLINE void GameState::setEnPassantTargetIfValid(const Move& move, const Side sideThatMoved) {
     const std::uint64_t toMask = (std::uint64_t)1 << (int)move.to;
     const std::uint64_t neighborMask =
             (toMask & kNotWestFileMask) >> 1 | (toMask & kNotEastFileMask) << 1;
 
-    const BitBoard& opponentPawns = getPieceBitBoard(nextSide(sideToMove_), Piece::Pawn);
+    const BitBoard& opponentPawns = getPieceBitBoard(nextSide(sideThatMoved), Piece::Pawn);
 
     const bool pawnAttacksEnPassantSquare =
             (opponentPawns & (BitBoard)neighborMask) != BitBoard::Empty;
@@ -923,20 +923,20 @@ FORCE_INLINE void GameState::setEnPassantTarget(const Move& move) {
 
     const BoardPosition enPassantTarget = positionFromFileRank(fromFile, (fromRank + toRank) / 2);
 
-    if (enPassantWillPutUsInCheck(enPassantTarget, nextSide(sideToMove_))) {
+    if (enPassantWillPutUsInCheck(enPassantTarget, nextSide(sideThatMoved))) {
         return;
     }
 
-    const BitBoard kingBitBoard = getPieceBitBoard(nextSide(sideToMove_), Piece::King);
+    const BitBoard kingBitBoard = getPieceBitBoard(nextSide(sideThatMoved), Piece::King);
 
     const BitBoard rookAttacksFromKing =
             getRookAttack(getFirstSetPosition(kingBitBoard), getAnyOccupancy());
     const BitBoard bishopAttacksFromKing =
             getBishopAttack(getFirstSetPosition(kingBitBoard), getAnyOccupancy());
-    const BitBoard checkingSideRooksOrQueens = getPieceBitBoard(sideToMove_, Piece::Rook)
-                                             | getPieceBitBoard(sideToMove_, Piece::Queen);
-    const BitBoard checkingSideBishopsOrQueens = getPieceBitBoard(sideToMove_, Piece::Bishop)
-                                               | getPieceBitBoard(sideToMove_, Piece::Queen);
+    const BitBoard checkingSideRooksOrQueens = getPieceBitBoard(sideThatMoved, Piece::Rook)
+                                             | getPieceBitBoard(sideThatMoved, Piece::Queen);
+    const BitBoard checkingSideBishopsOrQueens = getPieceBitBoard(sideThatMoved, Piece::Bishop)
+                                               | getPieceBitBoard(sideThatMoved, Piece::Queen);
     const bool doublePushUncoveredCheck =
             ((rookAttacksFromKing & checkingSideRooksOrQueens) != BitBoard::Empty)
             || ((bishopAttacksFromKing & checkingSideBishopsOrQueens) != BitBoard::Empty);
@@ -949,6 +949,31 @@ FORCE_INLINE void GameState::setEnPassantTarget(const Move& move) {
 
     enPassantTarget_ = enPassantTarget;
     updateHashForEnPassantFile(fromFile, boardHash_);
+}
+
+void GameState::setEnPassantTargetIfValid(const BoardPosition target, const Side sideThatMoved) {
+    if (target == BoardPosition::Invalid) {
+        return;
+    }
+
+    const auto [file, rank] = fileRankFromPosition(target);
+    if ((sideThatMoved == Side::Black && rank != 5)
+        || (sideThatMoved == Side::White && rank != 2)) {
+        return;
+    }
+
+    // Synthesize the move that would have created this en passant target so that we can re-use the
+    // logic for setting the en passant target during normal play.
+    const int fromRank                 = (sideThatMoved == Side::White) ? 1 : 6;
+    const int toRank                   = (sideThatMoved == Side::White) ? 3 : 4;
+    const Move syntheticDoublePushMove = Move{
+            .pieceToMove = Piece::Pawn,
+            .from        = positionFromFileRank(file, fromRank),
+            .to          = positionFromFileRank(file, toRank),
+            .flags       = MoveFlags::None,
+    };
+
+    setEnPassantTargetIfValid(syntheticDoublePushMove, sideThatMoved);
 }
 
 void GameState::handleNormalKingMove(const Move& move) {

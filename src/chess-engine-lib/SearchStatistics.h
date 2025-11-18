@@ -15,4 +15,7 @@ struct SearchStatistics {
 
     std::chrono::milliseconds timeElapsed{};
     float nodesPerSecond = 0.0f;
+
+    SearchStatistics& operator+=(const SearchStatistics& other);
+    SearchStatistics operator+(const SearchStatistics& other) const;
 };

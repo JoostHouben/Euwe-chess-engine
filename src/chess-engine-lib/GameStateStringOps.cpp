@@ -1,12 +1,24 @@
 #include "GameState.h"
 
-#include "MyAssert.h"
+#include "BitBoard.h"
+#include "BoardConstants.h"
+#include "BoardHash.h"
+#include "BoardPosition.h"
+#include "Piece.h"
+#include "Side.h"
 
+#include <array>
 #include <charconv>
+#include <format>
+#include <optional>
+#include <ostream>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <system_error>
 
-#include <cstdlib>
+#include <cstdint>
 
 namespace {
 
@@ -369,7 +381,7 @@ GameState GameState::fromFen(std::string_view fenString) {
     parseCastlingRightsFromFen(strIt, endIt, gameState.castlingRights_);
     advanceWordEnd();
 
-    gameState.enPassantTarget_ = parseEnPassantTargetFromFen(strIt, endIt);
+    const BoardPosition enPassantTarget = parseEnPassantTargetFromFen(strIt, endIt);
     advanceWordEnd(/*allowEnd =*/true);
 
     gameState.plySinceCaptureOrPawn_ = parsePlySinceCaptureOrPawnFromFen(strIt, endIt);
@@ -385,6 +397,9 @@ GameState GameState::fromFen(std::string_view fenString) {
     }
 
     gameState.occupancy_ = getPieceOccupancyBitBoards(boardConfig);
+
+    gameState.setEnPassantTargetIfValid(
+            enPassantTarget, /*sideThatMoved*/ nextSide(gameState.sideToMove_));
 
     gameState.boardHash_    = computeBoardHash(gameState);
     gameState.pawnKingHash_ = computePawnKingHash(gameState);
@@ -479,7 +494,8 @@ std::string GameState::toVisualString() const {
             ss << '|';
         }
 
-        if (rank == 0) {
+        if ((rank == 0 && sideToMove_ == Side::White)
+            || (rank == 7 && sideToMove_ == Side::Black)) {
             ss << " " << toFenChar(sideToMove_);
         }
 

@@ -249,7 +249,8 @@ class GameState {
     void makeCastleMove(const Move& move, bool reverse = false);
     [[nodiscard]] Piece makeSinglePieceMove(const Move& move);
     void handlePawnMove(const Move& move);
-    void setEnPassantTarget(const Move& move);
+    void setEnPassantTargetIfValid(const Move& move, Side sideThatMoved);
+    void setEnPassantTargetIfValid(BoardPosition target, Side sideThatMoved);
     void handleNormalKingMove(const Move& move);
     void updateRookCastlingRights(BoardPosition rookPosition, Side rookSide);
 
