@@ -143,13 +143,11 @@ void MoveScorer::newGame() {
 
 void MoveScorer::prepareForNewSearch(const GameState& gameState) {
     const int newHalfMoveClock = gameState.getHalfMoveClock();
-    if (newHalfMoveClock < moveClockForKillerMoves_
-        || newHalfMoveClock > moveClockForKillerMoves_ + 2) {
-        killerMoves_             = {};
-        moveClockForKillerMoves_ = newHalfMoveClock;
-    } else if (newHalfMoveClock != moveClockForKillerMoves_) {
+    if (newHalfMoveClock > moveClockForKillerMoves_
+        && newHalfMoveClock <= moveClockForKillerMoves_ + 2) {
         shiftKillerMoves(newHalfMoveClock);
     }
+    moveClockForKillerMoves_ = newHalfMoveClock;
 }
 
 void MoveScorer::resetCutoffStatistics() {
@@ -336,8 +334,6 @@ void MoveScorer::shiftKillerMoves(const int halfMoveClock) {
     for (int ply = 0; ply < kMaxSearchDepth - shiftAmount; ++ply) {
         killerMoves_[ply] = killerMoves_[(std::size_t)ply + shiftAmount];
     }
-
-    moveClockForKillerMoves_ = halfMoveClock;
 }
 
 void MoveScorer::initializeHistoryFromPieceSquare() {
