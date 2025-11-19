@@ -1,5 +1,6 @@
 set(
     CHESS_ENGINE_LIB_SOURCES
+    "Bench.cpp"
     "BitBoard.cpp"
     "BoardHash.cpp"
     "ConsoleColor.cpp"

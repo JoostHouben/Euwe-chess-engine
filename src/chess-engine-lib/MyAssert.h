@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdexcept>
 #include <utility>
 
 #include <cassert>
@@ -38,7 +37,7 @@
 #define UNREACHABLE                            \
     do {                                       \
         constexpr bool IS_UNREACHABLE = false; \
-        MY_ASSERT(IS_UNREACHABLE);             \
+        assert(IS_UNREACHABLE);                \
         std::abort();                          \
     } while (0)
 #else
