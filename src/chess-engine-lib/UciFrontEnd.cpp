@@ -136,7 +136,7 @@ class UciFrontEnd::Impl final : public IFrontEnd {
     void handleBoard() const;
     void handleStartBench();
     void handleStopBench();
-    void handleBench();
+    void handleBench(std::stringstream& lineSStream);
 
     void stopSearchIfNeeded();
 
@@ -284,7 +284,7 @@ void UciFrontEnd::Impl::run() {
         } else if (command == "stopbench") {
             handleStopBench();
         } else if (command == "bench") {
-            handleBench();
+            handleBench(lineSStream);
         }
         // Edge cases
         else if (command.empty()) {
@@ -813,12 +813,23 @@ void UciFrontEnd::Impl::handleStopBench() {
     benchmarkStatistics_ = std::nullopt;
 }
 
-void UciFrontEnd::Impl::handleBench() {
+void UciFrontEnd::Impl::handleBench(std::stringstream& lineSStream) {
     // TODO: add sub-commands for:
-    //  - a 'small' bench; useful for slow debug builds
     //  - a timed bench, using time management instead of fixed depth/nodes
 
-    const auto benchCommands = getBenchCommands();
+    bool useSmallBench = false;
+
+    std::string token;
+    while (lineSStream >> token) {
+        if (token == "small") {
+            useSmallBench = true;
+        } else if (!token.empty()) {
+            writeError("Unknown bench parameter: '{}'", token);
+            return;
+        }
+    }
+
+    const auto benchCommands = getBenchCommands(useSmallBench);
     for (const auto& benchCommand : std::views::reverse(benchCommands)) {
         pushProgrammaticCommand(benchCommand);
     }

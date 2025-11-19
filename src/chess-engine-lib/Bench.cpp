@@ -1,7 +1,6 @@
 #include "Bench.h"
 
-#include "MyAssert.h"
-
+#include <format>
 #include <string>
 #include <vector>
 
@@ -119,8 +118,10 @@ std::vector<std::string> getBenchPositions() {
 
 }  // namespace
 
-std::vector<std::string> getBenchCommands() {
+std::vector<std::string> getBenchCommands(const bool useSmallBench) {
     const std::vector<std::string> positions = getBenchPositions();
+
+    const std::string goCommand = std::format("go depth {}", useSmallBench ? 8 : 14);
 
     std::vector<std::string> benchCommands;
 
@@ -128,7 +129,7 @@ std::vector<std::string> getBenchCommands() {
     for (const auto& position : positions) {
         benchCommands.push_back(position);
         benchCommands.push_back("fen");
-        benchCommands.push_back("go depth 14");
+        benchCommands.push_back(goCommand);
     }
     benchCommands.push_back("stopbench");
 

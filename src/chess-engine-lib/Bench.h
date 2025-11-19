@@ -3,4 +3,4 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> getBenchCommands();
+std::vector<std::string> getBenchCommands(bool useSmallBench);
