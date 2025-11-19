@@ -814,22 +814,23 @@ void UciFrontEnd::Impl::handleStopBench() {
 }
 
 void UciFrontEnd::Impl::handleBench(std::stringstream& lineSStream) {
-    // TODO: add sub-commands for:
-    //  - a timed bench, using time management instead of fixed depth/nodes
-
-    bool useSmallBench = false;
+    BenchSearchDepth benchSearchDepth = BenchSearchDepth::Deep;
 
     std::string token;
     while (lineSStream >> token) {
-        if (token == "small") {
-            useSmallBench = true;
+        if (token == "big") {
+            benchSearchDepth = BenchSearchDepth::Deep;
+        } else if (token == "small") {
+            benchSearchDepth = BenchSearchDepth::Shallow;
+        } else if (token == "timecontrol") {
+            benchSearchDepth = BenchSearchDepth::TimeControl;
         } else if (!token.empty()) {
             writeError("Unknown bench parameter: '{}'", token);
             return;
         }
     }
 
-    const auto benchCommands = getBenchCommands(useSmallBench);
+    const auto benchCommands = getBenchCommands(benchSearchDepth);
     for (const auto& benchCommand : std::views::reverse(benchCommands)) {
         pushProgrammaticCommand(benchCommand);
     }

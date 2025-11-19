@@ -1,5 +1,7 @@
 #include "Bench.h"
 
+#include "MyAssert.h"
+
 #include <format>
 #include <string>
 #include <vector>
@@ -116,12 +118,24 @@ std::vector<std::string> getBenchPositions() {
 
 //NOLINTEND(bugprone-suspicious-missing-comma)
 
+std::string getGoCommand(const BenchSearchDepth benchSearchDepth) {
+    switch (benchSearchDepth) {
+        case BenchSearchDepth::Deep:
+            return "go depth 14";
+        case BenchSearchDepth::Shallow:
+            return "go depth 9";
+        case BenchSearchDepth::TimeControl:
+            return "go wtime 6000 winc 600 btime 6000 binc 600";
+    }
+    UNREACHABLE;
+}
+
 }  // namespace
 
-std::vector<std::string> getBenchCommands(const bool useSmallBench) {
+std::vector<std::string> getBenchCommands(const BenchSearchDepth benchSearchDepth) {
     const std::vector<std::string> positions = getBenchPositions();
 
-    const std::string goCommand = std::format("go depth {}", useSmallBench ? 8 : 14);
+    const std::string goCommand = getGoCommand(benchSearchDepth);
 
     std::vector<std::string> benchCommands;
 

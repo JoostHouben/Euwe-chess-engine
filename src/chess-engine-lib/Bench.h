@@ -3,4 +3,10 @@
 #include <string>
 #include <vector>
 
-std::vector<std::string> getBenchCommands(bool useSmallBench);
+enum class BenchSearchDepth {
+    Deep,
+    Shallow,
+    TimeControl,
+};
+
+std::vector<std::string> getBenchCommands(BenchSearchDepth benchSearchDepth);
