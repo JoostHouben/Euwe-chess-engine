@@ -159,7 +159,7 @@ jobs:
         run: >
           ${{ steps.strings.outputs.engine-build-path }}
           uci
-          "setoption name hash value 1024"
+          "setoption name hash value 128"
           "bench big"
           quit > big_bench.log
 
