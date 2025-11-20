@@ -34,45 +34,54 @@ jobs:
           # Windows MSVC
           - {
               os: windows-2025,
-              preset: windows-msvc-debug
+              preset: windows-msvc-debug,
+              big_bench: false,
             }
 
           # Windows clang-cl
           - {
               os: windows-2025,
-              preset: windows-clang-cl-release
+              preset: windows-clang-cl-release,
+              big_bench: true,
             }
           - {
               os: windows-2025,
-              preset: windows-clang-cl-pgo
+              preset: windows-clang-cl-pgo,
+              big_bench: true,
             }
 
           # Linux clang
           - {
               os: ubuntu-latest,
-              preset: linux-clang-debug
+              preset: linux-clang-debug,
+              big_bench: false,
             }
           - {
               os: ubuntu-latest,
-              preset: linux-clang-release
+              preset: linux-clang-release,
+              big_bench: true,
             }
           - {
               os: ubuntu-latest,
-              preset: linux-clang-pgo
+              preset: linux-clang-pgo,
+              big_bench: true,
             }
 
           # Linux sanitizers
           - {
               os: ubuntu-latest,
-              preset: linux-asan-ubsan
+              preset: linux-asan-ubsan,
+              big_bench: false,
             }
           - {
               os: ubuntu-latest,
-              preset: linux-tsan
+              preset: linux-tsan,
+              big_bench: false,
             }
           - {
               os: ubuntu-latest,
-              preset: linux-msan
+              preset: linux-msan,
+              big_bench: false,
             }
 
     steps:
@@ -136,6 +145,31 @@ jobs:
           configurePresetAdditionalArgs: "['-DTARGETS_TO_BUILD=engine']"
           buildPreset: ${{ matrix.config.preset }}
           buildPresetAdditionalArgs: "['--target', 'Euwe']"
+
+      - name: Run small bench
+        run: >
+          ${{ steps.strings.outputs.engine-build-path }}
+          uci
+          "setoption name hash value 128"
+          "bench small"
+          quit > small_bench.log
+
+      - name: Run big bench
+        if: matrix.config.big_bench == true
+        run: >
+          ${{ steps.strings.outputs.engine-build-path }}
+          uci
+          "setoption name hash value 1024"
+          "bench big"
+          quit > big_bench.log
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: benchmark-results-${{ matrix.config.preset }}
+          path: |
+            small_bench.log
+            big_bench.log
 
       - name: Get fastchess (Linux)
         if: matrix.config.os == 'ubuntu-latest'
@@ -234,3 +268,19 @@ jobs:
           --engine cmd=${{ steps.strings.outputs.engine-build-path }}
           --concurrency=2
           --test noepd=true noponder=true nooption=true numgames=2
+
+  compare_bench_results:
+    name: Compare benchmark results
+    needs: build_and_test
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+  
+      - name: Download benchmark results artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+        with:
+          path: benchmark-results
+
+      - name: Compare benchmark results
+        run: >
+          python3 ./ci/compare-bench-results.py ./benchmark-results
