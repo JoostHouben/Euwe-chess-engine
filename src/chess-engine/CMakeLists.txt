@@ -30,7 +30,13 @@ else() # USE_PGO
 
 	add_custom_target(Euwe-PGO-Collect
 		COMMAND ${CMAKE_COMMAND} -E env LLVM_PROFILE_FILE=$<TARGET_FILE_DIR:Euwe-ProfileGen>/../euwe.profraw
-			$<TARGET_FILE:Euwe-ProfileGen> uci "setoption name hash value 512" "position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1" "go depth 17" isready quit
+			$<TARGET_FILE:Euwe-ProfileGen>
+			uci
+			"setoption name hash value 128"
+			"position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+			"go depth 17"
+			isready
+			quit
 		COMMENT "Running Euwe-ProfileGen to collect PGO data"
 	)
 
