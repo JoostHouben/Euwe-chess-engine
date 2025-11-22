@@ -41,11 +41,6 @@ jobs:
           # Windows clang-cl
           - {
               os: windows-2025,
-              preset: windows-clang-cl-release,
-              big_bench: true,
-            }
-          - {
-              os: windows-2025,
               preset: windows-clang-cl-pgo,
               big_bench: true,
             }
@@ -55,11 +50,6 @@ jobs:
               os: ubuntu-latest,
               preset: linux-clang-debug,
               big_bench: false,
-            }
-          - {
-              os: ubuntu-latest,
-              preset: linux-clang-release,
-              big_bench: true,
             }
           - {
               os: ubuntu-latest,
