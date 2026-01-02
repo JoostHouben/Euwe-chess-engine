@@ -15,7 +15,7 @@ echo Running clang-tidy on $length files
 overall_code=0
 
 for file in $file_list; do
-  clang-tidy-19 $file -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet
+  clang-tidy-21 $file -p out/build/linux-clang-debug/ -warnings-as-errors=* --config-file=ci/.clang-tidy-ci --quiet
   code=$?
   if [ $code -ne 0 ]; then
       overall_code=$code

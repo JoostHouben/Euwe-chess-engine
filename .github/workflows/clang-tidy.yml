@@ -46,13 +46,13 @@ jobs:
         if: matrix.config.os == 'ubuntu-latest'
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-19
+          packages: clang-21
           version: 1
         
       - name: Install clang-tidy
         uses: awalsh128/cache-apt-pkgs-action@5902b33ae29014e6ca012c5d8025d4346556bd40
         with:
-          packages: clang-tidy-19
+          packages: clang-tidy-21
           version: 1
 
       - name: Get CMake
@@ -79,7 +79,7 @@ jobs:
         uses: lukka/run-cmake@af1be47fd7c933593f687731bc6fdbee024d3ff4
         with:
           configurePreset: ${{ matrix.config.preset }}
-          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_C_COMPILER=clang-19', '-DCMAKE_CXX_COMPILER=clang++-19']"
+          configurePresetAdditionalArgs: "['-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_C_COMPILER=clang-21', '-DCMAKE_CXX_COMPILER=clang++-21']"
 
       - name: Run clang-tidy script
         run: |
